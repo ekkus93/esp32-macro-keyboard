@@ -23,943 +23,741 @@
  * colour is never the only indicator — status badges carry a distinct lamp
  * *shape* per state as well as their text; controls stay >= 44px; the layout is
  * single-column and fluid to 320px; focus is always visible.
+ *
+ * Implementation: every rule below is a Tailwind v4 @theme token or an
+ * `@apply` composition of Tailwind utilities, not hand-written property:value
+ * CSS -- @theme is the single source of truth for the palette, radius and
+ * type stack, and it generates real utility classes (bg-shell, text-legend,
+ * rounded-keycap, ...) as well as the custom properties below. Class names
+ * are kept exactly as they were (.app-header, .card, .status-badge, ...) so
+ * every component file's className stays unchanged; what changed is that
+ * each class's definition is now Tailwind-driven instead of raw CSS. The few
+ * declarations that stay as plain CSS are ones Tailwind has no utility for
+ * (pseudo-element `content`, `env(safe-area-inset-*)` calc() paddings) or
+ * where preserving an existing hand-tuned cascade order mattered more than
+ * uniformity (noted inline where that applies).
  */
 
-:root {
+@theme {
   /* Ground and surfaces, as three deliberate tones: the desk the device sits
-     on, the panel resting on it, and the keycap faces raised above that. A cap
-     only reads as raised if it is lighter than what it sits on, so these must
-     stay distinct. */
-  --shell: #e3dfd6;
-  --panel: #f7f5f0;
-  --cap: #fffdf9;
-  --cap-edge: #c0b9ac;
+     on, the panel resting on it, and the keycap faces raised above that. A
+     cap only reads as raised if it is lighter than what it sits on, so these
+     must stay distinct. */
+  --color-shell: #e3dfd6;
+  --color-panel: #f7f5f0;
+  --color-cap: #fffdf9;
+  --color-cap-edge: #c0b9ac;
 
   /* Ink */
-  --legend: #211e1a;
+  --color-legend: #211e1a;
 
   /* Contrast-checked against all three grounds, not just the lightest: at
      #6b655b this was 4.34:1 on --shell and 4.47:1 on the neutral badge, both
-     under the 4.5:1 floor for the small bold text these are used for. axe-core
-     caught the badge in the browser suite; the shell case was the same bug one
-     surface over. Now >= 5.2:1 everywhere. */
-  --legend-soft: #5f594f;
+     under the 4.5:1 floor for the small bold text these are used for.
+     axe-core caught the badge in the browser suite; the shell case was the
+     same bug one surface over. Now >= 5.2:1 everywhere. */
+  --color-legend-soft: #5f594f;
 
   /* Signal */
-  --actuate: #0e4f53;
-  --actuate-edge: #093639;
-  --lamp: #c8871b;
-  --alert: #8c2f1e;
-  --alert-edge: #641f13;
-  --radius: 0.5rem;
-  --legend-tracking: 0.14em;
+  --color-actuate: #0e4f53;
+  --color-actuate-edge: #093639;
+  --color-lamp: #c8871b;
+  --color-alert: #8c2f1e;
+  --color-alert-edge: #641f13;
 
-  color: var(--legend);
-  background: var(--shell);
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
-  font-synthesis: none;
+  /* The header's own darker key row -- distinct from --legend so a
+     header-button reads as "on the header" rather than "the same ink as
+     body text turned into a button". */
+  --color-header-button: #3a352e;
+  --color-header-button-edge: #17140f;
+
+  /* Semantic status tints, named for what they mean rather than what page
+     first used them -- .status-good/.validation-good/.save-message all
+     share one "success" pairing, .status-warning/.conflict-message/
+     .confirmation-panel share one "attention" pairing, and so on. */
+  --color-good: #0b5c33;
+  --color-good-tint: #d8ece0;
+  --color-warning-ink: #7a4a06;
+  --color-warning-tint: #f6e6c8;
+  --color-bad-tint: #f2ddd8;
+  --color-neutral-tint: #e6e2d9;
+  --color-send-tint: #dfe9e9;
+  --radius-keycap: 0.5rem;
+  --tracking-legend: 0.14em;
+
+  /* Overrides Tailwind's own default font-sans/font-mono theme values, so
+     any `font-sans`/`font-mono` utility anywhere in the app -- now or in the
+     future -- resolves to the system stack SPEC_V2 §5.2 requires, instead of
+     needing every call site to repeat the stack by hand. */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", menlo, consolas, monospace;
 }
 
-* {
-  box-sizing: border-box;
+@layer base {
+  body {
+    @apply m-0 min-w-[320px] bg-shell font-sans text-legend;
+
+    /* No Tailwind utility for this property. */
+    font-synthesis: none;
+  }
+
+  button,
+  input,
+  textarea {
+    font: inherit;
+  }
+
+  /* --- Type scale ----------------------------------------------------------
+     Tailwind's preflight resets headings to inherit their parent's size and
+     weight, so without this every h1/h2/h3 renders at body size — which is
+     most of why the interface read as unstyled scaffolding. */
+  h1,
+  h2,
+  h3 {
+    @apply m-0 mb-2 font-bold leading-[1.2] tracking-[-0.015em];
+  }
+
+  h1 {
+    @apply text-[1.6rem];
+  }
+
+  h2 {
+    @apply text-[1.3rem];
+  }
+
+  h3 {
+    @apply text-[1.05rem];
+  }
+
+  /* --- Keycaps -------------------------------------------------------------
+     The bottom edge is the key's side wall. Pressing collapses it and nudges
+     the cap down by the same amount, so the control's top face travels but
+     the footprint does not move. */
+  button {
+    @apply min-h-[48px] rounded-keycap border-0 border-b-[3px] border-cap-edge bg-cap px-4 py-[0.7rem] font-bold tracking-[0.01em] text-legend;
+
+    transition:
+      transform 90ms ease,
+      border-bottom-width 90ms ease;
+  }
+
+  .primary {
+    @apply border-actuate-edge bg-actuate text-white;
+  }
+
+  .danger {
+    @apply border-alert-edge bg-alert text-white;
+  }
+
+  button:disabled {
+    @apply cursor-not-allowed opacity-40;
+  }
+
+  input,
+  textarea {
+    @apply w-full rounded-keycap border border-cap-edge bg-white p-3;
+  }
+
+  /* Radios were missing from this override, so `input { width: 100% }`
+     stretched every radio across its row and pushed the option labels to the
+     far edge — the "Sending behavior" group rendered as a column of dots
+     with right-aligned wrapped text. Pre-existing; fixed here because the
+     redesign made it obvious. */
+  input[type="checkbox"],
+  input[type="radio"] {
+    @apply min-h-[1.35rem] min-w-[1.35rem] w-auto accent-actuate;
+  }
+
+  textarea {
+    @apply min-h-[12rem] font-mono tabular-nums;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible {
+    @apply outline outline-[3px] outline-offset-2 outline-lamp;
+  }
+
+  /* The press itself. Kept as a plain, explicitly-ordered rule rather than
+     folded into the `button` @apply above: it has to win over both the base
+     keycap rule and the .primary/.danger colour variants regardless of which
+     one a given button also uses, and this ordering (declared last) is what
+     makes that happen -- the same reason it was ordered last before this
+     file used Tailwind (stylelint no-descending-specificity). */
+  button:active:not(:disabled) {
+    transform: translateY(2px);
+    border-bottom-width: 1px;
+  }
+
+  label {
+    @apply font-bold;
+  }
+
+  code {
+    @apply tabular-nums;
+
+    overflow-wrap: anywhere;
+  }
+
+  /* --- Machine data -------------------------------------------------------- */
+  dl {
+    @apply grid gap-x-4 gap-y-[0.4rem] [grid-template-columns:auto_1fr];
+  }
+
+  dt {
+    @apply text-[0.7rem] font-bold uppercase tracking-legend text-legend-soft;
+  }
+
+  dd {
+    @apply m-0 font-mono tabular-nums;
+  }
+
+  summary {
+    @apply cursor-pointer font-bold;
+  }
+
+  summary:focus-visible {
+    @apply outline outline-[3px] outline-offset-2 outline-lamp;
+  }
+
+  details {
+    @apply mt-4 rounded-keycap border border-cap-edge bg-panel px-[0.9rem] py-3;
+  }
+
+  /*
+   * UI_UX_SPEC_V2 §14 "Reduced-motion preferences disable nonessential
+   * animation" (TODO_V2 V2-133). The key-travel transition on `button` is the
+   * only motion in this stylesheet; this block neutralises it, and any
+   * motion added later, by construction rather than by remembering to guard
+   * each declaration individually. Keep this block, and add it to any future
+   * stylesheet under `src/`.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
-/* No min-height here on purpose: both direct children size themselves
-   explicitly (.app-shell to 100dvh, .standalone to 100vh -- see their own
-   rules below), so body just wraps whichever one is mounted. Giving body
-   its own min-height: 100vh used to fight .app-shell's 100dvh: 100vh is the
-   larger, static viewport measurement, dvh is the current one net of the
-   mobile browser's address bar, so body was always at least as tall as the
-   address-bar's height *more* than the locked shell inside it -- a sliver
-   of genuine document-level scroll room outside the "locked to the
-   viewport" shell, which opened and closed as the address bar
-   collapsed/expanded on scroll. That's what read as the page sliding up
-   and down a little. */
-body {
-  min-width: 320px;
-  margin: 0;
-}
-
-button,
-input,
-textarea {
-  font: inherit;
-}
-
-/* --- Type scale ----------------------------------------------------------
-   Tailwind's preflight resets headings to inherit their parent's size and
-   weight, so without this every h1/h2/h3 renders at body size — which is most
-   of why the interface read as unstyled scaffolding. */
-h1,
-h2,
-h3 {
-  margin: 0 0 0.5rem;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.015em;
-}
-
-h1 {
-  font-size: 1.6rem;
-}
-
-h2 {
-  font-size: 1.3rem;
-}
-
-h3 {
-  font-size: 1.05rem;
-}
-
-/* --- Keycaps -------------------------------------------------------------
-   The bottom edge is the key's side wall. Pressing collapses it and nudges the
-   cap down by the same amount, so the control's top face travels but the
-   footprint does not move. */
-button {
-  min-height: 48px;
-  padding: 0.7rem 1rem;
-  color: var(--legend);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  background: var(--cap);
-  border: 0;
-  border-bottom: 3px solid var(--cap-edge);
-  border-radius: var(--radius);
-  transition:
-    transform 90ms ease,
-    border-bottom-width 90ms ease;
-}
-
-.primary {
-  color: #fff;
-  background: var(--actuate);
-  border-bottom-color: var(--actuate-edge);
-}
-
-.danger {
-  color: #fff;
-  background: var(--alert);
-  border-bottom-color: var(--alert-edge);
-}
-
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-input,
-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  background: #fff;
-  border: 1px solid var(--cap-edge);
-  border-radius: var(--radius);
-}
-
-/* Radios were missing from this override, so `input { width: 100% }` stretched
-   every radio across its row and pushed the option labels to the far edge —
-   the "Sending behavior" group rendered as a column of dots with right-aligned
-   wrapped text. Pre-existing; fixed here because the redesign made it obvious. */
-input[type="checkbox"],
-input[type="radio"] {
-  width: auto;
-  min-width: 1.35rem;
-  min-height: 1.35rem;
-  accent-color: var(--actuate);
-}
-
-textarea {
-  min-height: 12rem;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-variant-numeric: tabular-nums;
-}
-
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
-  outline: 3px solid var(--lamp);
-  outline-offset: 2px;
-}
-
-/* --- Shell ---------------------------------------------------------------
-   A column so `main` takes the slack and the navigation sits on the bottom
-   edge of the viewport instead of floating part-way up a short page. */
-.standalone,
-.app-shell {
-  display: flex;
-  flex-direction: column;
-  width: min(100%, 48rem);
-  margin: 0 auto;
-  background: var(--shell);
-}
-
-/* Locked to the viewport, not merely a min-height floor: header and bottom
-   nav are fixed chrome and #main-content below is the one scrolling region,
-   so a page can genuinely pin something (e.g. the macro editor's Macro
-   source) outside the part that scrolls, instead of faking it with
-   position: sticky against a document that keeps growing. .standalone stays
-   on the old min-height behavior -- it has no header/nav chrome to fix in
-   place, and a single-task screen is fine growing taller than the
-   viewport. */
-.app-shell {
-  height: 100dvh;
-  overflow: hidden;
-}
-
-@media (width >= 60rem) {
+@layer components {
+  /* --- Shell ---------------------------------------------------------------
+     A column so `main` takes the slack and the navigation sits on the bottom
+     edge of the viewport instead of floating part-way up a short page. */
   .standalone,
   .app-shell {
-    width: min(100%, 64rem);
-  }
-}
+    @apply mx-auto flex flex-col bg-shell;
 
-.standalone,
-main {
-  flex: 1 1 auto;
-  padding: 1.25rem 1rem;
-}
-
-/* #main-content, not the bare `main` selector: .standalone is itself a
-   <main> element (single-task screens have no separate shell wrapper), and
-   it must keep growing/scrolling with the document rather than becoming its
-   own clipped scroll region. */
-#main-content {
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-}
-
-.standalone {
-  /* dvh, not vh, for the same reason body no longer uses vh above: vh is the
-     static, largest-possible viewport, dvh is the current one net of the
-     mobile browser's address bar. A vh floor on a screen shorter than that
-     static measurement left the same phantom gap outside the visible
-     viewport that the address bar opened and closed on scroll -- the same
-     slide, just on Sign In/First-Run Setup/reconnect instead of the
-     authenticated shell. Content that genuinely needs more room than the
-     viewport still grows past this floor exactly as before; only the floor
-     itself changed. */
-  min-height: 100dvh;
-  padding: calc(max(2rem, 7vh) + env(safe-area-inset-top))
-    calc(1rem + env(safe-area-inset-right))
-    calc(1.25rem + env(safe-area-inset-bottom))
-    calc(1rem + env(safe-area-inset-left));
-}
-
-/* Sign In, First-Run Setup and the reconnect screens are single tasks, so they
-   get a measured column rather than the full shell width. */
-.standalone > * {
-  width: min(100%, 27rem);
-  margin-inline: auto;
-}
-
-/* --- Faceplate -------------------------------------------------------------
-   Every piece of status here is required (UI_UX_SPEC_V2 2.1: device name,
-   package name, USB state, repository state, Save snapshot when dirty) --
-   none of it is optional content to cut. What was wrong was density: a tall
-   top/bottom padding written for a single row, applied to a header that then
-   force-stacked into 2-3 rows below 32rem. Kept to one wrapping row instead,
-   with tight padding sized to the 44px Save-snapshot button that already
-   sets the row's real minimum height -- the padding was adding height on
-   top of that floor, not because the content needed it. */
-.app-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem 0.75rem;
-  align-items: center;
-  justify-content: space-between;
-  padding: calc(0.4rem + env(safe-area-inset-top)) 0.85rem 0.4rem;
-  color: var(--panel);
-  background: var(--legend);
-  border-bottom: 3px solid var(--actuate);
-}
-
-.app-header-title {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.app-header h1 {
-  margin: 0;
-  overflow: hidden;
-  font-size: 1.05rem;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.header-button {
-  min-height: 44px;
-  padding: 0.3rem 0.65rem;
-  color: var(--cap);
-  font-size: 0.82rem;
-  background: #3a352e;
-  border-bottom-color: #17140f;
-}
-
-/* Keycap legend: small, tight-tracked, uppercase. */
-.eyebrow {
-  margin: 0;
-  overflow: hidden;
-  color: var(--lamp);
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: var(--legend-tracking);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-}
-
-.eyebrow.dark {
-  color: var(--actuate);
-}
-
-/* --- Keycap surfaces ----------------------------------------------------- */
-.card {
-  display: grid;
-  gap: 1rem;
-  margin: 0.75rem 0;
-  padding: 1rem;
-  background: var(--panel);
-  border: 1px solid var(--cap-edge);
-  border-radius: var(--radius);
-}
-
-@media (width >= 34rem) {
-  .card {
-    grid-template-columns: 1fr auto;
-    align-items: start;
-  }
-}
-
-.card h2,
-.card h3 {
-  margin: 0 0 0.3rem;
-  font-size: 1.05rem;
-}
-
-.card p {
-  margin: 0.2rem 0;
-  color: var(--legend-soft);
-}
-
-.form-stack {
-  display: grid;
-  gap: 0.85rem;
-}
-
-/* An empty list is an invitation to act, not a statement of absence: it names
-   what is missing, says what the thing is, and offers the action. */
-.empty-state {
-  display: grid;
-  justify-items: start;
-  gap: 0.5rem;
-  padding: 1.5rem;
-  background: var(--panel);
-  border: 1px dashed var(--cap-edge);
-  border-radius: var(--radius);
-}
-
-.empty-state h3 {
-  margin: 0;
-}
-
-.empty-state p {
-  max-width: 34ch;
-  margin: 0;
-  color: var(--legend-soft);
-}
-
-.password-field {
-  position: relative;
-}
-
-.password-field input {
-  padding-right: 3rem;
-}
-
-/* A plain icon toggle, not a keycap: the bare `button` rule above gives every
-   button the pressed-key travel treatment, which reads as too heavy sitting
-   inside a text field. min-width/min-height still meet the 44px touch target
-   the rest of the app uses (see .checkbox-row below). */
-.password-toggle {
-  position: absolute;
-  top: 50%;
-  right: 0.3rem;
-  display: grid;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0;
-  color: var(--legend-soft);
-  background: transparent;
-  border: 0;
-  border-radius: var(--radius);
-  transform: translateY(-50%);
-  place-items: center;
-}
-
-.password-toggle:hover {
-  color: var(--legend);
-}
-
-.checkbox-row {
-  display: flex;
-  gap: 0.65rem;
-  align-items: center;
-  min-height: 44px;
-}
-
-.error-message {
-  padding: 0.75rem 0.9rem;
-  color: #fff;
-  background: var(--alert);
-  border-radius: var(--radius);
-}
-
-/* --- The bottom key row -------------------------------------------------- */
-
-/* No position: sticky here -- .app-shell is now a locked-height flex column
-   (#main-content is the one scrolling region within it), so this is simply
-   the last flex child and is always visible without any scroll-tracking. */
-.bottom-nav {
-  display: grid;
-
-  /* minmax(0, 1fr), not a bare 1fr: a bare `1fr` track's implied minimum is
-     its content's min-content width, so it refuses to shrink below that —
-     at narrow viewports the four buttons (bold/uppercase/letter-spaced text
-     such as "Settings") force this row wider than the viewport itself. */
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.4rem;
-  padding: 0.6rem 0.6rem calc(0.6rem + env(safe-area-inset-bottom));
-  background: var(--shell);
-  border-top: 1px solid var(--cap-edge);
-}
-
-.bottom-nav button {
-  min-width: 0;
-  padding-inline: 0.35rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-/* The active destination is marked by an inset top rule and full ink as well
-   as colour (UI_UX_SPEC_V2 §5: never colour alone). */
-.bottom-nav button.active {
-  color: #fff;
-  background: var(--actuate);
-  border-bottom-color: var(--actuate-edge);
-  box-shadow: inset 0 3px 0 var(--lamp);
-}
-
-/* --- Status lamps --------------------------------------------------------
-   Each state gets its own lamp *shape* as well as its own colour, so the
-   badges remain distinguishable without colour vision.
-
-   Deliberately NOT uppercased, unlike the key legends. These carry sentences
-   ("Unsaved changes"), not labels, and `text-transform` rewrites `innerText` --
-   which silently broke a real-browser assertion matching "Unsaved changes".
-   Legends are uppercase because they label a key; status text is prose. */
-.status-badge {
-  display: inline-flex;
-  gap: 0.4rem;
-  align-items: center;
-  padding: 0.3rem 0.6rem;
-  font-size: 0.76rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  border: 1px solid currentcolor;
-  border-radius: 999px;
-}
-
-.status-badge::before {
-  width: 0.6rem;
-  height: 0.6rem;
-  background: currentcolor;
-  border-radius: 999px;
-  content: "";
-}
-
-/* Lit: filled disc with a halo. */
-.status-good {
-  color: #0b5c33;
-  background: #d8ece0;
-}
-
-.status-good::before {
-  box-shadow: 0 0 0 3px rgb(11 92 51 / 22%);
-}
-
-/* Attention: hollow ring. */
-.status-warning {
-  color: #7a4a06;
-  background: #f6e6c8;
-}
-
-.status-warning::before {
-  background: transparent;
-  border: 2px solid currentcolor;
-}
-
-/* Fault: square, not a disc. */
-.status-bad {
-  color: var(--alert);
-  background: #f2ddd8;
-}
-
-.status-bad::before {
-  border-radius: 1px;
-}
-
-/* Idle: small hollow dot. */
-.status-neutral {
-  color: var(--legend-soft);
-  background: #e6e2d9;
-}
-
-.status-neutral::before {
-  width: 0.45rem;
-  height: 0.45rem;
-  background: transparent;
-  border: 1.5px solid currentcolor;
-}
-
-/* --- Machine data -------------------------------------------------------- */
-dl {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.4rem 1rem;
-}
-
-.metadata {
-  margin: 0.75rem 0 0;
-  font-size: 0.85rem;
-}
-
-.storage-summary {
-  grid-template-columns: repeat(2, auto);
-  gap: 0.15rem 1.25rem;
-  justify-content: start;
-  margin-top: 0.5rem;
-}
-
-@media (width >= 26rem) {
-  .storage-summary {
-    grid-template-columns: repeat(4, auto);
-  }
-}
-
-dt {
-  color: var(--legend-soft);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: var(--legend-tracking);
-  text-transform: uppercase;
-}
-
-dd {
-  margin: 0;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Label above value, so each pair reads as one unit rather than a grid of
-   alternating columns. Declared after the base dt/dd rules so specificity
-   ascends down the file (stylelint no-descending-specificity). */
-.storage-summary dt {
-  grid-row: 1;
-}
-
-.storage-summary dd {
-  grid-row: 2;
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-@media (width < 26rem) {
-  .storage-summary dt:nth-of-type(n + 3) {
-    grid-row: 3;
+    width: min(100%, 48rem);
   }
 
-  .storage-summary dd:nth-of-type(n + 3) {
-    grid-row: 4;
-  }
-}
-
-code {
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-/* One wrapping row at every width, like .app-header -- not the unconditional
-   2-row stack this used to force on phones. Measured on a real device: on
-   the macro editor specifically, that stacking cost 120px versus roughly
-   64px here, and that difference was most of why the directive toolbar had
-   no room left to render at all in the ordinary "unsaved changes" state.
-   The title truncates before it would need a second row, the same
-   protection .app-header-title already has for the same reason (a package
-   name is arbitrary-length, up to 64 UTF-8 bytes). */
-.page-heading {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1rem;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--cap-edge);
-}
-
-.page-heading-title {
-  min-width: 0;
-  overflow: hidden;
-}
-
-.page-heading h2 {
-  margin: 0;
-  overflow: hidden;
-  font-size: 1.35rem;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.field-label,
-label {
-  font-weight: 700;
-}
-
-.field-help {
-  display: block;
-  margin-top: 0.3rem;
-  color: var(--legend-soft);
-  font-size: 0.8rem;
-  font-weight: 400;
-}
-
-.limit-exceeded {
-  color: var(--alert);
-  font-weight: 700;
-}
-
-.timing-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-/* The macro editor's own two-region split, inside #main-content (already
-   the app's one scrolling region): a fixed top part (page heading + Macro
-   source) and .editor-scroll below it, which is the only part of this page
-   that scrolls. Flat, like .validation-card -- no shadow. A shadow reads as
-   a card hovering *above* the page (that's .overflow-panel's job, an actual
-   popover); this needs to read as anchored, not floating. */
-.editor-frame {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.editor-scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-}
-
-.macro-source-pinned {
-  flex: 0 0 auto;
-  padding: 0.75rem;
-  background: var(--panel);
-  border: 1px solid var(--cap-edge);
-  border-radius: var(--radius);
-}
-
-/* Save changes is the primary action on this page, so it gets a fixed
-   footer in the thumb-reachable bottom of the screen instead of sitting at
-   the end of .editor-scroll, where reaching it meant scrolling past the
-   entire directive toolbar first. A hairline top border marks where the
-   scrolling content ends, the same device .bottom-nav uses to mark where
-   it begins. */
-.editor-footer {
-  display: flex;
-  flex: 0 0 auto;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--cap-edge);
-}
-
-/* Found by testing the "avoid nested scroll views" question, not by
-   guessing: below ~38rem (600px) of viewport *height* -- a landscape
-   phone, or any short window -- the fixed region (heading + Name + Macro
-   source, whose textarea has its own 12rem min-height floor) can be taller
-   than the whole screen. .editor-frame has no overflow: hidden of its own,
-   so that overflow doesn't stay contained -- it pushes past .editor-frame's
-   height: 100% box, and #main-content's own overflow-y: auto (correctly)
-   starts scrolling to compensate. But .editor-scroll's flex-computed
-   height still gets clamped to zero in that state, and a zero-height
-   overflow: auto container doesn't just hide its content, it clips it away
-   with no scroll path back to it -- the entire directive toolbar and the
-   Save footer become permanently unreachable, not merely awkward to
-   reach. Pinning also isn't a good trade at this height regardless: there
-   isn't room left to show even one row of buttons once it's pinned. So
-   below the threshold, give up on the fixed/scroll split entirely and fall
-   back to one ordinary scrolling page through #main-content, the same as
-   every other screen in the app. */
-@media (height <= 38rem) {
-  .editor-frame {
-    height: auto;
+  /* Locked to the viewport, not merely a min-height floor: header and bottom
+     nav are fixed chrome and #main-content below is the one scrolling
+     region, so a page can genuinely pin something (e.g. the macro editor's
+     Macro source) outside the part that scrolls, instead of faking it with
+     position: sticky against a document that keeps growing. .standalone
+     stays on the old min-height behavior -- it has no header/nav chrome to
+     fix in place, and a single-task screen is fine growing taller than the
+     viewport. */
+  .app-shell {
+    @apply h-dvh overflow-hidden;
   }
 
-  .editor-scroll {
-    flex: none;
-    overflow-y: visible;
+  @media (width >= 60rem) {
+    .standalone,
+    .app-shell {
+      width: min(100%, 64rem);
+    }
   }
-}
 
-.directive-toolbar,
-.form-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: 0.5rem;
-}
-
-/* Named-key directives are a keyboard's own row of keys, so they get a real
-   grid of uniform cells rather than flex-wrap's ragged, label-width-dependent
-   edge — a physical key is the same size regardless of what's printed on it,
-   and "BACKSPACE" sitting flush against "UP" at two different heights read as
-   unfinished, not deliberate. auto-fill keeps it fluid to 320px. 0.5rem (8px)
-   gap, not the tighter 0.4rem used elsewhere: adjacent 44px touch targets
-   need 8-12px of separation to avoid mis-taps, and this grid is the densest
-   cluster of controls on the page. */
-.directive-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-/* Directive inserts are the small keys on the board: monospace legends. */
-.directive-grid button {
-  min-height: 44px;
-  padding: 0.4rem 0.6rem;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.78rem;
-}
-
-/* Chord modifiers: pressable keycap toggles, not checkboxes -- a native
-   checkbox is ~22px, half the 44px touch-target floor, and the .active
-   state uses the same colour+inset-highlight pairing as .bottom-nav's
-   active tab (never colour alone) so "pressed" is legible without relying
-   on hue. */
-.chord-modifier {
-  min-width: 3.5rem;
-  padding: 0.4rem 0.6rem;
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 0.8rem;
-}
-
-.chord-modifier.active {
-  color: #fff;
-  background: var(--actuate);
-  border-bottom-color: var(--actuate-edge);
-  box-shadow: inset 0 2px 0 var(--lamp);
-}
-
-/* Insert delay and Insert chord are two independent tool groups, not a
-   sequence, so on tablet/desktop widths (UI_UX_SPEC_V2 13: "tablets and
-   desktops may use wider... layouts") they sit side by side instead of
-   stacking under the full shell width for no reason. Phones keep the
-   single-column stack. */
-@media (width >= 42rem) {
-  .toolbar-columns {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-    align-items: start;
+  .standalone,
+  main {
+    @apply px-4 py-5 [flex:1_1_auto];
   }
-}
 
-/* The press itself. Declared after every other `button` rule so specificity
-   ascends down the file (stylelint no-descending-specificity). */
-button:active:not(:disabled) {
-  transform: translateY(2px);
-  border-bottom-width: 1px;
-}
+  /* #main-content, not the bare `main` selector: .standalone is itself a
+     <main> element (single-task screens have no separate shell wrapper), and
+     it must keep growing/scrolling with the document rather than becoming
+     its own clipped scroll region. */
+  #main-content {
+    @apply min-h-0 overflow-y-auto overscroll-y-contain;
+  }
 
-.validation-card {
-  padding: 1rem;
-  background: var(--panel);
-  border: 1px solid var(--cap-edge);
-  border-left: 3px solid var(--actuate);
-  border-radius: var(--radius);
-}
+  .standalone {
+    /* dvh, not vh: vh is the static, largest-possible viewport, dvh is the
+       current one net of the mobile browser's address bar. A vh floor on a
+       screen shorter than that static measurement left a phantom gap outside
+       the visible viewport that the address bar opened and closed on scroll
+       -- read as the page sliding a little. Content that genuinely needs
+       more room than the viewport still grows past this floor exactly as
+       before; only the floor itself changed. */
+    @apply min-h-dvh;
 
-.validation-card h3 {
-  margin-top: 0;
-}
+    /* No Tailwind utility composes four independently-calc()'d sides with
+       env(safe-area-inset-*) in one declaration. */
+    padding: calc(max(2rem, 7vh) + env(safe-area-inset-top))
+      calc(1rem + env(safe-area-inset-right))
+      calc(1.25rem + env(safe-area-inset-bottom))
+      calc(1rem + env(safe-area-inset-left));
+  }
 
-.validation-good {
-  color: #0b5c33;
-  font-weight: 700;
-}
+  /* Sign In, First-Run Setup and the reconnect screens are single tasks, so
+     they get a measured column rather than the full shell width. */
+  .standalone > * {
+    @apply mx-auto;
 
-.validation-bad {
-  color: var(--alert);
-  font-weight: 700;
-}
+    width: min(100%, 27rem);
+  }
 
-.conflict-message,
-.confirmation-panel {
-  margin: 1rem 0;
-  padding: 1rem;
-  background: #f6e6c8;
-  border: 1px solid var(--lamp);
-  border-left: 3px solid var(--lamp);
-  border-radius: var(--radius);
-}
+  /* --- Faceplate -------------------------------------------------------------
+     Every piece of status here is required (UI_UX_SPEC_V2 2.1: device name,
+     package name, USB state, repository state, Save snapshot when dirty) --
+     none of it is optional content to cut. What was wrong was density: a
+     tall top/bottom padding written for a single row, applied to a header
+     that then force-stacked into 2-3 rows below 32rem. Kept to one wrapping
+     row instead, with tight padding sized to the 44px Save-snapshot button
+     that already sets the row's real minimum height -- the padding was
+     adding height on top of that floor, not because the content needed it. */
+  .app-header {
+    @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pb-[0.4rem] text-panel;
 
-.save-message {
-  padding: 0.75rem 0.9rem;
-  color: #0b5c33;
-  background: #d8ece0;
-  border-radius: var(--radius);
-}
+    padding-top: calc(0.4rem + env(safe-area-inset-top));
+  }
 
-details {
-  margin-top: 1rem;
-  padding: 0.75rem 0.9rem;
-  background: var(--panel);
-  border: 1px solid var(--cap-edge);
-  border-radius: var(--radius);
-}
+  .app-header-title {
+    @apply min-w-0 overflow-hidden;
+  }
 
-summary {
-  cursor: pointer;
-  font-weight: 700;
-}
+  .app-header h1 {
+    @apply m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.05rem] tracking-[-0.01em];
+  }
 
-summary:focus-visible {
-  outline: 3px solid var(--lamp);
-  outline-offset: 2px;
-}
-
-/* --- Send status --------------------------------------------------------- */
-.send-status {
-  margin: 0.75rem 0;
-  padding: 0.8rem 1rem;
-  background: #dfe9e9;
-  border-left: 3px solid var(--actuate);
-  border-radius: var(--radius);
-}
-
-.send-status p {
-  margin: 0 0 0.5rem;
-  font-weight: 700;
-}
-
-.send-status[role="alert"] {
-  background: #f2ddd8;
-  border-left-color: var(--alert);
-}
-
-.overflow-menu {
-  position: relative;
-}
-
-.overflow-panel {
-  display: grid;
-  gap: 0.5rem;
-  min-width: 12rem;
-  margin-top: 0.5rem;
-  padding: 0.75rem;
-  background: var(--panel);
-  border: 1px solid var(--cap-edge);
-  border-radius: var(--radius);
-  box-shadow: 0 0.5rem 1.5rem rgb(33 30 26 / 18%);
-}
-
-@media (width <= 32rem) {
-  /* Neither .app-header nor .page-heading force-stacks here anymore: both
-     stay one wrapping row, truncating their title before it would need a
-     second row, instead of unconditionally paying for 2-3 full-height
-     blocks regardless of whether the content actually needed that much
-     room. */
   .header-actions {
-    justify-content: flex-start;
+    @apply flex flex-wrap items-center justify-end gap-[0.4rem];
+  }
+
+  .header-button {
+    @apply min-h-[44px] border-header-button-edge bg-header-button px-[0.65rem] py-[0.3rem] text-[0.82rem] text-cap;
+  }
+
+  /* Keycap legend: small, tight-tracked, uppercase. */
+  .eyebrow {
+    @apply m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[0.65rem] font-bold uppercase tracking-legend text-lamp;
+  }
+
+  .eyebrow.dark {
+    @apply text-actuate;
+  }
+
+  /* --- Keycap surfaces ----------------------------------------------------- */
+  .card {
+    @apply my-3 grid gap-4 rounded-keycap border border-cap-edge bg-panel p-4;
+  }
+
+  @media (width >= 34rem) {
+    .card {
+      @apply items-start [grid-template-columns:1fr_auto];
+    }
+  }
+
+  .card h2,
+  .card h3 {
+    @apply mb-[0.3rem] text-[1.05rem];
+  }
+
+  .card p {
+    @apply my-[0.2rem] text-legend-soft;
+  }
+
+  .form-stack {
+    @apply grid gap-[0.85rem];
+  }
+
+  /* An empty list is an invitation to act, not a statement of absence: it
+     names what is missing, says what the thing is, and offers the action. */
+  .empty-state {
+    @apply grid justify-items-start gap-2 rounded-keycap border border-dashed border-cap-edge bg-panel p-6;
+  }
+
+  .empty-state h3 {
+    @apply m-0;
+  }
+
+  .empty-state p {
+    @apply m-0 max-w-[34ch] text-legend-soft;
+  }
+
+  .password-field {
+    @apply relative;
+  }
+
+  .password-field input {
+    @apply pr-12;
+  }
+
+  /* A plain icon toggle, not a keycap: the bare `button` rule gives every
+     button the pressed-key travel treatment, which reads as too heavy
+     sitting inside a text field. min-width/min-height still meet the 44px
+     touch target the rest of the app uses (see .checkbox-row below). */
+  .password-toggle {
+    @apply absolute right-[0.3rem] top-1/2 grid h-11 min-h-11 w-11 min-w-11 -translate-y-1/2 place-items-center rounded-keycap border-0 bg-transparent p-0 text-legend-soft;
+  }
+
+  .password-toggle:hover {
+    @apply text-legend;
+  }
+
+  .checkbox-row {
+    @apply flex min-h-[44px] items-center gap-[0.65rem];
+  }
+
+  .error-message {
+    @apply rounded-keycap bg-alert px-[0.9rem] py-3 text-white;
+  }
+
+  /* --- The bottom key row -------------------------------------------------- */
+
+  /* No position: sticky here -- .app-shell is a locked-height flex column
+     (#main-content is the one scrolling region within it), so this is simply
+     the last flex child and is always visible without any scroll-tracking. */
+  .bottom-nav {
+    @apply grid gap-[0.4rem] border-t border-cap-edge bg-shell px-[0.6rem] pt-[0.6rem];
+
+    /* minmax(0, 1fr), not a bare 1fr: a bare `1fr` track's implied minimum is
+       its content's min-content width, so it refuses to shrink below that —
+       at narrow viewports the four buttons (bold/uppercase/letter-spaced
+       text such as "Settings") force this row wider than the viewport
+       itself. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav button {
+    @apply min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em];
+  }
+
+  /* The active destination is marked by an inset top rule and full ink as
+     well as colour (UI_UX_SPEC_V2 §5: never colour alone). */
+  .bottom-nav button.active {
+    @apply border-actuate-edge bg-actuate text-white shadow-[inset_0_3px_0_var(--color-lamp)];
+  }
+
+  /* --- Status lamps --------------------------------------------------------
+     Each state gets its own lamp *shape* as well as its own colour, so the
+     badges remain distinguishable without colour vision.
+
+     Deliberately NOT uppercased, unlike the key legends. These carry
+     sentences ("Unsaved changes"), not labels, and `text-transform` rewrites
+     `innerText` -- which silently broke a real-browser assertion matching
+     "Unsaved changes". Legends are uppercase because they label a key;
+     status text is prose. */
+  .status-badge {
+    @apply inline-flex items-center gap-[0.4rem] rounded-full border border-current px-[0.6rem] py-[0.3rem] text-[0.76rem] font-bold tracking-[0.02em];
+  }
+
+  .status-badge::before {
+    @apply h-[0.6rem] w-[0.6rem] rounded-full bg-current;
+
+    content: "";
+  }
+
+  /* Lit: filled disc with a halo. */
+  .status-good {
+    @apply bg-good-tint text-good;
+  }
+
+  .status-good::before {
+    box-shadow: 0 0 0 3px rgb(11 92 51 / 22%);
+  }
+
+  /* Attention: hollow ring. */
+  .status-warning {
+    @apply bg-warning-tint text-warning-ink;
+  }
+
+  .status-warning::before {
+    @apply border-2 border-current bg-transparent;
+  }
+
+  /* Fault: square, not a disc. */
+  .status-bad {
+    @apply bg-bad-tint text-alert;
+  }
+
+  .status-bad::before {
+    @apply rounded-[1px];
+  }
+
+  /* Idle: small hollow dot. */
+  .status-neutral {
+    @apply bg-neutral-tint text-legend-soft;
+  }
+
+  .status-neutral::before {
+    @apply h-[0.45rem] w-[0.45rem] border-[1.5px] border-current bg-transparent;
+  }
+
+  .metadata {
+    @apply mt-3 text-[0.85rem];
+  }
+
+  .storage-summary {
+    @apply mt-2 justify-start gap-x-5 gap-y-[0.15rem] [grid-template-columns:repeat(2,auto)];
+  }
+
+  @media (width >= 26rem) {
+    .storage-summary {
+      @apply [grid-template-columns:repeat(4,auto)];
+    }
+  }
+
+  /* Label above value, so each pair reads as one unit rather than a grid of
+     alternating columns. */
+  .storage-summary dt {
+    @apply [grid-row:1];
+  }
+
+  .storage-summary dd {
+    @apply text-base font-bold [grid-row:2];
+  }
+
+  @media (width < 26rem) {
+    .storage-summary dt:nth-of-type(n + 3) {
+      @apply [grid-row:3];
+    }
+
+    .storage-summary dd:nth-of-type(n + 3) {
+      @apply [grid-row:4];
+    }
+  }
+
+  /* One wrapping row at every width, like .app-header -- not the
+     unconditional 2-row stack this used to force on phones. Measured on a
+     real device: on the macro editor specifically, that stacking cost 120px
+     versus roughly 64px here, and that difference was most of why the
+     directive toolbar had no room left to render at all in the ordinary
+     "unsaved changes" state. The title truncates before it would need a
+     second row, the same protection .app-header-title already has for the
+     same reason (a package name is arbitrary-length, up to 64 UTF-8 bytes). */
+  .page-heading {
+    @apply mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-cap-edge pb-3;
+  }
+
+  .page-heading-title {
+    @apply min-w-0 overflow-hidden;
+  }
+
+  .page-heading h2 {
+    @apply m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.35rem] tracking-[-0.01em];
+  }
+
+  .field-label {
+    @apply font-bold;
+  }
+
+  .field-help {
+    @apply mt-[0.3rem] block text-[0.8rem] font-normal text-legend-soft;
+  }
+
+  .limit-exceeded {
+    @apply font-bold text-alert;
   }
 
   .timing-grid {
-    grid-template-columns: 1fr;
+    @apply grid gap-3 [grid-template-columns:repeat(2,minmax(0,1fr))];
   }
-}
 
-/* V2-131/V2-132 (UI_UX_SPEC_V2 §12): the phone-landscape orientation
-   surface. A fixed full-viewport overlay, not a route — the authenticated
-   shell underneath stays mounted and is only hidden (`display: none`) while
-   this shows, so returning to portrait needs no reload or state recovery. */
-.landscape-block {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: calc(1.5rem + env(safe-area-inset-top))
-    calc(1.5rem + env(safe-area-inset-right))
-    calc(1.5rem + env(safe-area-inset-bottom))
-    calc(1.5rem + env(safe-area-inset-left));
-  color: var(--cap);
-  text-align: center;
-  background: var(--legend);
-}
+  /* The macro editor's own two-region split, inside #main-content (already
+     the app's one scrolling region): a fixed top part (page heading + Macro
+     source) and .editor-scroll below it, which is the only part of this page
+     that scrolls. Flat, like .validation-card -- no shadow. A shadow reads
+     as a card hovering *above* the page (that's .overflow-panel's job, an
+     actual popover); this needs to read as anchored, not floating. */
+  .editor-frame {
+    @apply flex h-full flex-col;
+  }
 
-.landscape-block h1 {
-  margin: 0;
-  font-size: 1.5rem;
-}
+  .editor-scroll {
+    @apply min-h-0 overflow-y-auto overscroll-y-contain [flex:1_1_auto];
+  }
 
-.landscape-block .send-status {
-  width: min(100%, 24rem);
-  color: var(--legend);
-}
+  .macro-source-pinned {
+    @apply rounded-keycap border border-cap-edge bg-panel p-3 [flex:0_0_auto];
+  }
 
-/*
- * UI_UX_SPEC_V2 §14 "Reduced-motion preferences disable nonessential
- * animation" (TODO_V2 V2-133). The key-travel transition on `button` is the
- * only motion in this stylesheet; this block neutralises it, and any motion
- * added later, by construction rather than by remembering to guard each
- * declaration individually. Keep this block, and add it to any future
- * stylesheet under `src/`.
- */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+  /* Save changes is the primary action on this page, so it gets a fixed
+     footer in the thumb-reachable bottom of the screen instead of sitting at
+     the end of .editor-scroll, where reaching it meant scrolling past the
+     entire directive toolbar first. A hairline top border marks where the
+     scrolling content ends, the same device .bottom-nav uses to mark where
+     it begins. */
+  .editor-footer {
+    @apply flex flex-wrap gap-2 border-t border-cap-edge pt-3 [flex:0_0_auto];
+  }
+
+  /* Found by testing the "avoid nested scroll views" question, not by
+     guessing: below ~38rem (600px) of viewport *height* -- a landscape
+     phone, or any short window -- the fixed region (heading + Name + Macro
+     source, whose textarea has its own 12rem min-height floor) can be taller
+     than the whole screen. .editor-frame has no overflow: hidden of its own,
+     so that overflow doesn't stay contained -- it pushes past .editor-frame's
+     height: 100% box, and #main-content's own overflow-y: auto (correctly)
+     starts scrolling to compensate. But .editor-scroll's flex-computed
+     height still gets clamped to zero in that state, and a zero-height
+     overflow: auto container doesn't just hide its content, it clips it away
+     with no scroll path back to it -- the entire directive toolbar and the
+     Save footer become permanently unreachable, not merely awkward to
+     reach. Pinning also isn't a good trade at this height regardless: there
+     isn't room left to show even one row of buttons once it's pinned. So
+     below the threshold, give up on the fixed/scroll split entirely and fall
+     back to one ordinary scrolling page through #main-content, the same as
+     every other screen in the app. */
+  @media (height <= 38rem) {
+    .editor-frame {
+      @apply h-auto;
+    }
+
+    .editor-scroll {
+      @apply overflow-y-visible;
+
+      flex: none;
+    }
+  }
+
+  .directive-toolbar,
+  .form-actions {
+    @apply mt-2 flex flex-wrap gap-[0.4rem];
+  }
+
+  /* Named-key directives are a keyboard's own row of keys, so they get a
+     real grid of uniform cells rather than flex-wrap's ragged,
+     label-width-dependent edge — a physical key is the same size regardless
+     of what's printed on it, and "BACKSPACE" sitting flush against "UP" at
+     two different heights read as unfinished, not deliberate. auto-fill
+     keeps it fluid to 320px. 0.5rem (8px) gap, not the tighter 0.4rem used
+     elsewhere: adjacent 44px touch targets need 8-12px of separation to
+     avoid mis-taps, and this grid is the densest cluster of controls on the
+     page. */
+  .directive-grid {
+    @apply mt-2 grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))];
+  }
+
+  /* Directive inserts are the small keys on the board: monospace legends. */
+  .directive-grid button {
+    @apply min-h-[44px] px-[0.6rem] py-[0.4rem] font-mono text-[0.78rem];
+  }
+
+  /* Chord modifiers: pressable keycap toggles, not checkboxes -- a native
+     checkbox is ~22px, half the 44px touch-target floor, and the .active
+     state uses the same colour+inset-highlight pairing as .bottom-nav's
+     active tab (never colour alone) so "pressed" is legible without relying
+     on hue. */
+  .chord-modifier {
+    @apply min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem];
+  }
+
+  .chord-modifier.active {
+    @apply border-actuate-edge bg-actuate text-white shadow-[inset_0_2px_0_var(--color-lamp)];
+  }
+
+  /* Insert delay and Insert chord are two independent tool groups, not a
+     sequence, so on tablet/desktop widths (UI_UX_SPEC_V2 13: "tablets and
+     desktops may use wider... layouts") they sit side by side instead of
+     stacking under the full shell width for no reason. Phones keep the
+     single-column stack. */
+  @media (width >= 42rem) {
+    .toolbar-columns {
+      @apply grid items-start gap-4 [grid-template-columns:repeat(2,minmax(0,1fr))];
+    }
+  }
+
+  .validation-card {
+    @apply rounded-keycap border border-l-[3px] border-cap-edge border-l-actuate bg-panel p-4;
+  }
+
+  .validation-card h3 {
+    @apply mt-0;
+  }
+
+  .validation-good {
+    @apply font-bold text-good;
+  }
+
+  .validation-bad {
+    @apply font-bold text-alert;
+  }
+
+  .conflict-message,
+  .confirmation-panel {
+    @apply my-4 rounded-keycap border border-l-[3px] border-lamp bg-warning-tint p-4;
+  }
+
+  .save-message {
+    @apply rounded-keycap bg-good-tint px-[0.9rem] py-3 text-good;
+  }
+
+  /* --- Send status --------------------------------------------------------- */
+  .send-status {
+    @apply my-3 rounded-keycap border-l-[3px] border-actuate bg-send-tint px-4 py-[0.8rem];
+  }
+
+  .send-status p {
+    @apply mb-2 font-bold;
+  }
+
+  .send-status[role="alert"] {
+    @apply border-alert bg-bad-tint;
+  }
+
+  .overflow-menu {
+    @apply relative;
+  }
+
+  .overflow-panel {
+    @apply mt-2 grid min-w-[12rem] gap-2 rounded-keycap border border-cap-edge bg-panel p-3 shadow-[0_0.5rem_1.5rem_rgb(33_30_26_/_18%)];
+  }
+
+  @media (width <= 32rem) {
+    /* Neither .app-header nor .page-heading force-stacks here anymore: both
+       stay one wrapping row, truncating their title before it would need a
+       second row, instead of unconditionally paying for 2-3 full-height
+       blocks regardless of whether the content actually needed that much
+       room. */
+    .header-actions {
+      @apply justify-start;
+    }
+
+    .timing-grid {
+      @apply [grid-template-columns:1fr];
+    }
+  }
+
+  /* V2-131/V2-132 (UI_UX_SPEC_V2 §12): the phone-landscape orientation
+     surface. A fixed full-viewport overlay, not a route — the authenticated
+     shell underneath stays mounted and is only hidden (`display: none`)
+     while this shows, so returning to portrait needs no reload or state
+     recovery. */
+  .landscape-block {
+    @apply fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-legend text-center text-cap;
+
+    padding: calc(1.5rem + env(safe-area-inset-top))
+      calc(1.5rem + env(safe-area-inset-right))
+      calc(1.5rem + env(safe-area-inset-bottom))
+      calc(1.5rem + env(safe-area-inset-left));
+  }
+
+  .landscape-block h1 {
+    @apply m-0 text-[1.5rem];
+  }
+
+  .landscape-block .send-status {
+    @apply text-legend;
+
+    width: min(100%, 24rem);
   }
 }
