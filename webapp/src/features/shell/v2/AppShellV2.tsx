@@ -86,7 +86,7 @@ export function AppShellV2({
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div>
+        <div className="app-header-title">
           <p className="eyebrow">{deviceName}</p>
           <h1>{packageName ?? "No package selected"}</h1>
         </div>

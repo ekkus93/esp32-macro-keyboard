@@ -243,7 +243,7 @@ export function MacroEditorPage({
   };
 
   return (
-    <section aria-labelledby="macro-editor-title">
+    <section aria-labelledby="macro-editor-title" className="editor-frame">
       <div className="page-heading">
         <div>
           <p className="eyebrow dark">{pkg.name}</p>
@@ -256,8 +256,39 @@ export function MacroEditorPage({
         </button>
       </div>
 
+      {/* Fixed, not merely pinned via scroll tracking: this textarea is the
+          single most important element on this page (everything below
+          inserts at its cursor), so it lives outside .editor-scroll
+          entirely rather than inside a container that scrolls past it. The
+          `form` attribute keeps it associated with #macro-editor-form for
+          submission even though it isn't a DOM descendant of it. */}
+      <label className="macro-source-pinned" htmlFor="macro-editor-source">
+        Macro source
+        <textarea
+          form="macro-editor-form"
+          id="macro-editor-source"
+          onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+            setSource(event.currentTarget.value);
+          }}
+          ref={sourceRef}
+          spellCheck="false"
+          value={source}
+        />
+        <span
+          className={
+            sourceBytes > v2Limits.macroSourceMaxBytes
+              ? "field-help limit-exceeded"
+              : "field-help"
+          }
+        >
+          {String(sourceBytes)} / {String(v2Limits.macroSourceMaxBytes)} UTF-8
+          bytes
+        </span>
+      </label>
+
       <form
-        className="form-stack"
+        className="editor-scroll form-stack"
+        id="macro-editor-form"
         onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
           event.preventDefault();
           save();
@@ -280,33 +311,6 @@ export function MacroEditorPage({
             }
           >
             {String(nameBytes)} / {String(v2Limits.macroNameMaxBytes)} UTF-8
-            bytes
-          </span>
-        </label>
-
-        {/* Pinned deliberately: every directive button below inserts at this
-            textarea's cursor, so it stays on screen while the buttons and
-            everything else scroll underneath it -- no scrolling back and
-            forth to see what a click just did. */}
-        <label className="macro-source-pinned" htmlFor="macro-editor-source">
-          Macro source
-          <textarea
-            id="macro-editor-source"
-            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
-              setSource(event.currentTarget.value);
-            }}
-            ref={sourceRef}
-            spellCheck="false"
-            value={source}
-          />
-          <span
-            className={
-              sourceBytes > v2Limits.macroSourceMaxBytes
-                ? "field-help limit-exceeded"
-                : "field-help"
-            }
-          >
-            {String(sourceBytes)} / {String(v2Limits.macroSourceMaxBytes)} UTF-8
             bytes
           </span>
         </label>
