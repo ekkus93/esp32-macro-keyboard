@@ -588,20 +588,37 @@ code {
   overflow-wrap: anywhere;
 }
 
+/* One wrapping row at every width, like .app-header -- not the unconditional
+   2-row stack this used to force on phones. Measured on a real device: on
+   the macro editor specifically, that stacking cost 120px versus roughly
+   64px here, and that difference was most of why the directive toolbar had
+   no room left to render at all in the ordinary "unsaved changes" state.
+   The title truncates before it would need a second row, the same
+   protection .app-header-title already has for the same reason (a package
+   name is arbitrary-length, up to 64 UTF-8 bytes). */
 .page-heading {
   display: flex;
-  gap: 1rem;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: center;
   justify-content: space-between;
   margin-bottom: 1.25rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--cap-edge);
 }
 
+.page-heading-title {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .page-heading h2 {
   margin: 0;
+  overflow: hidden;
   font-size: 1.35rem;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .field-label,
@@ -861,17 +878,11 @@ summary:focus-visible {
 }
 
 @media (width <= 32rem) {
-  /* .app-header deliberately excluded here now: it stays one wrapping flex
-     row at every width (the title truncates with an ellipsis before it
-     would force a second row) instead of unconditionally stacking into
-     2-3 full-height blocks the way it and .page-heading previously both
-     did. .page-heading (a page title plus a single Cancel button) still
-     reads fine stacked -- it doesn't carry .app-header's density problem. */
-  .page-heading {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
+  /* Neither .app-header nor .page-heading force-stacks here anymore: both
+     stay one wrapping row, truncating their title before it would need a
+     second row, instead of unconditionally paying for 2-3 full-height
+     blocks regardless of whether the content actually needed that much
+     room. */
   .header-actions {
     justify-content: flex-start;
   }

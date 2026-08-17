@@ -245,7 +245,7 @@ export function MacroEditorPage({
   return (
     <section aria-labelledby="macro-editor-title" className="editor-frame">
       <div className="page-heading">
-        <div>
+        <div className="page-heading-title">
           <p className="eyebrow dark">{pkg.name}</p>
           <h2 id="macro-editor-title">
             {macroId === null ? "Create macro" : "Edit macro"}
@@ -256,35 +256,17 @@ export function MacroEditorPage({
         </button>
       </div>
 
-      {/* Fixed, not merely pinned via scroll tracking, and in this order
-          deliberately: name it, then see the (empty, at first) source while
-          building it. Both use the `form` attribute to stay associated with
-          #macro-editor-form for submission despite living outside its DOM
-          subtree -- Macro source because everything below inserts at its
-          cursor and needs to stay visible while that happens; Name because
-          it's cheap (one short line) and naming something before building
-          it is the more natural order. */}
-      <label htmlFor="macro-editor-name">
-        Name
-        <input
-          form="macro-editor-form"
-          id="macro-editor-name"
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-            setName(event.currentTarget.value);
-          }}
-          value={name}
-        />
-        <span
-          className={
-            nameBytes > v2Limits.macroNameMaxBytes
-              ? "field-help limit-exceeded"
-              : "field-help"
-          }
-        >
-          {String(nameBytes)} / {String(v2Limits.macroNameMaxBytes)} UTF-8 bytes
-        </span>
-      </label>
-
+      {/* Fixed, not merely pinned via scroll tracking: everything below
+          inserts at this textarea's cursor and needs to stay visible while
+          that happens. Name moved back into .editor-scroll below --
+          measured on the real device that keeping both Name and Macro
+          source fixed left as little as 24px for the entire directive
+          toolbar in the ordinary "unsaved changes" state (the 3-line app
+          header when dirty makes this worse than the clean state this was
+          first tested against), nowhere near enough to fit a single 44px
+          button. Naming before building was a nice-to-have; it isn't worth
+          that cost. `form` keeps this associated with #macro-editor-form
+          for submission despite living outside its DOM subtree. */}
       <label className="macro-source-pinned" htmlFor="macro-editor-source">
         Macro source
         <textarea
@@ -317,6 +299,27 @@ export function MacroEditorPage({
           save();
         }}
       >
+        <label htmlFor="macro-editor-name">
+          Name
+          <input
+            id="macro-editor-name"
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              setName(event.currentTarget.value);
+            }}
+            value={name}
+          />
+          <span
+            className={
+              nameBytes > v2Limits.macroNameMaxBytes
+                ? "field-help limit-exceeded"
+                : "field-help"
+            }
+          >
+            {String(nameBytes)} / {String(v2Limits.macroNameMaxBytes)} UTF-8
+            bytes
+          </span>
+        </label>
+
         <div>
           <span className="field-label">Insert directive</span>
           <div aria-label="Named-key directives" className="directive-grid">
