@@ -93,15 +93,25 @@ select:focus-visible,
   margin: 0;
 }
 
+/* `flex: 1 1 16rem` used to grow this block *vertically* once `.card` flipped
+   to a column on narrow viewports, opening a tall empty gap between a
+   snapshot's name and its actions. `.card` is a grid now, so the row only needs
+   to be allowed to shrink. */
 .management-card > div:first-child {
   min-width: 0;
-  flex: 1 1 16rem;
 }
 
+/* A wrapping row, not a single-column grid: four full-width stacked buttons
+   per snapshot made Delete as loud as Load and pushed the list off-screen. */
 .management-actions {
-  display: grid;
-  gap: 0.5rem;
-  min-width: min(100%, 18rem);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-content: start;
+}
+
+.management-actions button {
+  flex: 0 1 auto;
 }
 
 .reorder-actions {
@@ -185,12 +195,17 @@ select:focus-visible,
 }
 
 @media (width <= 32rem) {
+  /* Reorder controls stay a full-width pair: they are positional, so a
+     half-width target is genuinely harder to hit. */
   .reorder-actions {
     grid-template-columns: 1fr;
   }
 
+  /* The actions row itself spans the card, but its buttons size to their
+     labels. Forcing every button to 100% put Load, Download, Delete and
+     Advanced on four separate full-width lines, which pushed the snapshot list
+     off-screen and gave Delete exactly as much visual weight as Load. */
   .management-actions,
-  .management-actions button,
   .section-tabs,
   .section-tabs a {
     width: 100%;

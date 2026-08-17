@@ -1,9 +1,68 @@
 @import "tailwindcss";
 
+/*
+ * Visual design: "PBT and petrol".
+ *
+ * This is a control panel for a keyboard, so it is built from a keyboard's own
+ * materials rather than a generic dashboard kit: warm PBT-plastic grey for the
+ * ground, lighter keycap faces for surfaces, legend ink for text, and a single
+ * petrol-teal actuation colour. Amber is reserved for the status lamp, so the
+ * one warm accent on the page always means "the device is telling you
+ * something".
+ *
+ * Typography is the system stack by necessity — SPEC_V2 §5.2 and
+ * verify-no-remote-assets.sh forbid any CDN or remote font — so personality
+ * comes from treatment instead: keycap *legends* in tight-tracked uppercase,
+ * and monospace with tabular numerals for every machine value (byte counts,
+ * blob IDs, durations, macro source). That is the subject's own vernacular.
+ *
+ * Signature: key travel. Every control is a keycap with a solid bottom edge
+ * that collapses when pressed, so tapping depresses it the way a key does.
+ *
+ * Accessibility rules this file must keep (UI_UX_SPEC_V2 §14, TODO_V2 V2-130):
+ * colour is never the only indicator — status badges carry a distinct lamp
+ * *shape* per state as well as their text; controls stay >= 44px; the layout is
+ * single-column and fluid to 320px; focus is always visible.
+ */
+
 :root {
-  color: #0f172a;
-  background: #e2e8f0;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  /* Ground and surfaces, as three deliberate tones: the desk the device sits
+     on, the panel resting on it, and the keycap faces raised above that. A cap
+     only reads as raised if it is lighter than what it sits on, so these must
+     stay distinct. */
+  --shell: #e3dfd6;
+  --panel: #f7f5f0;
+  --cap: #fffdf9;
+  --cap-edge: #c0b9ac;
+
+  /* Ink */
+  --legend: #211e1a;
+
+  /* Contrast-checked against all three grounds, not just the lightest: at
+     #6b655b this was 4.34:1 on --shell and 4.47:1 on the neutral badge, both
+     under the 4.5:1 floor for the small bold text these are used for. axe-core
+     caught the badge in the browser suite; the shell case was the same bug one
+     surface over. Now >= 5.2:1 everywhere. */
+  --legend-soft: #5f594f;
+
+  /* Signal */
+  --actuate: #0e4f53;
+  --actuate-edge: #093639;
+  --lamp: #c8871b;
+  --alert: #8c2f1e;
+  --alert-edge: #641f13;
+  --radius: 0.5rem;
+  --legend-tracking: 0.14em;
+
+  color: var(--legend);
+  background: var(--shell);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
   font-synthesis: none;
 }
 
@@ -23,68 +82,114 @@ textarea {
   font: inherit;
 }
 
-button {
-  min-height: 44px;
-  padding: 0.7rem 1rem;
-  color: #1e3a8a;
+/* --- Type scale ----------------------------------------------------------
+   Tailwind's preflight resets headings to inherit their parent's size and
+   weight, so without this every h1/h2/h3 renders at body size — which is most
+   of why the interface read as unstyled scaffolding. */
+h1,
+h2,
+h3 {
+  margin: 0 0 0.5rem;
   font-weight: 700;
-  background: #dbeafe;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+h1 {
+  font-size: 1.6rem;
+}
+
+h2 {
+  font-size: 1.3rem;
+}
+
+h3 {
+  font-size: 1.05rem;
+}
+
+/* --- Keycaps -------------------------------------------------------------
+   The bottom edge is the key's side wall. Pressing collapses it and nudges the
+   cap down by the same amount, so the control's top face travels but the
+   footprint does not move. */
+button {
+  min-height: 48px;
+  padding: 0.7rem 1rem;
+  color: var(--legend);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  background: var(--cap);
   border: 0;
-  border-radius: 0.75rem;
+  border-bottom: 3px solid var(--cap-edge);
+  border-radius: var(--radius);
+  transition:
+    transform 90ms ease,
+    border-bottom-width 90ms ease;
+}
+
+.primary {
+  color: #fff;
+  background: var(--actuate);
+  border-bottom-color: var(--actuate-edge);
+}
+
+.danger {
+  color: #fff;
+  background: var(--alert);
+  border-bottom-color: var(--alert-edge);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 
 input,
 textarea {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #94a3b8;
-  border-radius: 0.75rem;
+  background: #fff;
+  border: 1px solid var(--cap-edge);
+  border-radius: var(--radius);
 }
 
-input[type="checkbox"] {
+/* Radios were missing from this override, so `input { width: 100% }` stretched
+   every radio across its row and pushed the option labels to the far edge —
+   the "Sending behavior" group rendered as a column of dots with right-aligned
+   wrapped text. Pre-existing; fixed here because the redesign made it obvious. */
+input[type="checkbox"],
+input[type="radio"] {
   width: auto;
-  min-width: 1.25rem;
-  min-height: 1.25rem;
+  min-width: 1.35rem;
+  min-height: 1.35rem;
+  accent-color: var(--actuate);
 }
 
 textarea {
   min-height: 12rem;
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid #f59e0b;
+  outline: 3px solid var(--lamp);
   outline-offset: 2px;
 }
 
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.primary {
-  color: white;
-  background: #2563eb;
-}
-
-.danger {
-  color: white;
-  background: #dc2626;
-}
-
+/* --- Shell ---------------------------------------------------------------
+   A column so `main` takes the slack and the navigation sits on the bottom
+   edge of the viewport instead of floating part-way up a short page. */
 .standalone,
 .app-shell {
+  display: flex;
+  flex-direction: column;
   width: min(100%, 48rem);
   min-height: 100vh;
   margin: 0 auto;
-  background: #f8fafc;
+  background: var(--shell);
 }
 
-/* V2-130: tablet/desktop viewports get a wider column instead of the phone
-   width cap, while every element inside stays the same single-column
-   workflow — nothing here restructures the page, it only relaxes the cap. */
 @media (width >= 60rem) {
   .standalone,
   .app-shell {
@@ -94,34 +199,40 @@ button:disabled {
 
 .standalone,
 main {
-  padding: 1rem;
+  flex: 1 1 auto;
+  padding: 1.25rem 1rem;
 }
 
-/* V2-130 safe areas: `.app-header`/`.bottom-nav` already pad for cutouts
-   within the authenticated shell (below); `.standalone` is the full-screen
-   container for every screen outside it (First-Run Setup, Sign In, the
-   device-unreachable/loading/reconnect screens), which otherwise had no
-   cutout handling on any edge. */
 .standalone {
-  padding: calc(1rem + env(safe-area-inset-top))
+  padding: calc(max(2rem, 7vh) + env(safe-area-inset-top))
     calc(1rem + env(safe-area-inset-right))
-    calc(1rem + env(safe-area-inset-bottom))
+    calc(1.25rem + env(safe-area-inset-bottom))
     calc(1rem + env(safe-area-inset-left));
 }
 
+/* Sign In, First-Run Setup and the reconnect screens are single tasks, so they
+   get a measured column rather than the full shell width. */
+.standalone > * {
+  width: min(100%, 27rem);
+  margin-inline: auto;
+}
+
+/* --- Faceplate ----------------------------------------------------------- */
 .app-header {
   display: flex;
   gap: 1rem;
   align-items: center;
   justify-content: space-between;
   padding: calc(1rem + env(safe-area-inset-top)) 1rem 1rem;
-  color: white;
-  background: #0f172a;
+  color: var(--panel);
+  background: var(--legend);
+  border-bottom: 3px solid var(--actuate);
 }
 
 .app-header h1 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
 }
 
 .header-actions {
@@ -134,46 +245,59 @@ main {
 
 .header-button {
   min-height: 44px;
-  padding: 0.4rem 0.65rem;
-  color: white;
-  background: #334155;
+  padding: 0.4rem 0.75rem;
+  color: var(--cap);
+  font-size: 0.85rem;
+  background: #3a352e;
+  border-bottom-color: #17140f;
 }
 
+/* Keycap legend: small, tight-tracked, uppercase. */
 .eyebrow {
-  margin: 0 0 0.25rem;
-  color: #93c5fd;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  margin: 0 0 0.2rem;
+  color: var(--lamp);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: var(--legend-tracking);
   text-transform: uppercase;
 }
 
+.eyebrow.dark {
+  color: var(--actuate);
+}
+
+/* --- Keycap surfaces ----------------------------------------------------- */
 .card {
-  display: flex;
+  display: grid;
   gap: 1rem;
-  align-items: flex-start;
-  justify-content: space-between;
   margin: 0.75rem 0;
   padding: 1rem;
-  background: white;
-  border: 1px solid #cbd5e1;
-  border-radius: 1rem;
-  box-shadow: 0 0.25rem 1rem rgb(15 23 42 / 8%);
+  background: var(--panel);
+  border: 1px solid var(--cap-edge);
+  border-radius: var(--radius);
+}
+
+@media (width >= 34rem) {
+  .card {
+    grid-template-columns: 1fr auto;
+    align-items: start;
+  }
 }
 
 .card h2,
 .card h3 {
-  margin: 0 0 0.35rem;
-  font-size: 1rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.05rem;
 }
 
 .card p {
-  margin: 0.25rem 0;
-  color: #475569;
+  margin: 0.2rem 0;
+  color: var(--legend-soft);
 }
 
 .form-stack {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
 .checkbox-row {
@@ -184,78 +308,142 @@ main {
 }
 
 .error-message {
-  padding: 0.75rem;
-  color: #991b1b;
-  background: #fee2e2;
-  border: 1px solid #fca5a5;
-  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  color: #fff;
+  background: var(--alert);
+  border-radius: var(--radius);
 }
 
+/* --- The bottom key row -------------------------------------------------- */
 .bottom-nav {
   position: sticky;
   bottom: 0;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-  padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
-  background: white;
-  border-top: 1px solid #cbd5e1;
+  gap: 0.4rem;
+  padding: 0.6rem 0.6rem calc(0.6rem + env(safe-area-inset-bottom));
+  background: var(--shell);
+  border-top: 1px solid var(--cap-edge);
 }
 
 .bottom-nav button {
-  padding-inline: 0.45rem;
+  padding-inline: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
+/* The active destination is marked by an inset top rule and full ink as well
+   as colour (UI_UX_SPEC_V2 §5: never colour alone). */
 .bottom-nav button.active {
-  color: white;
-  background: #2563eb;
+  color: #fff;
+  background: var(--actuate);
+  border-bottom-color: var(--actuate-edge);
+  box-shadow: inset 0 3px 0 var(--lamp);
 }
 
+/* --- Status lamps --------------------------------------------------------
+   Each state gets its own lamp *shape* as well as its own colour, so the
+   badges remain distinguishable without colour vision.
+
+   Deliberately NOT uppercased, unlike the key legends. These carry sentences
+   ("Unsaved changes"), not labels, and `text-transform` rewrites `innerText` --
+   which silently broke a real-browser assertion matching "Unsaved changes".
+   Legends are uppercase because they label a key; status text is prose. */
 .status-badge {
   display: inline-flex;
-  padding: 0.35rem 0.6rem;
-  font-size: 0.75rem;
-  font-weight: 800;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid currentcolor;
   border-radius: 999px;
 }
 
+.status-badge::before {
+  width: 0.6rem;
+  height: 0.6rem;
+  background: currentcolor;
+  border-radius: 999px;
+  content: "";
+}
+
+/* Lit: filled disc with a halo. */
 .status-good {
-  color: #166534;
-  background: #dcfce7;
+  color: #0b5c33;
+  background: #d8ece0;
 }
 
+.status-good::before {
+  box-shadow: 0 0 0 3px rgb(11 92 51 / 22%);
+}
+
+/* Attention: hollow ring. */
 .status-warning {
-  color: #92400e;
-  background: #fef3c7;
+  color: #7a4a06;
+  background: #f6e6c8;
 }
 
+.status-warning::before {
+  background: transparent;
+  border: 2px solid currentcolor;
+}
+
+/* Fault: square, not a disc. */
 .status-bad {
-  color: #991b1b;
-  background: #fee2e2;
+  color: var(--alert);
+  background: #f2ddd8;
 }
 
+.status-bad::before {
+  border-radius: 1px;
+}
+
+/* Idle: small hollow dot. */
 .status-neutral {
-  color: #334155;
-  background: #e2e8f0;
+  color: var(--legend-soft);
+  background: #e6e2d9;
 }
 
+.status-neutral::before {
+  width: 0.45rem;
+  height: 0.45rem;
+  background: transparent;
+  border: 1.5px solid currentcolor;
+}
+
+/* --- Machine data -------------------------------------------------------- */
 dl {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0.5rem 1rem;
+  gap: 0.4rem 1rem;
 }
 
 .metadata {
   margin: 0.75rem 0 0;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
 }
 
 dt {
-  font-weight: 800;
+  color: var(--legend-soft);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: var(--legend-tracking);
+  text-transform: uppercase;
 }
 
 dd {
   margin: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+code {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 .page-heading {
@@ -263,15 +451,15 @@ dd {
   gap: 1rem;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--cap-edge);
 }
 
 .page-heading h2 {
   margin: 0;
-}
-
-.eyebrow.dark {
-  color: #1d4ed8;
+  font-size: 1.35rem;
+  letter-spacing: -0.01em;
 }
 
 .field-label,
@@ -282,14 +470,14 @@ label {
 .field-help {
   display: block;
   margin-top: 0.3rem;
-  color: #475569;
+  color: var(--legend-soft);
   font-size: 0.8rem;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .limit-exceeded {
-  color: #991b1b;
-  font-weight: 800;
+  color: var(--alert);
+  font-weight: 700;
 }
 
 .timing-grid {
@@ -302,21 +490,31 @@ label {
 .form-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
   margin-top: 0.5rem;
 }
 
+/* Directive inserts are the small keys on the board: monospace legends. */
 .directive-toolbar button {
   min-height: 44px;
-  padding: 0.45rem 0.65rem;
-  font-size: 0.82rem;
+  padding: 0.4rem 0.6rem;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+}
+
+/* The press itself. Declared after every other `button` rule so specificity
+   ascends down the file (stylelint no-descending-specificity). */
+button:active:not(:disabled) {
+  transform: translateY(2px);
+  border-bottom-width: 1px;
 }
 
 .validation-card {
   padding: 1rem;
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.75rem;
+  background: var(--panel);
+  border: 1px solid var(--cap-edge);
+  border-left: 3px solid var(--actuate);
+  border-radius: var(--radius);
 }
 
 .validation-card h3 {
@@ -324,88 +522,57 @@ label {
 }
 
 .validation-good {
-  color: #166534;
-  font-weight: 800;
+  color: #0b5c33;
+  font-weight: 700;
 }
 
 .validation-bad {
-  color: #991b1b;
-  font-weight: 800;
+  color: var(--alert);
+  font-weight: 700;
 }
 
-.conflict-message {
-  margin-bottom: 1rem;
+.conflict-message,
+.confirmation-panel {
+  margin: 1rem 0;
   padding: 1rem;
-  color: #78350f;
-  background: #fef3c7;
-  border: 1px solid #f59e0b;
-  border-radius: 0.75rem;
+  background: #f6e6c8;
+  border: 1px solid var(--lamp);
+  border-left: 3px solid var(--lamp);
+  border-radius: var(--radius);
 }
 
 .save-message {
-  padding: 0.75rem;
-  color: #166534;
-  background: #dcfce7;
-  border: 1px solid #86efac;
-  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  color: #0b5c33;
+  background: #d8ece0;
+  border-radius: var(--radius);
 }
 
 details {
   margin-top: 1rem;
-  padding: 0.75rem;
-  background: white;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--panel);
+  border: 1px solid var(--cap-edge);
+  border-radius: var(--radius);
 }
 
 summary {
   cursor: pointer;
-  font-weight: 800;
+  font-weight: 700;
 }
 
-@media (width <= 32rem) {
-  .app-header,
-  .card,
-  .page-heading {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .header-actions {
-    justify-content: flex-start;
-  }
-
-  .timing-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .bottom-nav {
-    gap: 0.25rem;
-  }
-
-  .bottom-nav button {
-    font-size: 0.8rem;
-  }
+summary:focus-visible {
+  outline: 3px solid var(--lamp);
+  outline-offset: 2px;
 }
 
-.confirmation-panel {
-  margin: 1rem 0;
-  padding: 1rem;
-  background: #fff7ed;
-  border: 1px solid #fb923c;
-  border-radius: 0.75rem;
-}
-
-code {
-  overflow-wrap: anywhere;
-}
-
+/* --- Send status --------------------------------------------------------- */
 .send-status {
   margin: 0.75rem 0;
-  padding: 0.75rem 1rem;
-  background: #eff6ff;
-  border: 1px solid #93c5fd;
-  border-radius: 0.75rem;
+  padding: 0.8rem 1rem;
+  background: #dfe9e9;
+  border-left: 3px solid var(--actuate);
+  border-radius: var(--radius);
 }
 
 .send-status p {
@@ -414,8 +581,8 @@ code {
 }
 
 .send-status[role="alert"] {
-  background: #fee2e2;
-  border-color: #fca5a5;
+  background: #f2ddd8;
+  border-left-color: var(--alert);
 }
 
 .overflow-menu {
@@ -428,10 +595,26 @@ code {
   min-width: 12rem;
   margin-top: 0.5rem;
   padding: 0.75rem;
-  background: white;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.75rem;
-  box-shadow: 0 0.5rem 1.5rem rgb(15 23 42 / 15%);
+  background: var(--panel);
+  border: 1px solid var(--cap-edge);
+  border-radius: var(--radius);
+  box-shadow: 0 0.5rem 1.5rem rgb(33 30 26 / 18%);
+}
+
+@media (width <= 32rem) {
+  .app-header,
+  .page-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .header-actions {
+    justify-content: flex-start;
+  }
+
+  .timing-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* V2-131/V2-132 (UI_UX_SPEC_V2 §12): the phone-landscape orientation
@@ -451,9 +634,9 @@ code {
     calc(1.5rem + env(safe-area-inset-right))
     calc(1.5rem + env(safe-area-inset-bottom))
     calc(1.5rem + env(safe-area-inset-left));
-  color: white;
+  color: var(--cap);
   text-align: center;
-  background: #0f172a;
+  background: var(--legend);
 }
 
 .landscape-block h1 {
@@ -463,17 +646,16 @@ code {
 
 .landscape-block .send-status {
   width: min(100%, 24rem);
+  color: var(--legend);
 }
 
 /*
  * UI_UX_SPEC_V2 §14 "Reduced-motion preferences disable nonessential
- * animation" (TODO_V2 V2-133). No `transition`/`animation`/`@keyframes`
- * exists anywhere in this stylesheet today, so there is currently nothing
- * for this rule to override — it exists as a standing policy so any motion
- * added later is disabled under `prefers-reduced-motion: reduce` by
- * construction rather than by remembering to guard it individually. Keep
- * this block, and add it to any future stylesheet under `src/`, rather than
- * hand-guarding each new transition/animation declaration.
+ * animation" (TODO_V2 V2-133). The key-travel transition on `button` is the
+ * only motion in this stylesheet; this block neutralises it, and any motion
+ * added later, by construction rather than by remembering to guard each
+ * declaration individually. Keep this block, and add it to any future
+ * stylesheet under `src/`.
  */
 @media (prefers-reduced-motion: reduce) {
   *,
