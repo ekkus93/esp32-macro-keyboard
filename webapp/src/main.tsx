@@ -3,7 +3,6 @@ import { createRoot } from "react-dom/client";
 import AppV2 from "./AppV2";
 import { ExecutionRecoveryOverlay } from "./features/shell/v2/ExecutionRecoveryOverlay";
 import "./styles.css";
-import "./management.css";
 
 const root = document.getElementById("root");
 if (root === null) {
