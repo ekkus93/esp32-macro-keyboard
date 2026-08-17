@@ -99,6 +99,36 @@ describe("v2 SignInPage", () => {
     await view.unmount();
   });
 
+  test("toggles the password field between masked and plain text", async () => {
+    const view = await renderSignInForm();
+    const passwordField = requiredElement("#admin-password", HTMLInputElement);
+    expect(passwordField.type).toBe("password");
+
+    const toggle = requiredElement(
+      "[aria-label='Show password']",
+      HTMLButtonElement,
+    );
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+
+    await click(toggle);
+    expect(passwordField.type).toBe("text");
+    const hideToggle = requiredElement(
+      "[aria-label='Hide password']",
+      HTMLButtonElement,
+    );
+    expect(hideToggle.getAttribute("aria-pressed")).toBe("true");
+
+    await click(hideToggle);
+    expect(passwordField.type).toBe("password");
+    expect(
+      requiredElement(
+        "[aria-label='Show password']",
+        HTMLButtonElement,
+      ).getAttribute("aria-pressed"),
+    ).toBe("false");
+    await view.unmount();
+  });
+
   test("disables sign-in until the password meets the minimum byte length", async () => {
     const view = await renderSignInForm();
     const passwordField = requiredElement("#admin-password", HTMLInputElement);

@@ -322,6 +322,40 @@ main {
   color: var(--legend-soft);
 }
 
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 3rem;
+}
+
+/* A plain icon toggle, not a keycap: the bare `button` rule above gives every
+   button the pressed-key travel treatment, which reads as too heavy sitting
+   inside a text field. min-width/min-height still meet the 44px touch target
+   the rest of the app uses (see .checkbox-row below). */
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.3rem;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  color: var(--legend-soft);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  transform: translateY(-50%);
+  place-items: center;
+}
+
+.password-toggle:hover {
+  color: var(--legend);
+}
+
 .checkbox-row {
   display: flex;
   gap: 0.65rem;
