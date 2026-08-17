@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* The macro editor's short-viewport fallback. Height-based media queries
+   have no built-in Tailwind variant, and this one is load-bearing: below
+   ~38rem of viewport height the fixed region can exceed the screen, which
+   clamps .editor-scroll's flex height to zero -- and a zero-height
+   overflow:auto container clips its content away with no scroll path back,
+   making the directive toolbar and Save footer permanently unreachable. */
+@custom-variant short (@media (height <= 38rem));
+
 /*
  * Visual design: "PBT and petrol".
  *

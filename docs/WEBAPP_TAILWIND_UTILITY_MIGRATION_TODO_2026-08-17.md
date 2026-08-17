@@ -212,10 +212,15 @@ Then `short:h-auto`, `short:flex-none`, `short:overflow-y-visible`.
 
 ### 4.3 Tasks
 
-- [ ] **T0-1** Add the `@custom-variant short` declaration to `styles.css`
+- [x] **T0-1** Add the `@custom-variant short` declaration to `styles.css`
       with the comment above. No other change. Verify it compiles and that
       `dist` is byte-identical otherwise.
-      *Evidence:*
+      *Evidence:* `0947dfd1`. Added the declaration; `dist/assets/*.css`
+      diffed byte-identical against the `ee818060` baseline build (an unused
+      `@custom-variant` emits nothing). Probe (`short:h-auto short:flex-none`
+      on a throwaway class, reverted) compiled to
+      `@media (max-height:38rem){...}`. `npm run test`: 544/544. `stylelint`:
+      clean. `check-webapp.sh`: EXIT=0.
 - [ ] **T0-2** Confirm the arbitrary-variant vocabulary compiles in this
       tree by temporarily adding `min-[34rem]:grid max-[32rem]:hidden` to one
       `className`, building, grepping `dist/assets/*.css` for both rules, then
