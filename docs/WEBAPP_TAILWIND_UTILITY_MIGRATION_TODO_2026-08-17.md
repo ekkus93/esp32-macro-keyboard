@@ -316,9 +316,13 @@ Lowest blast radius. Establishes the pattern before anything shared moves.
       fresh baseline (position, padding-right, every toggle-button property
       including translate-based centering, and :hover color). `npm run
       test`: 544/544. `check-webapp.sh`: EXIT=0.
-- [ ] **T1-3** `MacroOverflowMenu.tsx` — inline `.overflow-menu`,
+- [x] **T1-3** `MacroOverflowMenu.tsx` — inline `.overflow-menu`,
       `.overflow-panel`, `.confirmation-panel`.
-      *Evidence:*
+      *Evidence:* `bc59bd73`. Confirmed no other `.tsx` referenced any of
+      the three before deleting their CSS. Computed styles identical for
+      all three (position, margin/display/min-width/gap/radius/border/
+      background/padding/shadow). `npm run test`: 544/544. `check-webapp.sh`:
+      EXIT=0.
 - [ ] **T1-4** `MacrosPage.tsx` — inline `.empty-state` (note the two
       descendant rules for `h3` and `p`: put those utilities on the children).
       *Evidence:*
