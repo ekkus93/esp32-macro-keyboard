@@ -374,7 +374,7 @@ subtask, even if it looks trivial."
       class with no CSS rule, per §8.1. Computed styles byte-identical at
       390px and 1280px, all 4 dt/dd pairs. `npm run test`: 544/544.
       `check-webapp.sh`: EXIT=0.
-- [ ] **T1-8** The management cluster — `.management-list`,
+- [x] **T1-8** The management cluster — `.management-list`,
       `.management-card`, `.management-actions`, `.card-actions`,
       `.reorder-actions` across `PackageManagementPage.tsx`, `SnapshotRow.tsx`,
       `MacroRow.tsx`, and the leftover `.card-actions` div in
@@ -382,9 +382,22 @@ subtask, even if it looks trivial."
       `.recovery-overlay`, not this inner class). `.management-actions,
       .card-actions` and `.reorder-actions` each have a `@media (width <=
       32rem)` override that currently shares a block with `.header-actions`
-      (Phase 4, disposition B) and `.timing-grid` (already inlined in T2-2) —
-      split the block, do not inline `.header-actions`' share of it early.
-      *Evidence:*
+      (Phase 4, disposition B) and `.timing-grid` (Phase 2 T2-2, not yet
+      done) — split the block, do not inline `.header-actions`'s share of
+      it early.
+      *Evidence:* `c057712c`. Found a second `.management-list` call site
+      (`DiagnosticsPage.tsx`) not in the plan's inventory, caught by
+      grepping for leftover references before finishing — migrated in the
+      same commit. Caught and fixed a real selector-narrowing mistake
+      before verifying: the original `.management-actions button,
+      .card-actions button` is a descendant selector (any depth, including
+      inside nested `.reorder-actions`/`.danger-zone`), and the first draft
+      used `[&>button]` (direct child only), silently narrowing it — fixed
+      to `[&_button]`. Computed styles byte-identical at 1280px and 390px
+      across all five classes' properties, all four files, plus the
+      recovery overlay via the H4 fixture. `npm run test`: 544/544.
+      `check-webapp.sh`: EXIT=0. **Phase 1 (including the gap-fill) is now
+      fully complete.**
 
 ### Phase 2 — The macro editor
 
