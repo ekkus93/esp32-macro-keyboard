@@ -284,36 +284,32 @@ export function MacroEditorPage({
           </span>
         </label>
 
-        <div className="timing-grid">
-          <label htmlFor="macro-editor-key-press">
-            Key-press duration (ms)
-            <input
-              id="macro-editor-key-press"
-              max={v2Limits.keyPressMaxMs}
-              min={0}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                setKeyPressMs(event.currentTarget.valueAsNumber);
-              }}
-              step={1}
-              type="number"
-              value={Number.isNaN(keyPressMs) ? "" : keyPressMs}
-            />
-          </label>
-          <label htmlFor="macro-editor-inter-key">
-            Inter-key delay (ms)
-            <input
-              id="macro-editor-inter-key"
-              max={v2Limits.interKeyMaxMs}
-              min={0}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                setInterKeyMs(event.currentTarget.valueAsNumber);
-              }}
-              step={1}
-              type="number"
-              value={Number.isNaN(interKeyMs) ? "" : interKeyMs}
-            />
-          </label>
-        </div>
+        {/* Pinned deliberately: every directive button below inserts at this
+            textarea's cursor, so it stays on screen while the buttons and
+            everything else scroll underneath it -- no scrolling back and
+            forth to see what a click just did. */}
+        <label className="macro-source-pinned" htmlFor="macro-editor-source">
+          Macro source
+          <textarea
+            id="macro-editor-source"
+            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+              setSource(event.currentTarget.value);
+            }}
+            ref={sourceRef}
+            spellCheck="false"
+            value={source}
+          />
+          <span
+            className={
+              sourceBytes > v2Limits.macroSourceMaxBytes
+                ? "field-help limit-exceeded"
+                : "field-help"
+            }
+          >
+            {String(sourceBytes)} / {String(v2Limits.macroSourceMaxBytes)} UTF-8
+            bytes
+          </span>
+        </label>
 
         <div>
           <span className="field-label">Insert directive</span>
@@ -411,28 +407,38 @@ export function MacroEditorPage({
           </div>
         </div>
 
-        <label htmlFor="macro-editor-source">
-          Macro source
-          <textarea
-            id="macro-editor-source"
-            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
-              setSource(event.currentTarget.value);
-            }}
-            ref={sourceRef}
-            spellCheck="false"
-            value={source}
-          />
-          <span
-            className={
-              sourceBytes > v2Limits.macroSourceMaxBytes
-                ? "field-help limit-exceeded"
-                : "field-help"
-            }
-          >
-            {String(sourceBytes)} / {String(v2Limits.macroSourceMaxBytes)} UTF-8
-            bytes
-          </span>
-        </label>
+        {/* Set-once metadata, not part of the insert workflow, so it moved
+            below the tools that are. */}
+        <div className="timing-grid">
+          <label htmlFor="macro-editor-key-press">
+            Key-press duration (ms)
+            <input
+              id="macro-editor-key-press"
+              max={v2Limits.keyPressMaxMs}
+              min={0}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                setKeyPressMs(event.currentTarget.valueAsNumber);
+              }}
+              step={1}
+              type="number"
+              value={Number.isNaN(keyPressMs) ? "" : keyPressMs}
+            />
+          </label>
+          <label htmlFor="macro-editor-inter-key">
+            Inter-key delay (ms)
+            <input
+              id="macro-editor-inter-key"
+              max={v2Limits.interKeyMaxMs}
+              min={0}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                setInterKeyMs(event.currentTarget.valueAsNumber);
+              }}
+              step={1}
+              type="number"
+              value={Number.isNaN(interKeyMs) ? "" : interKeyMs}
+            />
+          </label>
+        </div>
 
         <div className="validation-card" aria-live="polite">
           <h3>Validation</h3>

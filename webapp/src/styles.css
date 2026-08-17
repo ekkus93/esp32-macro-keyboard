@@ -584,6 +584,26 @@ label {
   gap: 0.75rem;
 }
 
+/* Every directive/delay/chord control below inserts at this textarea's
+   cursor, so it stays in view while those controls scroll underneath it --
+   sticky, not merely "positioned near the top", so it survives scrolling
+   through the full button list too. Given its own panel treatment (matching
+   .validation-card's card language) so it still reads clearly once other
+   content is scrolling past behind it. z-index only needs to clear ordinary
+   flow content; the bottom nav's sticky context is a separate stacking
+   layer this never overlaps in practice (it sticks to the top, not the
+   bottom). */
+.macro-source-pinned {
+  position: sticky;
+  top: 0.75rem;
+  z-index: 1;
+  padding: 0.75rem;
+  background: var(--panel);
+  border: 1px solid var(--cap-edge);
+  border-radius: var(--radius);
+  box-shadow: 0 0.4rem 1rem rgb(33 30 26 / 14%);
+}
+
 .directive-toolbar,
 .form-actions {
   display: flex;
