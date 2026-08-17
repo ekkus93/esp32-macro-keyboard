@@ -83,9 +83,9 @@
   --color-header-button-edge: #17140f;
 
   /* Semantic status tints, named for what they mean rather than what page
-     first used them -- .status-good/.validation-good/.save-message all
-     share one "success" pairing, .status-warning/.conflict-message/
-     .confirmation-panel share one "attention" pairing, and so on. */
+     first used them -- .status-good/.validation-good share one "success"
+     pairing, .status-warning/.confirmation-panel share one "attention"
+     pairing, and so on. */
   --color-good: #0b5c33;
   --color-good-tint: #d8ece0;
   --color-warning-ink: #7a4a06;
@@ -711,13 +711,8 @@
     @apply font-bold text-alert;
   }
 
-  .conflict-message,
   .confirmation-panel {
     @apply my-4 rounded-keycap border border-l-[3px] border-lamp bg-warning-tint p-4;
-  }
-
-  .save-message {
-    @apply rounded-keycap bg-good-tint px-[0.9rem] py-3 text-good;
   }
 
   /* --- Send status --------------------------------------------------------- */

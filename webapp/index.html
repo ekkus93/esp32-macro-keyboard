@@ -6,7 +6,11 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#0f172a" />
+    <!-- Matches --color-legend, the .app-header background this sits directly
+         above, so a phone's browser chrome continues the header instead of
+         butting a stock slate against it. Kept in sync by hand: index.html
+         is outside the stylesheet, so @theme cannot reach it. -->
+    <meta name="theme-color" content="#211e1a" />
     <title>ESP32 Macro Keyboard</title>
   </head>
   <body>
