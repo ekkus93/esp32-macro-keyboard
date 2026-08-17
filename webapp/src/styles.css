@@ -236,7 +236,16 @@ main {
 }
 
 .standalone {
-  min-height: 100vh;
+  /* dvh, not vh, for the same reason body no longer uses vh above: vh is the
+     static, largest-possible viewport, dvh is the current one net of the
+     mobile browser's address bar. A vh floor on a screen shorter than that
+     static measurement left the same phantom gap outside the visible
+     viewport that the address bar opened and closed on scroll -- the same
+     slide, just on Sign In/First-Run Setup/reconnect instead of the
+     authenticated shell. Content that genuinely needs more room than the
+     viewport still grows past this floor exactly as before; only the floor
+     itself changed. */
+  min-height: 100dvh;
   padding: calc(max(2rem, 7vh) + env(safe-area-inset-top))
     calc(1rem + env(safe-area-inset-right))
     calc(1.25rem + env(safe-area-inset-bottom))
