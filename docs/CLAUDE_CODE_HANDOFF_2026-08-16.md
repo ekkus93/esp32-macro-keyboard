@@ -1,5 +1,10 @@
 # Development handoff — esp32-macro-keyboard, 2026-08-15/16
 
+> **SUPERSEDED.** Written mid-session; accurate up to candidate `28359e8` but it
+> predates roughly half of 2026-08-16's work. Start from
+> `docs/CLAUDE_CODE_HANDOFF_2026-08-16_CONTINUATION.md` instead — two handoffs
+> share today's date, so the "newest by date" rule cannot pick between them.
+
 **Repository:** `ekkus93/esp32-macro-keyboard`
 **Handoff commit:** `28080a5` (`master`, pushed to `origin/master`, working tree
 clean)
