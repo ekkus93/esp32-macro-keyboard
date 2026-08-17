@@ -341,7 +341,12 @@ main {
   position: sticky;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+
+  /* minmax(0, 1fr), not a bare 1fr: a bare `1fr` track's implied minimum is
+     its content's min-content width, so it refuses to shrink below that —
+     at narrow viewports the four buttons (bold/uppercase/letter-spaced text
+     such as "Settings") force this row wider than the viewport itself. */
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.4rem;
   padding: 0.6rem 0.6rem calc(0.6rem + env(safe-area-inset-bottom));
   background: var(--shell);
@@ -349,6 +354,7 @@ main {
 }
 
 .bottom-nav button {
+  min-width: 0;
   padding-inline: 0.35rem;
   font-size: 0.78rem;
   font-weight: 700;
