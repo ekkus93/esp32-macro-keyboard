@@ -215,7 +215,7 @@ Then `short:h-auto`, `short:flex-none`, `short:overflow-y-visible`.
 - [x] **T0-1** Add the `@custom-variant short` declaration to `styles.css`
       with the comment above. No other change. Verify it compiles and that
       `dist` is byte-identical otherwise.
-      *Evidence:* `0947dfd1`. Added the declaration; `dist/assets/*.css`
+      *Evidence:* `2e315812`. Added the declaration; `dist/assets/*.css`
       diffed byte-identical against the `ee818060` baseline build (an unused
       `@custom-variant` emits nothing). Probe (`short:h-auto short:flex-none`
       on a throwaway class, reverted) compiled to
