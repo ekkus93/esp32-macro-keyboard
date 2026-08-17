@@ -337,9 +337,10 @@ and `storage-summary` but none was ever assigned to a phase task above. Adding
 them here rather than skipping them, per §0.1's "do not skip a task or
 subtask, even if it looks trivial."
 
-- [ ] **T1-5** `.page-heading-title` — `MacroEditorPage.tsx`, `MacrosPage.tsx`.
+- [x] **T1-5** `.page-heading-title` — `MacroEditorPage.tsx`, `MacrosPage.tsx`.
       Disposition A.
-      *Evidence:*
+      *Evidence:* `2758cecf`. Computed style identical. `check-webapp.sh`:
+      EXIT=0.
 - [ ] **T1-6** `.metadata` — `FirstRunSetupPage.tsx`, `SnapshotsPage.tsx`.
       Disposition A.
       *Evidence:*
