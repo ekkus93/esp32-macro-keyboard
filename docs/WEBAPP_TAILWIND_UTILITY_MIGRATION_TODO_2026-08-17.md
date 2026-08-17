@@ -221,11 +221,18 @@ Then `short:h-auto`, `short:flex-none`, `short:overflow-y-visible`.
       on a throwaway class, reverted) compiled to
       `@media (max-height:38rem){...}`. `npm run test`: 544/544. `stylelint`:
       clean. `check-webapp.sh`: EXIT=0.
-- [ ] **T0-2** Confirm the arbitrary-variant vocabulary compiles in this
+- [x] **T0-2** Confirm the arbitrary-variant vocabulary compiles in this
       tree by temporarily adding `min-[34rem]:grid max-[32rem]:hidden` to one
       `className`, building, grepping `dist/assets/*.css` for both rules, then
       reverting. Record the grep output.
-      *Evidence:*
+      *Evidence:* No code change (probe reverted). Added
+      `min-[34rem]:grid max-[32rem]:hidden` to `ExecutionRecoveryOverlay.tsx`'s
+      `<aside>`, built, and confirmed both rules present in
+      `dist/assets/*.css`:
+      `@media not all and (min-width:32rem){.max-\[32rem\]\:hidden{display:none}}`
+      and `@media(min-width:34rem){.min-\[34rem\]\:grid{display:grid}}`.
+      Reverted via `git checkout`; rebuilt and confirmed 0 matches for the
+      probe classes in the output.
 
 > **Grep note:** Tailwind escapes brackets in emitted class names
 > (`.min-\[34rem\]\:grid`). Grepping for the unescaped form returns nothing
