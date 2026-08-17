@@ -323,9 +323,12 @@ Lowest blast radius. Establishes the pattern before anything shared moves.
       all three (position, margin/display/min-width/gap/radius/border/
       background/padding/shadow). `npm run test`: 544/544. `check-webapp.sh`:
       EXIT=0.
-- [ ] **T1-4** `MacrosPage.tsx` — inline `.empty-state` (note the two
+- [x] **T1-4** `MacrosPage.tsx` — inline `.empty-state` (note the two
       descendant rules for `h3` and `p`: put those utilities on the children).
-      *Evidence:*
+      *Evidence:* `43e69515`. This state had never been exercised by any
+      existing test; built a one-off fixture (zero-macro package) to reach
+      it and capture a real baseline. Computed styles identical. `npm run
+      test`: 544/544. `check-webapp.sh`: EXIT=0. **Phase 1 complete.**
 
 ### Phase 2 — The macro editor
 
