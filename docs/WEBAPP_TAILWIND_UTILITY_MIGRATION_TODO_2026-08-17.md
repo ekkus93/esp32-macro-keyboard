@@ -425,11 +425,16 @@ layout-collapse bug. Do it as its own commit.
       1280px/390px across all 7 classes, plus both validation states
       (typed a bad token, then a valid macro, into the real textarea) — all
       byte-identical. `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
-- [ ] **T2-3** `.chord-modifier` / `.chord-modifier.active` — currently built
+- [x] **T2-3** `.chord-modifier` / `.chord-modifier.active` — currently built
       as `pressed ? "chord-modifier active" : "chord-modifier"`
       (`MacroEditorPage.tsx:389`). Replace with a full literal string per
       branch (§8.2), not interpolation.
-      *Evidence:*
+      *Evidence:* `e3beb01c`. The ternary was already safe (two full literal
+      strings, not `` `template-${x}` `` interpolation) — §8.2's actual
+      failure mode doesn't apply here; this was inlining the CSS, not fixing
+      a scanner miss. Both states (unpressed, and pressed via a real click)
+      verified byte-identical against a fresh baseline. `npm run test`:
+      544/544. `check-webapp.sh`: EXIT=0. **Phase 2 complete.**
 
 ### Phase 3 — Shell chrome
 
