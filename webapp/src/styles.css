@@ -472,7 +472,7 @@
   }
 
   .status-good::before {
-    box-shadow: 0 0 0 3px rgb(11 92 51 / 22%);
+    @apply shadow-[0_0_0_3px_rgb(11_92_51_/_22%)];
   }
 
   /* Attention: hollow ring. */
@@ -623,9 +623,7 @@
     }
 
     .editor-scroll {
-      @apply overflow-y-visible;
-
-      flex: none;
+      @apply flex-none overflow-y-visible;
     }
   }
 
