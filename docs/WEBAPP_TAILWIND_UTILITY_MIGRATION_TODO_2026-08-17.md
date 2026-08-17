@@ -341,15 +341,31 @@ subtask, even if it looks trivial."
       Disposition A.
       *Evidence:* `2758cecf`. Computed style identical. `check-webapp.sh`:
       EXIT=0.
-- [ ] **T1-6** `.metadata` — `FirstRunSetupPage.tsx`, `SnapshotsPage.tsx`.
+- [x] **T1-6** `.metadata` — `FirstRunSetupPage.tsx`, `SnapshotsPage.tsx`.
       Disposition A.
-      *Evidence:*
-- [ ] **T1-7** `.storage-summary` — `SnapshotsPage.tsx`. **Keep the class name
-      on the element** (§8.1 test hook,
-      `webapp/tests/browser/workflows/snapshots.mjs:24`); only the CSS rule
-      moves. Has two `nth-of-type` descendant rules and two width media
+      *Evidence:* `3eaae2e5`. **Split during execution**:
+      `FirstRunSetupPage.tsx`'s standalone usage inlined and verified
+      identical (margin-top, font-size) against a fresh baseline via the
+      real setup→review flow. `SnapshotsPage.tsx`'s usage is
+      `className="metadata storage-summary"` — probed inlining `.metadata`'s
+      `mt-3` there in isolation and it's a real regression: a literal markup
+      utility (`@layer utilities`) always beats an `@apply`'d component class
+      (`@layer components`) regardless of source order, flipping that dl's
+      margin-top from 8px (`.storage-summary`'s `mt-2`, currently winning) to
+      12px. Deferred to T1-7, which owns `.storage-summary` and migrates both
+      classes on that element together. `check-webapp.sh`: EXIT=0.
+- [ ] **T1-7** `.storage-summary` — `SnapshotsPage.tsx`, **now also carrying
+      the `.metadata` half of that same `dl` deferred from T1-6** (see its
+      evidence for why). **Keep the class name on the element** (§8.1 test
+      hook, `webapp/tests/browser/workflows/snapshots.mjs:24`); only the CSS
+      rule moves. Has two `nth-of-type` descendant rules and two width media
       queries (`>= 26rem`, `< 26rem`) — the most structurally complex
-      "disposition A" class in the inventory.
+      "disposition A" class in the inventory. When inlining both classes
+      together, verify the resulting margin-top matches the *current*
+      combined behaviour (8px, `.storage-summary`'s `mt-2` winning), not
+      `.metadata`'s `mt-3` — order the utilities in the className string (or
+      use `!` if needed) so the intended one wins now that both are in the
+      same layer.
       *Evidence:*
 - [ ] **T1-8** The management cluster — `.management-list`,
       `.management-card`, `.management-actions`, `.card-actions`,
