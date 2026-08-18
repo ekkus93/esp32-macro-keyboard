@@ -17,7 +17,7 @@ export async function runSettingsWorkflows(page) {
   await waitFor(
     page,
     // `textContent`, not `innerText`: the header renders the device name
-    // inside `.eyebrow`, which is visually `text-transform: uppercase` —
+    // inside `Eyebrow.tsx`, which is visually `text-transform: uppercase` —
     // `innerText` reflects that rendered casing, `textContent` does not.
     () => document.body.textContent.includes("Bench Macro Keyboard (renamed)"),
     "Saving the device name did not update the shell header.",

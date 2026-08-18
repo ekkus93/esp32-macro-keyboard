@@ -58,8 +58,8 @@ export function ExecutionRecoveryOverlay(): React.JSX.Element | null {
 
   return (
     // Sits above everything including dialogs (z-[1000]). Bottom-anchored
-    // like .bottom-nav, so it takes the same safe-area inset rather than
-    // sitting under a phone's home indicator -- bottom-[calc(...)], not
+    // like AppShellV2's bottom nav, so it takes the same safe-area inset
+    // rather than sitting under a phone's home indicator -- bottom-[calc(...)], not
     // bottom-4, because env(safe-area-inset-bottom) is 0 on most devices and
     // nonzero on the ones this matters for.
     <aside

@@ -11,20 +11,24 @@
  *     interpolation emits no CSS and fails silently.
  *  2. Conflicting utilities on one element are resolved by Tailwind's own
  *     stylesheet sort order, *not* by the order they appear in `className`.
- *     `.card danger-zone` works today only because `.danger-zone` happens to
- *     come later in `styles.css`; once these become utilities that guarantee
- *     is gone. Selecting a whole variant means no two conflicting utilities
- *     ever land on the same element, so there is nothing left to race.
+ *     Before this component existed, `.card danger-zone` (two stylesheet
+ *     classes stacked in markup) worked only because `.danger-zone` happened
+ *     to come later in `styles.css` than `.card` — a fragile order dependency
+ *     this variant map removes entirely. Selecting a whole variant means no
+ *     two conflicting utilities ever land on the same element, so there is
+ *     nothing left to race.
  *
  * The `h2`/`h3`/`p` descendant rules ride along as `[&_h2]:` / `[&_h3]:` /
  * `[&_p]:` variants rather than being pushed out to call sites: the cards
  * contain far too many paragraphs (all of Diagnostics, every form's field
  * help, every row's summary line) for restyling each one to be safe or
- * readable. They keep the same `(0,1,1)` specificity the `.card p` selector
- * had, and no rule they now outrank was previously beating them — the only
- * later same-specificity rules on those elements are `.send-status p`,
- * `.dialog-heading p` and `.page-heading h2`, and none of those three ever
- * appears inside a card.
+ * readable. They keep the same `(0,1,1)` specificity the old `.card p`
+ * stylesheet selector had. `Dialog` and `SendStatus` each own the same
+ * `[&_p]:` scope today — nesting either inside a `Card` (none does) would
+ * make the winner depend on Tailwind's emission order, exactly the hazard
+ * rule 2 above describes one level up; guarded automatically by
+ * `tests/descendantVariantNesting.ts` rather than by this comment alone
+ * (`WEBAPP_TAILWIND_SPEC_2026-08-18.md` §6.1, T3-2).
  */
 const CARD_SHAPE =
   "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft";
