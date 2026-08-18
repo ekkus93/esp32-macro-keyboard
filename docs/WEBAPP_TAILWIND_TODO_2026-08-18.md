@@ -110,11 +110,24 @@ highest-value work in the document and everything else depends on it.
       row. `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
       `check-docs.sh`: EXIT=0 — `markdownlint-cli2` scans `**/*.md` from the
       repo root, so it reaches `baselines/README.md` too.
-- [ ] **T1-3** Wire it into `check-webapp.sh` after the browser workflows.
+- [x] **T1-3** Wire it into `check-webapp.sh` after the browser workflows.
       Must be deterministic: fixed viewports, no animation timing races, no
       wall-clock in any fixture. If a scenario proves flaky, quarantine that
       scenario explicitly — do not add a retry that hides it.
-      *Evidence:*
+      *Evidence:* `0671ffa`. `npm run test:visual` added to `package.json`
+      and called from `check-webapp.sh` immediately after
+      `npm run test:browser`. Verified the wiring actually fails the gate,
+      not merely that it runs: reused the T1-1 injected regression (Card's
+      `default` margin, `my-3` → `my-6`), ran `npm run test:visual`
+      standalone — exit 1, 30 differences reported across every `Card` call
+      site the scenario set touches — reverted, and confirmed exit 0. Ran
+      the full `check-webapp.sh` end to end afterward: **EXIT=0, ~1m47s
+      total**, the visual step contributing roughly 11–15s of that.
+      **No scenario proved flaky against this wiring; none needed
+      quarantining.** (One genuine race was found and fixed while building
+      the scenario set itself, at T1-1 — `send-in-flight` — and is not
+      counted again here since it was fixed before this task, not
+      discovered by it.)
 - [ ] **T1-4** Document baseline updates in `docs/DEVELOPMENT.md`: how to
       regenerate, and the rule that a baseline change must be reviewed as a
       deliberate visual change, never as a merge artefact.
