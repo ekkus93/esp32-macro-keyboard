@@ -128,10 +128,19 @@ highest-value work in the document and everything else depends on it.
       the scenario set itself, at T1-1 — `send-in-flight` — and is not
       counted again here since it was fixed before this task, not
       discovered by it.)
-- [ ] **T1-4** Document baseline updates in `docs/DEVELOPMENT.md`: how to
+- [x] **T1-4** Document baseline updates in `docs/DEVELOPMENT.md`: how to
       regenerate, and the rule that a baseline change must be reviewed as a
       deliberate visual change, never as a merge artefact.
-      *Evidence:*
+      *Evidence:* `45f1bfd`. New "Frontend visual-regression baselines"
+      section: what `test:visual` checks and why the rest of the gate
+      cannot (cites `SPEC` §10.1), the rule to read the diff before doing
+      anything else, the regenerate command, and — the "never as a merge
+      artefact" requirement — that the resulting `git diff` on the baseline
+      JSON must be reviewed like any other change and committed as its own
+      commit, separate from whatever caused it. Points to
+      `baselines/README.md` for the full workflow rather than duplicating
+      it, matching this document's existing terse style (53 lines before
+      this addition). `check-docs.sh`: EXIT=0.
 - [ ] **T1-5** Add the boundary-width scenarios: every threshold in `SPEC`
       §5.3 at exactly `X` and `X±1px`. This is the check that would have
       caught the `max-[X]:` defect on the day it was written.
