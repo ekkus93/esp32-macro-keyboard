@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import { startApplicationServer } from "../fixtures/applicationServer.mjs";
 import { startStartupFixtureServer } from "../fixtures/startupFixtureServer.mjs";
+import { startH4RecoveryFixture } from "../fixtures/h4RecoveryFixture.mjs";
 import { repositoryGzip } from "../fixtures/data.mjs";
 import { importFixtureRepository } from "../workflows/macroEditing.mjs";
 import { clickButton, clickButtonByAriaLabel, waitFor } from "../lib/page.mjs";
@@ -740,5 +741,46 @@ export const SCENARIOS = [
         (page) => captureScenario(page),
       ),
     ),
+  ),
+
+  // --- Execution recovery overlay (SPEC §10.4) -----------------------------
+  // Its own fixture (h4RecoveryFixture.mjs, shared with
+  // run-h4-recovery-tests.mjs): three persistent status-poll failures after
+  // an initial send is what exposes the degraded "Execution state
+  // unavailable" state this overlay reports.
+  scenario(
+    "execution-recovery-overlay",
+    STANDARD_VIEWPORTS,
+    async (browser, viewport) => {
+      const fixture = await startH4RecoveryFixture();
+      const { context, page } = await newPage(browser, viewport);
+      try {
+        await page.goto(fixture.baseUrl);
+        await waitFor(
+          page,
+          () =>
+            document.body?.innerText.includes("H4 recovery package") ?? false,
+          "The H4 fixture did not reach the Macros page.",
+        );
+        await page
+          .locator('[aria-label="Move Recovery macro down"]')
+          .press("Enter");
+        await waitFor(
+          page,
+          () => document.body.innerText.includes("Unsaved changes"),
+          "Reordering did not dirty the working copy.",
+        );
+        await page.getByRole("button", { name: "Send Recovery macro" }).click();
+        await waitFor(
+          page,
+          () => document.body.innerText.includes("Execution state unavailable"),
+          "Persistent status failures did not expose the degraded execution state.",
+        );
+        return await captureScenario(page);
+      } finally {
+        await context.close();
+        await fixture.close();
+      }
+    },
   ),
 ];
