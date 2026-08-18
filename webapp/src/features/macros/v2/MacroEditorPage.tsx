@@ -475,7 +475,7 @@ export function MacroEditorPage({
 
         {/* Set-once metadata, not part of the insert workflow, so it moved
             below the tools that are. */}
-        <div className="grid gap-3 [grid-template-columns:repeat(2,minmax(0,1fr))] max-[32rem]:[grid-template-columns:1fr]">
+        <div className="grid gap-3 [grid-template-columns:repeat(2,minmax(0,1fr))] [@media(width<=32rem)]:[grid-template-columns:1fr]">
           <label htmlFor="macro-editor-key-press">
             Key-press duration (ms)
             <input

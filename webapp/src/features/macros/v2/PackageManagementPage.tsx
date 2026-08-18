@@ -206,7 +206,7 @@ function PackageRow({
           </form>
         ) : null}
       </div>
-      <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial max-[32rem]:w-full">
+      <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full">
         <button
           aria-label={`Open ${pkg.name}`}
           className="primary"
@@ -234,7 +234,7 @@ function PackageRow({
         >
           Duplicate
         </button>
-        <div className="grid grid-cols-2 gap-2 max-[32rem]:grid-cols-1">
+        <div className="grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1">
           <button
             aria-label={`Move ${pkg.name} to first`}
             disabled={index === 0}

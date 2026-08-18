@@ -77,7 +77,7 @@ export function ExecutionRecoveryOverlay(): React.JSX.Element | null {
         </p>
       ) : null}
       {message !== null ? <p role="status">{message}</p> : null}
-      <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial max-[32rem]:w-full">
+      <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full">
         <button
           disabled={retrying || canceling}
           onClick={() => {

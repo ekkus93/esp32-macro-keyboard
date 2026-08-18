@@ -70,7 +70,7 @@ export function SnapshotRow({
           </p>
         ) : null}
       </div>
-      <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial max-[32rem]:w-full">
+      <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full">
         <button
           aria-label={`Load snapshot ${id}`}
           className="primary"

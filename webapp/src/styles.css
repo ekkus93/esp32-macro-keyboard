@@ -367,10 +367,4 @@
   .status-neutral::before {
     @apply h-[0.45rem] w-[0.45rem] border-[1.5px] border-current bg-transparent;
   }
-
-  @media (width <= 32rem) {
-    .timing-grid {
-      @apply [grid-template-columns:1fr];
-    }
-  }
 }
