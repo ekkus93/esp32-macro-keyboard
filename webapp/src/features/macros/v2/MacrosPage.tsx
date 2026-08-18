@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Eyebrow } from "../../../components/Eyebrow";
 import { SendStatus } from "../../../components/SendStatus";
 import { HeaderActions } from "../../../components/HeaderActions";
-import { PageHeading } from "../../../components/PageHeading";
+import {
+  PAGE_HEADING_TITLE_CLASS,
+  PageHeading,
+} from "../../../components/PageHeading";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import type { ActiveSendSummary } from "../../shell/v2/activeSendSummary";
 import { V2ApiError } from "../../../v2/apiClient";
@@ -490,7 +493,9 @@ export function MacrosPage({
       <PageHeading>
         <div className="min-w-0 overflow-hidden">
           <Eyebrow tone="dark">Selected package</Eyebrow>
-          <h2 id="macros-title">{activePackage.name}</h2>
+          <h2 className={PAGE_HEADING_TITLE_CLASS} id="macros-title">
+            {activePackage.name}
+          </h2>
           <p>{String(activePackage.macros.length)} macros</p>
         </div>
         <HeaderActions>

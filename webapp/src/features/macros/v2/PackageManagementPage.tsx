@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { DangerZone } from "../../../components/DangerZone";
-import { PageHeading } from "../../../components/PageHeading";
+import {
+  PAGE_HEADING_TITLE_CLASS,
+  PageHeading,
+} from "../../../components/PageHeading";
 import { FieldHelp } from "../../../components/FieldHelp";
 import { FormActions } from "../../../components/FormActions";
 import { Card } from "../../../components/Card";
@@ -448,7 +451,12 @@ export function PackageManagementPage({
     <section aria-labelledby="package-management-title">
       <PageHeading>
         <div>
-          <h2 id="package-management-title">Packages</h2>
+          <h2
+            className={PAGE_HEADING_TITLE_CLASS}
+            id="package-management-title"
+          >
+            Packages
+          </h2>
           <p>{String(repository.packages.length)} packages</p>
         </div>
       </PageHeading>

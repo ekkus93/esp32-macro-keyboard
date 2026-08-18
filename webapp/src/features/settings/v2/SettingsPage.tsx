@@ -1,6 +1,9 @@
 import { useRef, useState } from "react";
 import { Dialog } from "../../../components/Dialog";
-import { PageHeading } from "../../../components/PageHeading";
+import {
+  PAGE_HEADING_TITLE_CLASS,
+  PageHeading,
+} from "../../../components/PageHeading";
 import { FormActions } from "../../../components/FormActions";
 import { Card } from "../../../components/Card";
 import { ErrorBanner } from "../../../components/ErrorBanner";
@@ -297,7 +300,9 @@ export function SettingsPage({
   return (
     <section aria-labelledby="settings-title">
       <PageHeading>
-        <h2 id="settings-title">Settings</h2>
+        <h2 className={PAGE_HEADING_TITLE_CLASS} id="settings-title">
+          Settings
+        </h2>
       </PageHeading>
 
       <Card aria-labelledby="settings-identity-title">

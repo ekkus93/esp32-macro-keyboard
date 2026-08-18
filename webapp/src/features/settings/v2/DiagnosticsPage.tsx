@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { HeaderActions } from "../../../components/HeaderActions";
-import { PageHeading } from "../../../components/PageHeading";
+import {
+  PAGE_HEADING_TITLE_CLASS,
+  PageHeading,
+} from "../../../components/PageHeading";
 import { Card } from "../../../components/Card";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
@@ -108,7 +111,9 @@ export function DiagnosticsPage({
   return (
     <section aria-labelledby="diagnostics-title">
       <PageHeading>
-        <h2 id="diagnostics-title">Diagnostics</h2>
+        <h2 className={PAGE_HEADING_TITLE_CLASS} id="diagnostics-title">
+          Diagnostics
+        </h2>
         <HeaderActions>
           <button onClick={onBack} type="button">
             Back to Settings

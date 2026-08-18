@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { DangerZone } from "../../../components/DangerZone";
 import { HeaderActions } from "../../../components/HeaderActions";
-import { PageHeading } from "../../../components/PageHeading";
+import {
+  PAGE_HEADING_TITLE_CLASS,
+  PageHeading,
+} from "../../../components/PageHeading";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { UnsavedChangesPrompt } from "../../shell/v2/UnsavedChangesPrompt";
@@ -395,7 +398,9 @@ export function SnapshotsPage({
     <section aria-labelledby="snapshots-title">
       <PageHeading>
         <div>
-          <h2 id="snapshots-title">Snapshots</h2>
+          <h2 className={PAGE_HEADING_TITLE_CLASS} id="snapshots-title">
+            Snapshots
+          </h2>
           {list.kind === "loaded" ? (
             <dl
               // storage-summary carries no CSS rule (styling is inline
