@@ -523,8 +523,40 @@ Order within the phase: `Card`, `FormStack`, `StandaloneScreen` first.
       `check-webapp.sh`: EXIT=0 (its real-Chrome browser suites included).
       The stale `.card` mention in the `styles.css` header comment is left
       for T6-3, which owns that rewrite.
-- [ ] **T4-2** `<FormStack>` — 15 usages.
-      *Evidence:*
+- [x] **T4-2** ~~`<FormStack>`~~ — inlined at all 15 usages instead.
+      *Evidence:* `2551d9d`. **Deliberate deviation from this task's proposed
+      disposition, recorded here rather than applied silently.** The 15 call
+      sites are 10 `<form>`s (each with its own `onSubmit`, one also with an
+      `id`), 3 `<div>`s and 2 `<ul>`s. A component covering those needs a
+      three-branch discriminated union re-spreading heterogeneous props, to
+      replace *two layout utilities* — which is §3's own C criterion
+      ("materially harder to read than the CSS, with no colocation benefit")
+      pointing away from the extraction. `<Card>` earned its component (three
+      variants, a real cascade race to defuse, descendant rules to carry);
+      this one earns nothing. Inlining still achieves §1's actual goal —
+      the `@apply` rule is gone — with no indirection and no cascade risk:
+      nothing else on any of those elements sets `display` or `gap`, and the
+      one site that already mixed utilities (`MacroEditorPage.tsx:325`) sets
+      only `flex`/overflow shorthands, not `display`. Verified in real Chrome
+      across **12 captures** — Settings (4 forms), Packages, package rename,
+      the macro editor, and four screens the signed-in fixture cannot reach
+      (sign-in, first-run setup, no-stored-snapshots, and snapshot recovery,
+      which is the one reachable `ul` site) — at 390 px and 1280 px, selecting
+      on the class-independent `form` / `ul` / `form > *` / `ul > *` hooks:
+      **64 663 computed properties, zero value differences**, zero
+      bounding-box differences, zero `innerText` differences, and **all 12
+      full-page PNGs byte-identical**. Compiled CSS: `form-stack` now appears
+      **0 times**, `.gap-[0.85rem]{gap:.85rem}` is emitted. Three sites are
+      not browser-reachable in any fixture (`AppV2`'s two error-state `div`s,
+      `StationForm`'s connected-network `div`) and one `ul` needs a
+      two-package repository — all four receive the identical textual
+      substitution on the same element with no other class present.
+      `npm run test`: 544/544. `check-webapp.sh`: EXIT=0. Also removed the
+      `/* --- Keycap surfaces --- */` section header, left empty once `.card`
+      (T4-1) and `.form-stack` were gone — stylelint's
+      `comment-empty-line-before` caught the dangling header; the rebuild
+      after that edit produced a **byte-identical** CSS bundle (same content
+      hash `index-Cn3DbjP1.css`), so the visual proof above still stands.
 - [ ] **T4-3** `<StandaloneScreen>` — 19 usages. Carries the four-sided
       `env(safe-area-inset-*)` padding and the `*:` child rule
       (`.standalone > *`). Express as `*:mx-auto *:w-[min(100%,27rem)]`
