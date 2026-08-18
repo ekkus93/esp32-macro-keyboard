@@ -247,11 +247,60 @@ actually fails the gate, not merely that it runs.
       `PackageManagementPage` correctly stayed green, proving the check is
       precise per-element, not a blunt whole-suite trip-wire. Reverted,
       confirmed clean. `npm run test`: 569/569. `check-webapp.sh`: EXIT=0.
-- [ ] **T2-3** A test that fails on a class token that generates no CSS,
+- [x] **T2-3** A test that fails on a class token that generates no CSS,
       allowlisting exactly the three hooks in `SPEC` §7. This is the direct
       guard against §4.1's silent-failure mode. Needs the built stylesheet, so
       it belongs with the browser tests or as a build-time script.
-      *Evidence:*
+      *Evidence:* `3689c69`, prepared by `706fe18` (see below).
+      `checkNoOrphanClasses.mjs`, wired into `check-webapp.sh` as
+      `npm run check:no-orphan-classes` right after `test:visual`. Reuses
+      `visual/scenarios.mjs` (T1-1's own scenario set) to collect the real
+      class vocabulary through a real browser, one viewport per scenario —
+      **deliberately not** a source-text regex over `className="..."` JSX
+      attributes: a first draft used exactly that and missed all six SPEC
+      §4.2 variant-map components entirely, since none of them assigns a
+      literal string straight to a JSX `className` — they all reference a
+      computed `CARD_CLASS[variant]`-style expression a regex can't see.
+      Checks both directions: a zero-CSS token absent from the three-entry
+      allowlist fails, and an allowlisted hook that unexpectedly *does* have
+      CSS also fails (a hook is supposed to be bare; if it isn't, the
+      allowlist itself is stale). **Verified both directions with real
+      injected defects**: added a runtime-interpolated class to `Eyebrow`
+      (the exact §8.2 failure mode) and confirmed it was named and failed;
+      reverted; added a real CSS rule for the `landscape-block` hook in
+      `styles.css` and confirmed that failed too, by name, in the other
+      direction; reverted both.
+      **Found and fixed two real bugs in T1's own harness while building
+      this** (`706fe18`, its own commit): `capture.mjs` used
+      `String(element.className)`, which on an SVG element (`className` is
+      an `SVGAnimatedString` there, not a string) produced the literal text
+      `"[object SVGAnimatedString]"` — this script's token collector choked
+      on exactly that as an unrecognized class, which is how it was found.
+      Fixed with `element.getAttribute("class") ?? ""`; diffed old vs new
+      captures directly and confirmed the *only* differences anywhere are
+      three SVG/path/circle `cls` fields, garbage → empty, zero change to
+      any computed-style value — T1's actual regression-detection power was
+      never affected, only a diagnostic label was wrong. Separately, five
+      Snapshots-page scenarios raced the page's async list load (observed:
+      `snapshots-storage-summary-boundary` capturing 37 elements one run, 55
+      the next, both deterministic on repeat — a real race, not flakiness in
+      the traditional sense); fixed by waiting for the storage-summary's own
+      loaded-state label instead, case-insensitively (`dt`'s `uppercase`
+      base-layer styling means `innerText` renders `"STORED"`, not the
+      source text `"Stored"` — caught immediately by rerunning after the
+      first fix). Regenerated all 96 T1-2 baselines with both fixes and
+      re-ran them clean **5 times in a row**, plus 5 more isolated reruns of
+      the previously-flaky Snapshots scenarios.
+      Also required correct Tailwind selector escaping, verified against
+      real compiled CSS rather than assumed: hyphen and underscore are
+      **not** escaped in Tailwind's own selectors (an early guess escaped
+      both and matched nothing).
+      Getting escaping right also needed abandoning a first
+      regex-lookahead boundary check that double-escaped an already-escaped
+      selector string into a broken pattern — replaced with plain substring
+      search plus a manual next-character check, which sidesteps regex
+      entirely. `npm run test`: 569/569. Full `check-webapp.sh`: EXIT=0,
+      ~2m17s end to end with this step included.
 - [ ] **T2-4** Make `DeviceReconnectScreen` reachable: add `POST
       /api/v1/restart` to `startupFixtureServer.mjs` so the reconnect screen
       can be rendered and diffed. It is the one `StandaloneScreen` call site
