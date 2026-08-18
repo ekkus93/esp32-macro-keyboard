@@ -606,8 +606,33 @@ Order within the phase: `Card`, `FormStack`, `StandaloneScreen` first.
       siblings, which now *would* take effect), but it changes rendering on
       notched hardware, cannot be validated on this bench, and so needs its
       own commit and its own decision.
-- [ ] **T4-4** `<FieldHelp>` (14), `<FormActions>` (11).
-      *Evidence:*
+- [x] **T4-4** `<FieldHelp>` (14), `<FormActions>` (11).
+      *Evidence:* `6cb10e7`. `<FormActions>` covers all 11 `.form-actions`
+      divs — every one was bare, so there is no variant and nothing to
+      override. `<FieldHelp>` covers **17** `.field-help` sites, not 14:
+      §5.1's inventory undercounts again, the same defect class it hit before
+      (MacroEditor 2, PackageManagement 1, Station 2, Password 2, AccessPoint
+      2, Identity 2, FirstRunSetup 5, RepositoryStartup 1). It also absorbs
+      **`.limit-exceeded`**, which turned out to have no call site outside
+      `field-help limit-exceeded`, so that rule left CSS too. Its two states
+      disagree on `font-weight` *and* `color`, so `exceeded` selects a
+      complete literal class string (§8.2): the class pair worked only
+      because `.limit-exceeded` sat later in `styles.css`, and as two
+      utilities on one element the winner would have been Tailwind's
+      stylesheet sort order rather than `className` order. `as` is kept
+      explicit because the tag is load-bearing twice over — `<p>` is invalid
+      inside a `<label>` (six sites), and `<Card>`'s `[&_p]:` rules from T4-1
+      apply to the paragraph form and not the span form. Verified with a
+      **full-document walk** this time rather than selector guesses: every
+      element in the page, 68 computed properties each, over **16 captures**
+      at 390 px and 1280 px — Settings, the Restart `alertdialog`, Packages,
+      the macro editor, first-run setup, and the no-blobs startup screen,
+      with the byte counters driven **both under and over their limits**
+      (65/64 bytes and 4097/4096 bytes) so the `exceeded` branch is proven in
+      its own right. **1112 elements, 75 616 computed properties, zero value
+      differences**, zero bounding-box differences, zero structural
+      differences, and **all 16 full-page PNGs byte-identical**.
+      `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
 - [ ] **T4-5** `<PageHeading>` (6), `<HeaderActions>` (6), `<DangerZone>` (6).
       *Evidence:*
 - [ ] **T4-6** `<CheckboxRow>` (5), `<SendStatus>` (5, note the
