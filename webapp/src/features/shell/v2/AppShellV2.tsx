@@ -124,13 +124,12 @@ export function AppShellV2({
           {/* SPEC_V2/UI_UX_SPEC_V2 §2.1: the unsaved indicator remains
               visible on every authenticated operational screen, cleared only
               by a successful snapshot upload or a deliberate discard. */}
-          <span
+          <StatusBadge
             aria-live="polite"
-            className="status-badge status-neutral"
+            label={dirty ? "Unsaved changes" : "Saved"}
             role="status"
-          >
-            {dirty ? "Unsaved changes" : "Saved"}
-          </span>
+            state="neutral"
+          />
           {dirty ? (
             <button
               className="min-h-[44px] border-header-button-edge bg-header-button px-[0.65rem] py-[0.3rem] text-[0.82rem] text-cap"

@@ -314,47 +314,4 @@
      `innerText` -- which silently broke a real-browser assertion matching
      "Unsaved changes". Legends are uppercase because they label a key;
      status text is prose. */
-  .status-badge {
-    @apply inline-flex items-center gap-[0.4rem] rounded-full border border-current px-[0.6rem] py-[0.3rem] text-[0.76rem] font-bold tracking-[0.02em];
-  }
-
-  .status-badge::before {
-    @apply h-[0.6rem] w-[0.6rem] rounded-full bg-current content-[''];
-  }
-
-  /* Lit: filled disc with a halo. */
-  .status-good {
-    @apply bg-good-tint text-good;
-  }
-
-  .status-good::before {
-    @apply shadow-[0_0_0_3px_rgb(11_92_51_/_22%)];
-  }
-
-  /* Attention: hollow ring. */
-  .status-warning {
-    @apply bg-warning-tint text-warning-ink;
-  }
-
-  .status-warning::before {
-    @apply border-2 border-current bg-transparent;
-  }
-
-  /* Fault: square, not a disc. */
-  .status-bad {
-    @apply bg-bad-tint text-alert;
-  }
-
-  .status-bad::before {
-    @apply rounded-[1px];
-  }
-
-  /* Idle: small hollow dot. */
-  .status-neutral {
-    @apply bg-neutral-tint text-legend-soft;
-  }
-
-  .status-neutral::before {
-    @apply h-[0.45rem] w-[0.45rem] border-[1.5px] border-current bg-transparent;
-  }
 }
