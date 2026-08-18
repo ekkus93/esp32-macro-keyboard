@@ -309,10 +309,6 @@
 
   /* An empty list is an invitation to act, not a statement of absence: it
      names what is missing, says what the thing is, and offers the action. */
-  .checkbox-row {
-    @apply flex min-h-[44px] items-center gap-[0.65rem];
-  }
-
   .error-message {
     @apply rounded-keycap bg-alert px-[0.9rem] py-3 text-cap;
   }
@@ -370,19 +366,6 @@
 
   .status-neutral::before {
     @apply h-[0.45rem] w-[0.45rem] border-[1.5px] border-current bg-transparent;
-  }
-
-  /* --- Send status --------------------------------------------------------- */
-  .send-status {
-    @apply my-3 rounded-keycap border-l-[3px] border-actuate bg-send-tint px-4 py-[0.8rem];
-  }
-
-  .send-status p {
-    @apply mb-2 font-bold;
-  }
-
-  .send-status[role="alert"] {
-    @apply border-alert bg-bad-tint;
   }
 
   /* --- Dialogs -------------------------------------------------------------

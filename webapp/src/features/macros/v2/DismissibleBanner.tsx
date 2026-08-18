@@ -1,3 +1,4 @@
+import { SendStatus } from "../../../components/SendStatus";
 interface DismissibleBannerProps {
   message: string;
   onDismiss: () => void;
@@ -12,12 +13,12 @@ export function DismissibleBanner({
   extra,
 }: DismissibleBannerProps): React.JSX.Element {
   return (
-    <div aria-live="polite" className="send-status" role={role}>
+    <SendStatus role={role}>
       <p>{message}</p>
       {extra}
       <button onClick={onDismiss} type="button">
         Dismiss
       </button>
-    </div>
+    </SendStatus>
   );
 }

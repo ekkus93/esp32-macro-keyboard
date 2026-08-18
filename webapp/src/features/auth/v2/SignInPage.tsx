@@ -200,7 +200,7 @@ export function SignInPage({
                 gives every button the pressed-key travel treatment, which
                 reads as too heavy sitting inside a text field. h-11/w-11
                 (44px) still meet the touch-target floor the rest of the app
-                uses (see .checkbox-row). */}
+                uses (see CheckboxRow.tsx). */}
             <button
               aria-label={passwordVisible ? "Hide password" : "Show password"}
               aria-pressed={passwordVisible}

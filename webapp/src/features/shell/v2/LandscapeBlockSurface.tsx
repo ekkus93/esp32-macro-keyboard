@@ -1,3 +1,4 @@
+import { SendStatus } from "../../../components/SendStatus";
 import type { ActiveSendSummary } from "./activeSendSummary";
 
 /**
@@ -40,22 +41,18 @@ export function LandscapeBlockSurface({
       <h1 className="m-0 text-[1.5rem]">Rotate your phone</h1>
       <p>ESP32 Macro Keyboard is designed for portrait mode.</p>
       {activeSend !== null ? (
-        // `send-status` still carries its own rule in styles.css (Phase 4);
-        // only this surface's two overrides of it move here. Both are
-        // additive -- the base rule sets neither colour nor width -- so
-        // there is no cascade race with the class.
-        <div
-          aria-live="polite"
-          className="send-status w-[min(100%,24rem)] text-legend"
-          role="status"
-        >
+        // `overlay` adds this surface's two overrides -- a measured width
+        // and the inverted ink that reads on the full-viewport overlay.
+        // Both are additive (the base sets neither), so there is no cascade
+        // race; see SendStatus.tsx.
+        <SendStatus overlay role="status">
           <p>{activeSend.statusText}</p>
           {activeSend.onCancel !== null ? (
             <button onClick={activeSend.onCancel} type="button">
               Cancel and release all keys
             </button>
           ) : null}
-        </div>
+        </SendStatus>
       ) : null}
     </div>
   );

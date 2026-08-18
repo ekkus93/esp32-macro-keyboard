@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CheckboxRow } from "../../../components/CheckboxRow";
 import { FieldHelp } from "../../../components/FieldHelp";
 import { FormActions } from "../../../components/FormActions";
 import { StandaloneScreen } from "../../../components/StandaloneScreen";
@@ -282,7 +283,7 @@ export function FirstRunSetupPage({
             {v2Limits.adminPasswordMaxBytes} UTF-8 bytes.
           </FieldHelp>
 
-          <label className="checkbox-row">
+          <CheckboxRow>
             <input
               checked={requireSerialConfirmation}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
@@ -291,7 +292,7 @@ export function FirstRunSetupPage({
               type="checkbox"
             />
             Require the device button before typing macros
-          </label>
+          </CheckboxRow>
 
           <ErrorBanner message={submitError} />
           <button className="primary" disabled={!requestValid} type="submit">

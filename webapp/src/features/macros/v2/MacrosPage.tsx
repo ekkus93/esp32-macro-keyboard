@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SendStatus } from "../../../components/SendStatus";
 import { HeaderActions } from "../../../components/HeaderActions";
 import { PageHeading } from "../../../components/PageHeading";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
@@ -502,12 +503,12 @@ export function MacrosPage({
       </PageHeading>
 
       {lifecycle.kind === "starting" ? (
-        <div aria-live="polite" className="send-status" role="status">
+        <SendStatus role="status">
           <p>Sending {lifecycle.macro.name}…</p>
-        </div>
+        </SendStatus>
       ) : null}
       {lifecycle.kind === "active" ? (
-        <div aria-live="polite" className="send-status" role="status">
+        <SendStatus role="status">
           <p>{activeStatusText(lifecycle.status, lifecycle.macro)}</p>
           <button
             onClick={() => {
@@ -517,14 +518,14 @@ export function MacrosPage({
           >
             Cancel and release all keys
           </button>
-        </div>
+        </SendStatus>
       ) : null}
       {lifecycle.kind === "completed" ? (
-        <div aria-live="polite" className="send-status" role="status">
+        <SendStatus role="status">
           <p>
             Sent{lifecycle.macro !== null ? ` ${lifecycle.macro.name}` : ""}.
           </p>
-        </div>
+        </SendStatus>
       ) : null}
       {lifecycle.kind === "terminal-issue" ? (
         <DismissibleBanner

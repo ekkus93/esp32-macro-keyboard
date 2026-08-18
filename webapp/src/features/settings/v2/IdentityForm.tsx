@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CheckboxRow } from "../../../components/CheckboxRow";
 import { FieldHelp } from "../../../components/FieldHelp";
 import { FormActions } from "../../../components/FormActions";
 import { isSettingsUpdateRequest } from "../../../v2/apiContracts";
@@ -82,7 +83,7 @@ export function IdentityForm({
         {byteCountLabel(deviceName, deviceNameMaxBytes)}
       </FieldHelp>
 
-      <label className="checkbox-row" htmlFor="settings-serial-confirmation">
+      <CheckboxRow htmlFor="settings-serial-confirmation">
         <input
           checked={requireSerialConfirmation}
           disabled={busy}
@@ -93,11 +94,11 @@ export function IdentityForm({
           type="checkbox"
         />
         Require physical confirmation before typing
-      </label>
+      </CheckboxRow>
 
       <fieldset disabled={busy}>
         <legend>Sending behavior</legend>
-        <label className="checkbox-row" htmlFor="settings-send-mode-quick">
+        <CheckboxRow htmlFor="settings-send-mode-quick">
           <input
             checked={sendMode === "quick"}
             id="settings-send-mode-quick"
@@ -108,8 +109,8 @@ export function IdentityForm({
             type="radio"
           />
           Quick Send
-        </label>
-        <label className="checkbox-row" htmlFor="settings-send-mode-preview">
+        </CheckboxRow>
+        <CheckboxRow htmlFor="settings-send-mode-preview">
           <input
             checked={sendMode === "preview"}
             id="settings-send-mode-preview"
@@ -120,7 +121,7 @@ export function IdentityForm({
             type="radio"
           />
           Always Preview
-        </label>
+        </CheckboxRow>
       </fieldset>
 
       <label htmlFor="settings-retention-target">
@@ -138,7 +139,7 @@ export function IdentityForm({
         />
       </label>
 
-      <label className="checkbox-row" htmlFor="settings-source-previews">
+      <CheckboxRow htmlFor="settings-source-previews">
         <input
           checked={showMacroSourcePreviews}
           disabled={busy}
@@ -149,7 +150,7 @@ export function IdentityForm({
           type="checkbox"
         />
         Show macro source previews
-      </label>
+      </CheckboxRow>
       <FieldHelp as="p">
         Off by default — macro source can contain passwords or private commands.
       </FieldHelp>
