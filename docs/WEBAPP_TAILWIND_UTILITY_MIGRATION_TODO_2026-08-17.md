@@ -376,7 +376,7 @@ subtask, even if it looks trivial."
       margin-top from 8px (`.storage-summary`'s `mt-2`, currently winning) to
       12px. Deferred to T1-7, which owns `.storage-summary` and migrates both
       classes on that element together. `check-webapp.sh`: EXIT=0.
-- [ ] **T1-7** `.storage-summary` — `SnapshotsPage.tsx`, **now also carrying
+- [x] **T1-7** `.storage-summary` — `SnapshotsPage.tsx`, **now also carrying
       the `.metadata` half of that same `dl` deferred from T1-6** (see its
       evidence for why). **Keep the class name on the element** (§8.1 test
       hook, `webapp/tests/browser/workflows/snapshots.mjs:24`); only the CSS
@@ -602,32 +602,35 @@ Order within the phase: `Card`, `FormStack`, `StandaloneScreen` first.
       zero value differences**, zero bounding-box differences, zero
       `innerText` differences, **all 18 full-page PNGs byte-identical**.
       `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
-      **Finding — `.standalone`'s safe-area padding was dead code, and §7.5's
-      "count 5 sites" check was measuring presence, not effect.** `.standalone`
-      declared `padding: calc(max(2rem,7vh) + env(safe-area-inset-top)) …` for
-      all four sides, but the `.standalone, main` rule *after* it set
-      `padding-inline` / `padding-block` at equal specificity, overriding every
-      one of them. Measured on the pre-change build at 390×844: computed
-      padding `20px 16px 20px 16px`, i.e. `py-5 px-4` — not the `≈59px` top
-      the declaration asks for. Re-expressing it as utilities would have
-      **revived** it (utilities beat the components layer), a rendering change
-      this refactor is not allowed to make, so it was dropped instead. Two
-      consequences. (1) `env(safe-area-inset` now appears **7 times across 4
-      elements** in the compiled CSS (`.app-header` 1, `.bottom-nav` 1,
-      `landscape-block` 4, `.recovery-overlay` 1), not 5 elements — §7.5's row
-      should read 4, and the check should verify *effect*, not presence; this
-      task is the proof that a present `env()` declaration can be entirely
-      overridden. (2) **`UI_UX_SPEC_V2` §13 "Safe-area insets are respected on
-      devices with display cutouts or gesture navigation" is not actually
-      satisfied on the single-task screens** (Sign In, First-Run Setup, the
-      reconnect screens, every repository-startup screen). This is
-      **pre-existing**, not introduced here. Per §7.5 it is reported rather
-      than fixed inside a refactor commit: the fix is a one-line change to
-      `StandaloneScreen.tsx`'s class string
-      (`pt-[calc(max(2rem,7vh)+env(safe-area-inset-top))]` and its three
-      siblings, which now *would* take effect), but it changes rendering on
-      notched hardware, cannot be validated on this bench, and so needs its
-      own commit and its own decision.
+      **Finding, and a correction to it (`8c707fd`).** This task measured
+      `.standalone`'s computed padding as `20px 16px` — `py-5 px-4` from the
+      `.standalone, main` rule — and concluded the four-sided
+      `calc(max(2rem,7vh) + env(safe-area-inset-*))` declaration was dead
+      code, so it was dropped rather than carried over. The measurement was
+      right about the tree in front of it and **wrong about the intent**.
+      In the original stylesheet that padding was declared *after*
+      `.standalone, main` and therefore won on source order; **T3-1 merged the
+      two `.standalone` rules into one placed before it**, silently flipping
+      the cascade. So the 20px this task observed was already a regression,
+      and dropping the declaration preserved the regression instead of the
+      design. Caught by T6-4's full-page diff against the migration's named
+      baseline — the first check since T3-1 to render a standalone screen at
+      all — and fixed in `8c707fd`: the padding is now four utilities on
+      `StandaloneScreen`'s own element, where it outranks the components layer
+      by construction rather than by source order. Restored values: top
+      `63px` at a 900px-tall viewport, `59.08px` at 844px, and all three
+      `env(safe-area-inset-*)` terms live again, so `UI_UX_SPEC_V2` §13
+      ("Safe-area insets are respected on devices with display cutouts or
+      gesture navigation") holds on the single-task screens. `env(safe-area-
+      inset` now appears **11 times across 5 elements** in the compiled CSS —
+      `.app-header` 1, `.bottom-nav` 1, the landscape surface 4, the recovery
+      overlay 1, and `StandaloneScreen` 4 — which is §7.5's count of 5, and
+      the lesson stands that the check should verify *effect*, not presence.
+      **The wider lesson: per-task verification only covers the screens the
+      task happens to render.** T3-1 was verified on shell pages, T3-3 on the
+      landscape overlay, T4-1 through T4-2 on the authenticated routes; none
+      of them drew Sign In or First-Run Setup, so a 43px shift on those
+      screens survived nine consecutive "byte-identical" evidence lines.
 - [x] **T4-4** `<FieldHelp>` (14), `<FormActions>` (11).
       *Evidence:* `6cb10e7`. `<FormActions>` covers all 11 `.form-actions`
       divs — every one was bare, so there is no variant and nothing to
@@ -814,21 +817,109 @@ fully-dynamic class construction.
 
 ### Phase 6 — Sweep and close
 
-- [ ] **T6-1** Delete every now-unused rule from `styles.css`. Re-run the
+- [x] **T6-1** Delete every now-unused rule from `styles.css`. Re-run the
       defined-vs-used audit (§7.4) and confirm zero unused component rules
       and zero used-but-undefined classes.
-      *Evidence:*
-- [ ] **T6-2** Re-run the unused-`@theme`-token audit. Any token orphaned by
+      *Evidence:* `b727a6e`. Nothing was left *unused* — dead rules were
+      removed as each task retired them (`.timing-grid` went with the
+      breakpoint fix). What remained was `.error-message`, still used but
+      still an `@apply` rule, which §10 does not list among the rules
+      `styles.css` should keep; it is inlined into `ErrorBanner`, the
+      component that already owned it. Also deleted three section comments
+      left describing nothing (`--- The bottom key row ---`, `--- Status
+      lamps ---`, and an "empty list" note that had drifted onto an unrelated
+      rule); the status-lamp note about deliberately **not** uppercasing badge
+      text moved into `StatusBadge.tsx` beside the rule it explains.
+      **Audit result: `@layer components` now contains zero class rules** —
+      only `main` and `#main-content`, both explicitly retained by §10 —
+      **and zero used-but-undefined classes.** The only class rules left
+      anywhere are `.primary` and `.danger` in `@layer base`, both used, both
+      retained by §2.3. Verified with the full-document walk over 4 captures
+      that actually render an `ErrorBanner` (snapshot recovery and a failed
+      sign-in, at 390 px and 1280 px): 82 elements, 5576 properties, zero
+      differences, 4/4 PNGs byte-identical.
+- [x] **T6-2** Re-run the unused-`@theme`-token audit. Any token orphaned by
       the migration is either a bug (a style got dropped) or genuinely dead —
       determine which before deleting.
-      *Evidence:*
-- [ ] **T6-3** Update the `styles.css` header comment. It currently describes
+      *Evidence:* **All 25 `@theme` tokens are still referenced; none was
+      orphaned, so nothing was deleted.** Audited with exact token-boundary
+      matching (not substring, which would have falsely resolved
+      `--color-good` via `bg-good-tint`), checking every generated utility
+      prefix for the token's kind plus `var(--…)` in both the stylesheet and
+      all `.ts`/`.tsx` sources. Each token and what still references it:
+      `--color-shell` `bg-shell`; `--color-panel` `bg-panel`/`text-panel`;
+      `--color-cap` `bg-cap`/`text-cap`; `--color-cap-edge` `border-cap-edge`;
+      `--color-field` `bg-field`; `--color-legend`
+      `bg-legend`/`border-legend`/`text-legend`; `--color-legend-soft`
+      `text-legend-soft`; `--color-actuate`
+      `accent-`/`bg-`/`border-`/`text-actuate`; `--color-actuate-edge`
+      `border-actuate-edge`; `--color-lamp`
+      `border-`/`outline-`/`text-lamp` and `var()`; `--color-alert`
+      `bg-`/`border-`/`text-alert`; `--color-alert-edge`
+      `border-alert-edge`; `--color-header-button` `bg-header-button`;
+      `--color-header-button-edge` `border-header-button-edge`;
+      `--color-good` `text-good`; `--color-good-tint` `bg-good-tint`;
+      `--color-warning-ink` `text-warning-ink`; `--color-warning-tint`
+      `bg-warning-tint`; `--color-bad-tint` `bg-bad-tint`;
+      `--color-neutral-tint` `bg-neutral-tint`; `--color-send-tint`
+      `bg-send-tint`; `--radius-keycap` `rounded-keycap`;
+      `--tracking-legend` `tracking-legend`; `--font-sans` `font-sans`;
+      `--font-mono` `font-mono`. A zero-orphan result is itself the useful
+      signal here: every colour, radius and tracking value the design defined
+      still reaches a rendered element, so no styling was silently dropped on
+      the way out of CSS.
+- [x] **T6-3** Update the `styles.css` header comment. It currently describes
       the all-`@apply` architecture and will be wrong. State the new split:
       base layer + globals in CSS, component styling in markup.
-      *Evidence:*
-- [ ] **T6-4** Final full-gate run and a complete visual diff across every
+      *Evidence:* `b727a6e`. The old text claimed "every rule below is a
+      Tailwind v4 `@theme` token or an `@apply` composition" and that "class
+      names are kept exactly as they were (`.app-header`, `.card`,
+      `.status-badge`, …) so every component file's `className` stays
+      unchanged" — all three of those class names are now gone, and the
+      sentence described the opposite of what the file became. The
+      replacement enumerates the three things the file actually holds
+      (`@theme`; `@layer base` element defaults including `.primary`/`.danger`
+      and the `button:active` rule that must outrank them; the `body` /
+      `main` / `#main-content` globals plus the reduced-motion block and the
+      `short` variant), says component styling lives in the markup of the
+      component that owns it under `src/components/` and
+      `src/features/<domain>/v2/`, notes the literal-string-per-variant rule
+      and why, and states the layer order that makes the arrangement work.
+      The design intent above it (the "PBT and petrol" palette rationale, the
+      typography note, the accessibility requirements) is unchanged.
+- [x] **T6-4** Final full-gate run and a complete visual diff across every
       page at both viewports (§7.2).
-      *Evidence:*
+      *Evidence:* Diffed against a clean `git worktree` of **`7132c95f`**, the
+      baseline §10 names — confirmed identical to `2e31581~1` under
+      `webapp/src`, so the worktree *is* that baseline. **65 captures** at
+      390×844 and 1280×900 covering every page and every state the fixtures
+      can reach: Macros (clean and dirty), the overflow menu, macro preview,
+      the macro editor (clean, invalid-token, over-byte-limit), Packages
+      (clean, over-limit, rename, delete confirm), Snapshots (list, advanced,
+      delete confirm, import-ready), Settings, the restart dialog, the
+      reset-settings `alertdialog`, Diagnostics, the send banners (in flight,
+      complete, failed), the unsaved-changes prompt, Sign In and its error
+      state, First-Run Setup and its review step, the no-blobs and snapshot-
+      recovery startup screens, all four USB badge states, and the landscape
+      orientation surface at 844×390 with `hasTouch`. Result: **4890 elements,
+      332 520 computed properties, zero value differences, zero bounding-box
+      differences, zero structural differences, and 65/65 full-page PNGs
+      byte-identical.**
+      **This is the check that caught the one real regression in the whole
+      migration** — the standalone screens' lost top and safe-area padding,
+      introduced by T3-1 and mis-diagnosed by T4-3. Before `8c707fd` this
+      same diff reported 20 property differences and 158 bounding-box
+      differences, all of them on single-task screens; afterwards, zero. Nine
+      consecutive per-task "byte-identical" evidence lines had missed it
+      because no task between T3-1 and T6-4 rendered a standalone screen.
+      Boundary widths were diffed separately against the same baseline
+      (511/512/513/639/640/641 px — 36 captures, 219 912 properties, zero
+      differences) since the two-viewport sweep cannot see a media-query
+      edge. `check-webapp.sh`: EXIT=0, including its real-Chrome browser,
+      startup, recovery and axe-core accessibility suites. `npm run test`:
+      544/544. No `*.tmp.mjs` remains in `webapp/tests/browser/`.
+
+**Phase 6 complete.**
 
 ---
 
@@ -1035,17 +1126,46 @@ patching forward.
 
 ## 10. Definition of done
 
-- [ ] Every task above checked with commit SHA and command evidence.
-- [ ] `styles.css` contains: `@theme`, the full `@layer base` block, the
+- [x] Every task above checked with commit SHA and command evidence.
+- [x] `styles.css` contains: `@theme`, the full `@layer base` block, the
       reduced-motion block, `body`/`#main-content`/`main`, `.primary`,
       `.danger`, the `@custom-variant short` declaration, and any rule
       deliberately retained under Disposition C — and nothing else.
-- [ ] Zero unused component rules; zero used-but-undefined classes.
-- [ ] Every `@theme` token still referenced, or deliberately deleted with a
+- [x] Zero unused component rules; zero used-but-undefined classes.
+- [x] Every `@theme` token still referenced, or deliberately deleted with a
       note saying why.
-- [ ] `./scripts/check-webapp.sh` exits 0.
-- [ ] Visual diff across all pages at 1280×900 and 390×844 shows no
+- [x] `./scripts/check-webapp.sh` exits 0.
+- [x] Visual diff across all pages at 1280×900 and 390×844 shows no
       difference from the `7132c95f` baseline.
-- [ ] No `*.tmp.mjs` left in `webapp/tests/browser/`.
-- [ ] `docs/SPEC_V2.md` and `docs/UI_UX_SPEC_V2.md` unmodified
+- [x] No `*.tmp.mjs` left in `webapp/tests/browser/`.
+- [x] `docs/SPEC_V2.md` and `docs/UI_UX_SPEC_V2.md` unmodified
       (`git diff 7132c95f -- docs/SPEC_V2.md docs/UI_UX_SPEC_V2.md` empty).
+
+**Migration complete (2026-08-18).** Verified at T6-4: 65 captures, 4890
+elements, 332 520 computed properties, zero differences against `7132c95f`,
+65/65 screenshots byte-identical; plus 36 boundary-width captures at
+511/512/513/639/640/641 px, 219 912 properties, zero differences. T1-7's
+checkbox was ticked here — its work landed in `88eccbd` with full evidence
+during an earlier session, but the box was never flipped.
+
+### What this migration would have shipped without the final diff
+
+Three defects reached `master` inside tasks whose own evidence line said
+"byte-identical", and all three were found only by a check the task itself
+did not run:
+
+1. **The `max-[X]:` boundary** (`05528b8`). Eight utilities silently stopped
+   applying at exactly 512px because the plan recommended a variant verified
+   only to *compile*. Found by diffing at the breakpoint width itself.
+2. **The standalone screens' padding** (`8c707fd`). A 43px shift on every
+   single-task screen, introduced by T3-1 and then *mis-diagnosed as dead
+   code* by T4-3. Found by the first full-page diff since T3-1 that rendered
+   one of those screens.
+3. **`StatusBadge`'s interpolated class name** (T5-1). Caught by the plan
+   itself (§8.2), but worth counting: it would have shipped an unstyled
+   badge with no build error at all.
+
+The pattern in all three: per-task verification proves what the task
+rendered, at the viewports it chose. It cannot prove what it never drew.
+A migration like this needs the end-to-end diff, at the exact boundaries, as
+a first-class step — not as a formality after the work is done.
