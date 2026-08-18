@@ -483,7 +483,7 @@ defect, and none is any longer a silent one either.
 
 ## 4. Phase 4 — Consistency and rot
 
-- [ ] **T4-1** Sweep the 32 comment references to deleted classes. Most are
+- [x] **T4-1** Sweep the 32 comment references to deleted classes. Most are
       legitimate history ("Replaces the `.card` rule") and should stay. The
       ones to fix are those written in the present tense as if the class still
       governs behaviour — notably `Card.tsx:14`, whose cascade argument is
@@ -491,7 +491,25 @@ defect, and none is any longer a silent one either.
       which grounds its safety claim in three stylesheet rules that are now
       utilities on sibling components. Also `ExecutionRecoveryOverlay.tsx:61`
       and `tests/browser/workflows/settings.mjs:20`.
-      *Evidence:*
+      *Evidence:* Commit `aaa39a0`. Fixed the 4 present-tense/dangling
+      references: `Card.tsx`'s header comment rewritten to past-tense framing
+      (`.card`/`.card danger-zone`/`.card p`/`.dialog-heading p`/
+      `.page-heading h2` are no longer live stylesheet rules — the `[&_p]:`
+      scope is now owned by `Card`, `Dialog`, and `SendStatus` independently,
+      guarded by `tests/descendantVariantNesting.ts` per T3-2, not by this
+      comment); `ExecutionRecoveryOverlay.tsx:61` (`.bottom-nav` →
+      "AppShellV2's bottom nav"); `tests/browser/workflows/settings.mjs:20`
+      (`.eyebrow` → `Eyebrow.tsx`). Re-swept all comment references to
+      pre-migration selector syntax (`grep -rnE '\.[a-z][a-z-]*\b' --
+      '*.tsx' '*.ts' '*.mjs'` restricted to comment lines, by hand) after the
+      fix: 29 remain, all reviewed individually and confirmed legitimate
+      past-tense history ("Replaces the `.card` rule", "used to be
+      `.danger-zone`", etc.) that the task's own text says should stay,
+      including `Eyebrow.tsx:9`'s specificity-comparison sentence (states a
+      timeless structural fact bounded by surrounding past-tense context, not
+      a claim that a deleted class still governs behaviour). Full gate:
+      `./scripts/check-webapp.sh` — EXIT=0, 578/578 vitest tests passed,
+      Playwright visual suite green.
 - [ ] **T4-2** Decide on `prettier-plugin-tailwindcss`. Class ordering is
       unenforced and already inconsistent (`MacroEditorPage.tsx:322` has base
       utilities after variants). Adopting it reorders nearly every class
