@@ -172,12 +172,40 @@ actually fails the gate, not merely that it runs.
 
 ## 2. Phase 2 — Cover what nothing covers
 
-- [ ] **T2-1** Unit tests for the six variant maps in `SPEC` §4.2. Assert that
+- [x] **T2-1** Unit tests for the six variant maps in `SPEC` §4.2. Assert that
       each variant resolves to a distinct, non-empty class string and that no
       variant sets the same property twice. These maps are branching logic
       with no test today; a wrong key is currently caught only by a visual
       diff nobody runs.
-      *Evidence:*
+      *Evidence:* `0546a49`. **Found and fixed a real, previously-unnoticed
+      defect while building this** (`1b4fda5`, its own commit, done first):
+      `border` (bare) sets `border-width` on all four sides and
+      `border-l-[3px]` sets only `border-left-width` — they collide on the
+      left side, and only worked by luck of Tailwind's emission order,
+      exactly the `SPEC` §3 rule-4 hazard this task exists to catch. Five
+      occurrences across the app (`Card`'s `danger` tone, `Dialog`'s
+      `danger` tone, `DangerZone`, `MacroOverflowMenu`, `MacroEditorPage`'s
+      validation panel — the last also colliding on border *colour*, not
+      just width). Fixed by making every side explicit
+      (`border-y border-r border-l-[3px]`) instead of a shorthand plus an
+      override, verified render-neutral against the full 96-capture visual
+      baseline. `tailwindClassCollisions.ts` is the classifier this task
+      needed to find that: deliberately non-general (recognizes exactly the
+      vocabulary these six maps use, throws on anything else — §4.1's
+      "fail loudly on the unaudited" discipline applied to the checker
+      itself), scopes tokens by prefix (`before:`, a descendant selector, a
+      breakpoint — different scopes never collide) and models border
+      width/colour as four independent per-side slots rather than one
+      property each. `component-variant-maps.test.tsx` renders every real
+      variant through each component's own public props — exporting the
+      module-private class-string maps directly was tried first and
+      rejected: it broke Vite Fast Refresh
+      (`react-refresh/only-export-components`). **Verified the test has
+      teeth**: reintroduced the (by-then-fixed) border collision in Card's
+      danger variant, confirmed the test failed naming the exact property
+      and the two colliding classes, reverted, confirmed it passed again.
+      19 new tests (12 direct classifier tests, 7 component tests).
+      `npm run test`: 563/563. `check-webapp.sh`: EXIT=0.
 - [ ] **T2-2** A test that fails if any element in a rendered page carries two
       utilities setting the same CSS property — the `SPEC` §3 invariant, as an
       executable check rather than a one-off scan. jsdom is enough: this is a
