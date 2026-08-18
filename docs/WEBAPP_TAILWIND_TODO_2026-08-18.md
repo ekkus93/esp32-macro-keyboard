@@ -301,12 +301,40 @@ actually fails the gate, not merely that it runs.
       search plus a manual next-character check, which sidesteps regex
       entirely. `npm run test`: 569/569. Full `check-webapp.sh`: EXIT=0,
       ~2m17s end to end with this step included.
-- [ ] **T2-4** Make `DeviceReconnectScreen` reachable: add `POST
+- [x] **T2-4** Make `DeviceReconnectScreen` reachable: add `POST
       /api/v1/restart` to `startupFixtureServer.mjs` so the reconnect screen
       can be rendered and diffed. It is the one `StandaloneScreen` call site
       that has never been visually verified, on the component whose padding
       regression went unnoticed for nine tasks.
-      *Evidence:*
+      *Evidence:* `84dca26`. The real route is `POST
+      /api/v1/device/restart` (this task's own text abbreviated it).
+      Implemented in `startStartupFixtureServer.mjs` — not
+      `applicationServer.mjs` — because it already supports the fully
+      authenticated app state and shares its repository fixture data with
+      `applicationServer.mjs` (both reach "Lab bench workflow"), so no
+      second fixture module was needed. Two simulated-down 503 polls (the
+      closest an HTTP fixture gets to a dropped connection —
+      `useDeviceReconnect.ts` treats `5xx` the same as a network failure),
+      then the response drops `state.authenticated`, letting the *existing*
+      auth gate answer the next poll with 401 — no special-cased 401
+      response needed.
+      New `reconnect-waiting` scenario: Settings → Restart → confirm →
+      capture. **Verified this is real coverage, not a stub**:
+      `StandaloneScreen`'s `padding-top` measured `59.08px` with the correct
+      `env(safe-area-inset-top)` `calc()` intact — exactly the property this
+      call site could never previously prove.
+      **Did not add a `reconnect-needs-reauth` scenario, and said why rather
+      than forcing one.** `AppV2.tsx`'s own comment explains: a 401 on the
+      reconnect poll *also* fires the shared `subscribeUnauthorized`
+      mechanism, which drops the whole app to Sign In directly ("this shell
+      unmounts on its own once that happens") — confirmed empirically, the
+      fixture reaches Sign In every time, never
+      `DeviceReconnectScreen`'s own needs-reauth copy. Whether that render
+      branch is reachable by *any* real sequence is a genuine open question
+      about the app's own control flow, not something to paper over by
+      racing fixture timings until one scenario happens to pass.
+      Regenerated all 98 baselines (was 96) and ran clean 5 times in a row.
+      `npm run test`: 569/569. `check-webapp.sh`: EXIT=0.
 - [ ] **T2-5** Assert the four `StatusBadge` `::before` shapes are mutually
       distinct in geometry, not only in colour — `UI_UX_SPEC_V2` §14. Compare
       width/height/border-radius/border-width/background across the four
