@@ -633,12 +633,44 @@ Order within the phase: `Card`, `FormStack`, `StandaloneScreen` first.
       differences**, zero bounding-box differences, zero structural
       differences, and **all 16 full-page PNGs byte-identical**.
       `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
-- [ ] **T4-5** `<PageHeading>` (6), `<HeaderActions>` (6), `<DangerZone>` (6).
-      *Evidence:*
+- [x] **T4-5** `<PageHeading>` (6), `<HeaderActions>` (6), ~~`<DangerZone>`~~
+      (moved to T4-7).
+      *Evidence:* `1b6e1fd`. `<PageHeading>` covers all 6 `.page-heading`
+      divs and carries `.page-heading h2` as `[&_h2]:` variants rather than
+      pushing it to call sites: that rule is what makes an arbitrary-length
+      title (a package name, up to 64 UTF-8 bytes) truncate instead of
+      wrapping to a second row, so it belongs to the component. All six
+      `<h2>`s were checked — none carries a utility of its own, so nothing
+      races the `(0,1,1)` `[&_h2]:` rules inside the utilities layer.
+      `<HeaderActions>` covers all 6 `.header-actions` divs and folds in the
+      `@media (width <= 32rem)` rule as `max-[32rem]:justify-start`;
+      confirmed in the compiled CSS that Tailwind 4.1.11 emits
+      `@media(max-width:32rem)` for it — the **same** condition as the source
+      `width <= 32rem`, not the `width <` form a named breakpoint would give,
+      which would have differed at exactly 512 px. The 390 px captures are
+      below that threshold, so the variant is exercised. Verified with the
+      full-document walk over **14 captures** at 390 px and 1280 px — Macros,
+      the macro preview, the macro editor, Packages, Snapshots, Settings and
+      Diagnostics, which between them render every `page-heading` and
+      `header-actions` site including the shell header's: **1052 elements,
+      71 536 computed properties, zero value differences**, zero
+      bounding-box differences, zero structural differences, **all 14
+      full-page PNGs byte-identical**. `npm run test`: 544/544.
+      `check-webapp.sh`: EXIT=0.
+      **`<DangerZone>` is deliberately deferred to T4-7.** Its last call site
+      is `ConfirmPhraseDialog.tsx:35`'s `dialog-panel danger-zone` — the same
+      cascade coupling `<Card>` hit at `SettingsPage.tsx:371`, where the pair
+      renders correctly only because `.danger-zone` sits later in
+      `styles.css` than `.dialog-panel`. Splitting it would either leave that
+      coupling half-migrated or force a `<Dialog>` variant to be designed
+      here, so per the handoff's rule for coupled tasks it moves whole into
+      the commit that owns `.dialog-panel`. `.danger-zone` stays in CSS until
+      then, unchanged and serving its five remaining call sites.
 - [ ] **T4-6** `<CheckboxRow>` (5), `<SendStatus>` (5, note the
       `[role="alert"]` variant — verified as `[&[role=alert]]:` or a prop).
       *Evidence:*
-- [ ] **T4-7** `<Dialog>` — one component covering `.dialog-backdrop`,
+- [ ] **T4-7** `<Dialog>` — **also carries `<DangerZone>` (6 → 5 sites),
+      moved here from T4-5 because `dialog-panel danger-zone` couples them.** — one component covering `.dialog-backdrop`,
       `.dialog-panel`, `.dialog-heading` across 3 call sites. Preserve
       `max-h-[calc(100dvh-2rem)]` exactly; **`100vh` here is a known bug**
       (fixed in `70aa7b65`) — do not "simplify" it back.
