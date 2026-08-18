@@ -349,25 +349,6 @@
   }
 
   /* --- Keycap surfaces ----------------------------------------------------- */
-  .card {
-    @apply my-3 grid gap-4 rounded-keycap border border-cap-edge bg-panel p-4;
-  }
-
-  @media (width >= 34rem) {
-    .card {
-      @apply items-start [grid-template-columns:1fr_auto];
-    }
-  }
-
-  .card h2,
-  .card h3 {
-    @apply mb-[0.3rem] text-[1.05rem];
-  }
-
-  .card p {
-    @apply my-[0.2rem] text-legend-soft;
-  }
-
   .form-stack {
     @apply grid gap-[0.85rem];
   }

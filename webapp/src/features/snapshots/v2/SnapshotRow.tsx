@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Card } from "../../../components/Card";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import { useFocusTrap } from "../../shell/v2/useFocusTrap";
 import { formatBytes } from "./snapshotMessages";
@@ -54,7 +55,7 @@ export function SnapshotRow({
   });
 
   return (
-    <article className="card m-0">
+    <Card variant="flush">
       <div className="min-w-0">
         <h3>
           Snapshot {id}
@@ -212,6 +213,6 @@ export function SnapshotRow({
           </div>
         ) : null}
       </div>
-    </article>
+    </Card>
   );
 }

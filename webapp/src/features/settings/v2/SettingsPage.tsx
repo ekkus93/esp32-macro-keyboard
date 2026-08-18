@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Card } from "../../../components/Card";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import type { DeviceActionKind } from "./DeviceReconnectScreen";
@@ -296,7 +297,7 @@ export function SettingsPage({
         <h2 id="settings-title">Settings</h2>
       </div>
 
-      <article className="card" aria-labelledby="settings-identity-title">
+      <Card aria-labelledby="settings-identity-title">
         <h3 id="settings-identity-title">Device</h3>
         <ErrorBanner message={identityError} />
         <IdentityForm
@@ -304,9 +305,9 @@ export function SettingsPage({
           onSubmit={submitIdentity}
           settings={settings}
         />
-      </article>
+      </Card>
 
-      <article className="card" aria-labelledby="settings-ap-title">
+      <Card aria-labelledby="settings-ap-title">
         <h3 id="settings-ap-title">Access point network</h3>
         <ErrorBanner message={apError} />
         <AccessPointForm
@@ -321,9 +322,9 @@ export function SettingsPage({
             device&apos;s Wi-Fi to the new network and sign in again.
           </p>
         ) : null}
-      </article>
+      </Card>
 
-      <article className="card" aria-labelledby="settings-station-title">
+      <Card aria-labelledby="settings-station-title">
         <h3 id="settings-station-title">Station network (optional)</h3>
         <ErrorBanner message={stationError} />
         <StationForm
@@ -333,9 +334,9 @@ export function SettingsPage({
           stationConfigured={settings.stationConfigured}
           stationSsid={settings.stationSsid}
         />
-      </article>
+      </Card>
 
-      <article className="card" aria-labelledby="settings-password-title">
+      <Card aria-labelledby="settings-password-title">
         <h3 id="settings-password-title">Administrator password</h3>
         <ErrorBanner message={passwordError} />
         <PasswordForm
@@ -344,16 +345,16 @@ export function SettingsPage({
             void submitPassword(currentPassword, newPassword);
           }}
         />
-      </article>
+      </Card>
 
-      <article className="card" aria-labelledby="settings-diagnostics-title">
+      <Card aria-labelledby="settings-diagnostics-title">
         <h3 id="settings-diagnostics-title">Diagnostics</h3>
         <button onClick={onOpenDiagnostics} type="button">
           View diagnostics
         </button>
-      </article>
+      </Card>
 
-      <article className="card" aria-labelledby="settings-session-title">
+      <Card aria-labelledby="settings-session-title">
         <h3 id="settings-session-title">Session</h3>
         <ErrorBanner message={actionError} />
         <button
@@ -365,12 +366,9 @@ export function SettingsPage({
         >
           {actionBusy === "sign-out" ? "Signing out…" : "Sign out"}
         </button>
-      </article>
+      </Card>
 
-      <article
-        className="card danger-zone"
-        aria-labelledby="settings-danger-title"
-      >
+      <Card aria-labelledby="settings-danger-title" variant="danger">
         <h3 id="settings-danger-title">Device actions</h3>
         <div className="form-actions">
           <button
@@ -403,7 +401,7 @@ export function SettingsPage({
             Factory reset
           </button>
         </div>
-      </article>
+      </Card>
 
       {restartConfirming ? (
         <div className="dialog-backdrop" role="presentation">

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Card } from "../../../components/Card";
 import { v2Limits } from "../../../v2/limits";
 import {
   persistSelectedPackageId as defaultPersistSelectedPackageId,
@@ -161,7 +162,7 @@ function PackageRow({
   });
 
   return (
-    <article className="card m-0">
+    <Card variant="flush">
       <div className="min-w-0">
         <h3>
           {pkg.name}
@@ -328,7 +329,7 @@ function PackageRow({
           </button>
         )}
       </div>
-    </article>
+    </Card>
   );
 }
 

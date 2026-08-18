@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Card } from "../../../components/Card";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import { getDiagnostics as defaultGetDiagnostics } from "../../../v2/diagnosticsClient";
@@ -152,18 +153,15 @@ export function DiagnosticsPage({
           </div>
           {copyState === "error" ? <ErrorBanner message={copyError} /> : null}
 
-          <article
-            className="card"
-            aria-labelledby="diagnostics-firmware-title"
-          >
+          <Card aria-labelledby="diagnostics-firmware-title">
             <h3 id="diagnostics-firmware-title">Firmware</h3>
             <p>Version {state.diagnostics.firmwareVersion}</p>
             <p>Build {state.diagnostics.buildId}</p>
             <p>Reset reason: {state.diagnostics.resetReason}</p>
             <p>Uptime: {String(state.diagnostics.uptimeMs)} ms</p>
-          </article>
+          </Card>
 
-          <article className="card" aria-labelledby="diagnostics-memory-title">
+          <Card aria-labelledby="diagnostics-memory-title">
             <h3 id="diagnostics-memory-title">Memory</h3>
             <p>
               Free heap: {formatBytes(state.diagnostics.memory.freeHeapBytes)}
@@ -176,20 +174,20 @@ export function DiagnosticsPage({
               Largest free block:{" "}
               {formatBytes(state.diagnostics.memory.largestFreeBlockBytes)}
             </p>
-          </article>
+          </Card>
 
-          <article className="card" aria-labelledby="diagnostics-usb-title">
+          <Card aria-labelledby="diagnostics-usb-title">
             <h3 id="diagnostics-usb-title">USB</h3>
             <p>State: {state.diagnostics.usb.state}</p>
-          </article>
+          </Card>
 
-          <article className="card" aria-labelledby="diagnostics-wifi-title">
+          <Card aria-labelledby="diagnostics-wifi-title">
             <h3 id="diagnostics-wifi-title">Wi-Fi</h3>
             <p>Access point: {state.diagnostics.wifi.accessPointState}</p>
             <p>Station: {state.diagnostics.wifi.stationState}</p>
-          </article>
+          </Card>
 
-          <article className="card" aria-labelledby="diagnostics-storage-title">
+          <Card aria-labelledby="diagnostics-storage-title">
             <h3 id="diagnostics-storage-title">Storage</h3>
             <p>State: {state.diagnostics.storage.state}</p>
             <p>
@@ -219,9 +217,9 @@ export function DiagnosticsPage({
             ) : (
               <p>No leftover temporary files.</p>
             )}
-          </article>
+          </Card>
 
-          <article className="card" aria-labelledby="diagnostics-send-title">
+          <Card aria-labelledby="diagnostics-send-title">
             <h3 id="diagnostics-send-title">Send state</h3>
             {state.diagnostics.send.present ? (
               <p>
@@ -230,9 +228,9 @@ export function DiagnosticsPage({
             ) : (
               <p>No send has run since boot.</p>
             )}
-          </article>
+          </Card>
 
-          <article className="card" aria-labelledby="diagnostics-health-title">
+          <Card aria-labelledby="diagnostics-health-title">
             <h3 id="diagnostics-health-title">Subsystem health</h3>
             {state.diagnostics.subsystems.length === 0 ? (
               <p>No subsystem health entries were reported.</p>
@@ -245,7 +243,7 @@ export function DiagnosticsPage({
                 ))}
               </ul>
             )}
-          </article>
+          </Card>
         </>
       ) : null}
     </section>

@@ -1,3 +1,4 @@
+import { Card } from "../../../components/Card";
 import type { RepositoryMacro } from "../../../v2/repository";
 import { MacroOverflowMenu } from "./MacroOverflowMenu";
 import type { MoveAction } from "./macroSendStatus";
@@ -34,7 +35,7 @@ export function MacroRow({
   onDelete,
 }: MacroRowProps): React.JSX.Element {
   return (
-    <article className="card">
+    <Card>
       <div>
         <h3>{macro.name}</h3>
         {revealed ? (
@@ -122,6 +123,6 @@ export function MacroRow({
           onPreview={onPreview}
         />
       </div>
-    </article>
+    </Card>
   );
 }
