@@ -487,12 +487,42 @@ layout-collapse bug. Do it as its own commit.
 
 Order within the phase: `Card`, `FormStack`, `StandaloneScreen` first.
 
-- [ ] **T4-1** `<Card>` — replaces 17 `.card` usages. Must preserve the
+- [x] **T4-1** `<Card>` — replaces 17 `.card` usages. Must preserve the
       `min-[34rem]:` two-column behaviour and the `h2`/`h3`/`p` descendant
       rules (pass through `children`; put the descendant utilities on a
       wrapper via `[&_h2]:…` or restyle call sites — prefer the latter where
       the call sites are few).
-      *Evidence:*
+      *Evidence:* `c4a9029`. `src/components/Card.tsx`, three variants as
+      **complete literal class strings** (§8.2): `default` (`my-3`), `flush`
+      (the two `card m-0` list rows, whose list owns the spacing), `danger`
+      (the one `card danger-zone`). The variant form is what the fourth
+      coupling instance forced — `SettingsPage.tsx:371` renders correctly
+      today only because `.danger-zone` sits *later* in `styles.css` than
+      `.card`; once `.card` became markup utilities they would have beaten
+      the components layer (§8.6) and flipped that card back to
+      `bg-panel`/`border-cap-edge`. Selecting a whole variant means no two
+      conflicting utilities ever land on one element, so nothing races and
+      **T4-5's `<DangerZone>` did not have to be pulled into this commit** —
+      `.danger-zone` stays in CSS for its five other call sites. The
+      descendant rules moved as `[&_h2]:`/`[&_h3]:`/`[&_p]:` variants, not to
+      call sites: the cards hold far too many paragraphs (all of Diagnostics,
+      every form's field help, every row's summary) for restyling each to be
+      safe. They keep the same `(0,1,1)` specificity `.card p` had, and the
+      only later same-specificity rules on those elements — `.send-status p`,
+      `.dialog-heading p`, `.page-heading h2` — were checked and never appear
+      inside a card. Verified in real Chrome against the fixture server on all
+      five card-bearing pages (Macros, Packages, Snapshots, Settings,
+      Diagnostics) at **390 / 544 / 1280 px** — 544 is the `min-[34rem]`
+      boundary exactly — selecting on the class-independent `article` hook:
+      **118 338 computed properties across 15 page/viewport captures, zero
+      value differences**, zero bounding-box differences, zero `innerText`
+      differences, and **all 15 full-page PNGs byte-identical** (`cmp`).
+      Compiled CSS confirms `.card` now appears **0 times**, the four
+      `[&_…]` descendant rules and `@media(min-width:34rem)` are emitted, and
+      `danger-zone` still has its one rule. `npm run test`: 544/544.
+      `check-webapp.sh`: EXIT=0 (its real-Chrome browser suites included).
+      The stale `.card` mention in the `styles.css` header comment is left
+      for T6-3, which owns that rewrite.
 - [ ] **T4-2** `<FormStack>` — 15 usages.
       *Evidence:*
 - [ ] **T4-3** `<StandaloneScreen>` — 19 usages. Carries the four-sided
