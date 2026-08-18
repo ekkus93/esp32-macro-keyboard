@@ -41,6 +41,30 @@ and generated build output.
 The `Quality` workflow runs the full gate (`check-all.sh`) on pushes to `master`,
 pull requests, tags, and manual dispatch.
 
+## Frontend visual-regression baselines
+
+`npm --prefix webapp run test:visual` (part of `check-webapp.sh`) compares the
+built app's computed style and geometry, in ~35 scenarios at every viewport
+`webapp/tests/browser/visual/scenarios.mjs` covers, against the checked-in
+baselines in `webapp/tests/browser/visual/baselines/`. It is what catches a
+spacing, colour, or layout regression that the rest of the gate — typecheck,
+lint, unit tests, touch-target/responsive assertions, axe-core — cannot see
+(`docs/WEBAPP_TAILWIND_SPEC_2026-08-18.md` §10.1).
+
+If it fails, **read the reported diff before doing anything else**: it names
+the exact element, class, and property that changed. Only once you understand
+*why* it changed and agree the new rendering is correct:
+
+```bash
+node webapp/tests/browser/visual/run-visual-tests.mjs --update-baselines
+```
+
+Review the resulting `git diff` on the baseline JSON like any other change,
+and commit it as its own commit, separate from whatever caused it. See
+`webapp/tests/browser/visual/baselines/README.md` for the full workflow, why
+baselines are JSON rather than screenshots, and the `--grep`/`--baseline-dir`
+flags for iterating on one scenario or diffing two builds directly.
+
 ## Build
 
 ```bash
