@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+/* tests/browser/visual/baselines/*.json (T1-2) store, as literal text, the
+   className of every element the visual-regression harness has ever
+   captured -- including elements as they looked in a PAST commit. With no
+   `@source not` exclusion, Tailwind's default content scan (the whole
+   project, respecting .gitignore -- these files are git-tracked, not
+   ignored) treats that historical text as current markup, so a utility
+   permanently keeps generating a CSS rule even after every real call site
+   stops using it, and the class stays in the compiled bundle forever.
+   Found while verifying T3-1 (WEBAPP_TAILWIND_TODO_2026-08-18.md): after
+   moving PageHeading's `[&_h2]:` utilities out to its six call sites, the
+   compiled CSS still emitted them -- not stale caching (confirmed with a
+   fully clean rebuild, cache and dist/ deleted) but this file being scanned
+   as a live source of utility candidates. */
+@source not "../tests/browser/visual/baselines/**/*.json";
+
 /* The macro editor's short-viewport fallback. Height-based media queries
    have no built-in Tailwind variant, and this one is load-bearing: below
    ~38rem of viewport height the fixed region can exceed the screen, which
