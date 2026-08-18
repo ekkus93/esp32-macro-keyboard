@@ -16,4 +16,5 @@ npm run build
 npm run test:browser
 npm run test:visual
 npm run check:no-orphan-classes
+npm run check:status-badge-shapes
 "${repo_root}/scripts/verify-no-remote-assets.sh" "${repo_root}/webapp/dist"
