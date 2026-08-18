@@ -204,7 +204,7 @@ export function SignInPage({
             <button
               aria-label={passwordVisible ? "Hide password" : "Show password"}
               aria-pressed={passwordVisible}
-              className="absolute right-[0.3rem] top-1/2 grid h-11 min-h-11 w-11 min-w-11 -translate-y-1/2 place-items-center rounded-keycap border-0 bg-transparent p-0 text-legend-soft hover:text-legend"
+              className="absolute top-1/2 right-[0.3rem] grid h-11 min-h-11 w-11 min-w-11 -translate-y-1/2 place-items-center rounded-keycap border-0 bg-transparent p-0 text-legend-soft hover:text-legend"
               onClick={() => {
                 setPasswordVisible((visible) => !visible);
               }}

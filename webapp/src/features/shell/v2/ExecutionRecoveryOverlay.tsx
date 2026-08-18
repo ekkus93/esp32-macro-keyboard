@@ -64,7 +64,7 @@ export function ExecutionRecoveryOverlay(): React.JSX.Element | null {
     // nonzero on the ones this matters for.
     <aside
       aria-label="Execution recovery"
-      className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 right-4 z-[1000] max-w-[36rem] rounded-keycap border-2 border-legend bg-cap p-4 shadow-[0_0.5rem_1.5rem_rgb(33_30_26_/_18%)]"
+      className="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-[1000] max-w-[36rem] rounded-keycap border-2 border-legend bg-cap p-4 shadow-[0_0.5rem_1.5rem_rgb(33_30_26_/_18%)]"
     >
       <ErrorBanner
         message={`Execution state unavailable. ${recovery.message} An active send may still be running on the device.`}

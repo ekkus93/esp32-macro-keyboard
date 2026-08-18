@@ -406,7 +406,7 @@ export function SnapshotsPage({
               // storage-summary carries no CSS rule (styling is inline
               // below); kept as a test hook only --
               // webapp/tests/browser/workflows/snapshots.mjs:24.
-              className="storage-summary mt-2 grid justify-start gap-x-5 gap-y-[0.15rem] text-[0.85rem] [grid-template-columns:repeat(2,auto)] min-[26rem]:[grid-template-columns:repeat(4,auto)]"
+              className="storage-summary mt-2 grid [grid-template-columns:repeat(2,auto)] justify-start gap-x-5 gap-y-[0.15rem] text-[0.85rem] min-[26rem]:[grid-template-columns:repeat(4,auto)]"
             >
               <dt className="[grid-row:1]">Stored</dt>
               <dd className="[grid-row:2] text-base font-bold">

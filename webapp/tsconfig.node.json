@@ -12,5 +12,10 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "eslint.config.js", "stylelint.config.mjs"]
+  "include": [
+    "vite.config.ts",
+    "eslint.config.js",
+    "stylelint.config.mjs",
+    "prettier.config.js"
+  ]
 }

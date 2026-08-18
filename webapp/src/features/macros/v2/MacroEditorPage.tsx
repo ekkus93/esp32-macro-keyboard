@@ -301,7 +301,7 @@ export function MacroEditorPage({
           that cost. `form` keeps this associated with #macro-editor-form
           for submission despite living outside its DOM subtree. */}
       <label
-        className="rounded-keycap border border-cap-edge bg-panel p-3 [flex:0_0_auto]"
+        className="[flex:0_0_auto] rounded-keycap border border-cap-edge bg-panel p-3"
         htmlFor="macro-editor-source"
       >
         Macro source
@@ -322,7 +322,7 @@ export function MacroEditorPage({
       </label>
 
       <form
-        className="min-h-0 [flex:1_1_auto] overflow-y-auto overscroll-y-contain short:flex-none short:overflow-y-visible grid gap-[0.85rem]"
+        className="grid min-h-0 [flex:1_1_auto] gap-[0.85rem] overflow-y-auto overscroll-y-contain short:flex-none short:overflow-y-visible"
         id="macro-editor-form"
         onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
           event.preventDefault();
@@ -359,7 +359,7 @@ export function MacroEditorPage({
               monospace legends. */}
           <div
             aria-label="Named-key directives"
-            className="mt-2 grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))] [&_button]:min-h-[44px] [&_button]:px-[0.6rem] [&_button]:py-[0.4rem] [&_button]:font-mono [&_button]:text-[0.78rem]"
+            className="mt-2 grid [grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))] gap-2 [&_button]:min-h-[44px] [&_button]:px-[0.6rem] [&_button]:py-[0.4rem] [&_button]:font-mono [&_button]:text-[0.78rem]"
           >
             {namedDirectives.map((directive) => (
               <button
@@ -439,7 +439,7 @@ export function MacroEditorPage({
                     aria-pressed={pressed}
                     className={
                       pressed
-                        ? "min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem] border-actuate-edge bg-actuate text-cap shadow-[inset_0_2px_0_var(--color-lamp)]"
+                        ? "min-w-[3.5rem] border-actuate-edge bg-actuate px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem] text-cap shadow-[inset_0_2px_0_var(--color-lamp)]"
                         : "min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem]"
                     }
                     key={modifier}
@@ -479,7 +479,7 @@ export function MacroEditorPage({
 
         {/* Set-once metadata, not part of the insert workflow, so it moved
             below the tools that are. */}
-        <div className="grid gap-3 [grid-template-columns:repeat(2,minmax(0,1fr))] [@media(width<=32rem)]:[grid-template-columns:1fr]">
+        <div className="grid [grid-template-columns:repeat(2,minmax(0,1fr))] gap-3 [@media(width<=32rem)]:[grid-template-columns:1fr]">
           <label htmlFor="macro-editor-key-press">
             Key-press duration (ms)
             <input
@@ -551,7 +551,7 @@ export function MacroEditorPage({
           #macro-editor-form for submission despite living outside it. A
           hairline top border marks where the scrolling content ends, the
           same device .bottom-nav uses to mark where it begins. */}
-      <div className="flex flex-wrap gap-2 border-t border-cap-edge pt-3 [flex:0_0_auto]">
+      <div className="flex [flex:0_0_auto] flex-wrap gap-2 border-t border-cap-edge pt-3">
         <button
           className="primary"
           disabled={!canSave}

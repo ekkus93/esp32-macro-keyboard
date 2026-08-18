@@ -171,7 +171,7 @@
   h1,
   h2,
   h3 {
-    @apply m-0 mb-2 font-bold leading-[1.2] tracking-[-0.015em];
+    @apply m-0 mb-2 leading-[1.2] font-bold tracking-[-0.015em];
   }
 
   h1 {
@@ -225,7 +225,7 @@
      redesign made it obvious. */
   input[type="checkbox"],
   input[type="radio"] {
-    @apply min-h-[1.35rem] min-w-[1.35rem] w-auto accent-actuate;
+    @apply min-h-[1.35rem] w-auto min-w-[1.35rem] accent-actuate;
   }
 
   textarea {
@@ -261,16 +261,16 @@
   }
 
   code {
-    @apply tabular-nums wrap-anywhere;
+    @apply wrap-anywhere tabular-nums;
   }
 
   /* --- Machine data -------------------------------------------------------- */
   dl {
-    @apply grid gap-x-4 gap-y-[0.4rem] [grid-template-columns:auto_1fr];
+    @apply grid [grid-template-columns:auto_1fr] gap-x-4 gap-y-[0.4rem];
   }
 
   dt {
-    @apply text-[0.7rem] font-bold uppercase tracking-legend text-legend-soft;
+    @apply text-[0.7rem] font-bold tracking-legend text-legend-soft uppercase;
   }
 
   dd {
@@ -320,7 +320,7 @@
      viewport (h-dvh overflow-hidden) since it does have fixed chrome. Their
      width formulas are kept in sync by hand. */
   main {
-    @apply px-4 py-5 [flex:1_1_auto];
+    @apply [flex:1_1_auto] px-4 py-5;
   }
 
   /* #main-content, not the bare `main` selector: the single-task screens are

@@ -98,7 +98,7 @@ export function AppShellV2({
       // tests/v2-app-v2-orientation.test.tsx:56 asserts it's still in the
       // DOM (not discarded) while hidden behind the landscape-block
       // overlay, proving the shell stayed mounted rather than reloading.
-      className="app-shell mx-auto flex h-dvh flex-col overflow-hidden bg-shell w-[min(100%,48rem)] min-[60rem]:w-[min(100%,64rem)]"
+      className="app-shell mx-auto flex h-dvh w-[min(100%,48rem)] flex-col overflow-hidden bg-shell min-[60rem]:w-[min(100%,64rem)]"
     >
       {/* Every piece of status here is required (UI_UX_SPEC_V2 §2.1: device
           name, package name, USB state, repository state, Save snapshot
@@ -109,10 +109,10 @@ export function AppShellV2({
           sized to the 44px Save-snapshot button that already sets the
           row's real minimum height -- the padding was adding height on top
           of that floor, not because the content needed it. */}
-      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pb-[0.4rem] pt-[calc(0.4rem+env(safe-area-inset-top))] text-panel">
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pt-[calc(0.4rem+env(safe-area-inset-top))] pb-[0.4rem] text-panel">
         <div className="min-w-0 overflow-hidden">
           <Eyebrow>{deviceName}</Eyebrow>
-          <h1 className="m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.05rem] tracking-[-0.01em]">
+          <h1 className="m-0 overflow-hidden text-[1.05rem] tracking-[-0.01em] text-ellipsis whitespace-nowrap">
             {packageName ?? "No package selected"}
           </h1>
         </div>
@@ -171,8 +171,8 @@ export function AppShellV2({
             // Tailwind's content scanner can match.
             className={
               navigationActive(route, target)
-                ? "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em] border-actuate-edge bg-actuate text-cap shadow-[inset_0_3px_0_var(--color-lamp)]"
-                : "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]"
+                ? "min-w-0 border-actuate-edge bg-actuate px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] text-cap uppercase shadow-[inset_0_3px_0_var(--color-lamp)]"
+                : "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase"
             }
             key={target}
             onClick={() => {
