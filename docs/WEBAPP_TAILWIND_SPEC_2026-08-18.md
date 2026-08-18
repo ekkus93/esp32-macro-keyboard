@@ -30,9 +30,9 @@ outside `webapp/`.
 
 ## 2. Where styling lives
 
-### 2.1 `webapp/src/styles.css` holds exactly three things
+### 2.1 `webapp/src/styles.css` holds exactly four things
 
-318 lines, 26 `@apply` compositions, and nothing else:
+333 lines, 26 `@apply` compositions, and nothing else:
 
 1. **`@theme`** — 25 tokens; the single source of truth for palette, radius,
    tracking and type stack. It generates the utility classes the components
@@ -51,6 +51,19 @@ outside `webapp/`.
 3. **Two globals and one variant** — `body`, the `main` / `#main-content`
    pair whose selectors are shared between the shell and the standalone
    screens, and the `@custom-variant short` declaration.
+4. **One `@source not` exclusion** — `webapp/tests/browser/visual/baselines/`
+   (T1-2's checked-in visual-regression baselines) is excluded from
+   Tailwind's content scan. Those JSON files store, as literal text, every
+   className the visual harness has ever captured, including from past
+   commits; without the exclusion a class that stops being used anywhere in
+   real markup keeps generating a CSS rule forever, because the scanner
+   cannot tell historical test data from live source (found verifying T3-1,
+   fixed in `646ca7c` — CSS shrank 29.41kB → 29.02kB from this exclusion
+   alone, no source changes). The path is relative to `styles.css` itself,
+   not the project root — get this wrong (as the first attempt did, writing
+   `./tests/…` instead of `../tests/…`) and Tailwind silently accepts the
+   directive and excludes nothing; verify against the compiled output, not
+   the directive syntax.
 
 `@layer components` contains exactly two selectors: `main` and
 `#main-content`. **Zero class rules.**
@@ -215,7 +228,6 @@ Current owners:
 | --- | --- | --- |
 | `Card` | `[&_h2]` `[&_h3]` | `mb-[0.3rem] text-[1.05rem]` |
 | `Card` | `[&_p]` | `my-[0.2rem] text-legend-soft` |
-| `PageHeading` | `[&_h2]` | `m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.35rem] tracking-[-0.01em]` |
 | `Dialog` (heading) | `[&_h2]` `[&_p]` | `mt-0` |
 | `SendStatus` | `[&_p]` | `mb-2 font-bold` |
 | `StandaloneScreen` | `*:` | `mx-auto w-[min(100%,27rem)]` |
@@ -229,27 +241,34 @@ identical `(0,1,1)` specificity. If one is ever rendered inside the other,
 §3 rule 3 applies and **emission order decides** — which no source file
 states and no author controls.
 
-Measured order on `3380776` (byte offset in the compiled stylesheet):
+**`[&_h2]` was one such case and is now resolved** (T3-1,
+`WEBAPP_TAILWIND_TODO_2026-08-18.md`, `a25fbc2`): `PageHeading` and `Card`
+both owned it at `(0,1,1)`, and the order that happened to result — `Card`
+beating `PageHeading` — was backwards relative to the pre-migration
+stylesheet (`.page-heading h2` came after `.card h2` there and won). Fixed
+by moving the utilities off `PageHeading` onto the `<h2>` at each of its six
+call sites, where specificity is unambiguous regardless of nesting. Verified
+against the compiled CSS with a fully clean rebuild (`rm -rf dist
+node_modules/.vite`; a stale build or a stale cache both read as "still
+present" — see §2.1's `@source` entry for why the first verification attempt
+was misleading) that only `Card`'s and `Dialog`'s `[&_h2]` rules remain.
+
+**`[&_p]` is the same hazard, still open** — `Card`, `Dialog` and
+`SendStatus` all own it at `(0,1,1)`. Measured order on `646ca7c` (byte
+offset in the compiled stylesheet):
 
 ```text
-24197  PageHeading  [&_h2]:m-0
-24246  Dialog       [&_h2]:mt-0
-24300  Card         [&_h2]:mb-[0.3rem]
-24784  Card         [&_p]:my-[0.2rem]
-24831  Dialog       [&_p]:mt-0
-24883  SendStatus   [&_p]:mb-2
-24938  SendStatus   [&_p]:font-bold
-25038  Card         [&_p]:text-legend-soft
+Card         [&_p]:my-[0.2rem]
+Dialog       [&_p]:mt-0
+SendStatus   [&_p]:mb-2
+SendStatus   [&_p]:font-bold
+Card         [&_p]:text-legend-soft
 ```
 
-Consequences today:
-
-- `SendStatus` inside `Card` would resolve **correctly** (SendStatus later),
-  matching the pre-migration source order. This is luck, not design.
-- `PageHeading` inside `Card` would resolve **backwards**: pre-migration,
-  `.page-heading h2` came after `.card h2` and won; now Card wins.
-
-Neither nesting occurs. **Rule: do not nest two components that own the same
+`SendStatus` inside `Card` would resolve **correctly** today (`SendStatus`
+later, matching the pre-migration source order) — but that is luck, not
+design, exactly as the `[&_h2]` case was before it was fixed. No such
+nesting occurs today. **Rule: do not nest two components that own the same
 descendant variant.** If a change would create such a nesting, put the
 utilities on the child element instead, where specificity is unambiguous.
 
