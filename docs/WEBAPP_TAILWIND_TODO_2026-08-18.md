@@ -206,11 +206,47 @@ actually fails the gate, not merely that it runs.
       and the two colliding classes, reverted, confirmed it passed again.
       19 new tests (12 direct classifier tests, 7 component tests).
       `npm run test`: 563/563. `check-webapp.sh`: EXIT=0.
-- [ ] **T2-2** A test that fails if any element in a rendered page carries two
+- [x] **T2-2** A test that fails if any element in a rendered page carries two
       utilities setting the same CSS property — the `SPEC` §3 invariant, as an
       executable check rather than a one-off scan. jsdom is enough: this is a
       `className` property, not a rendering one.
-      *Evidence:*
+      *Evidence:* `71e5b43`. Generalizes T2-1's classifier from the six known
+      variant maps to every element on a real, populated page.
+      `no-rendered-property-collisions.test.tsx` renders four structurally
+      distinct pages — `MacrosPage` (via the existing `macrosPageHarness`),
+      `DiagnosticsPage`, `SettingsPage`, `PackageManagementPage` — each
+      through its own existing dependency-injection pattern (no fetch
+      mocking, no `dist/` dependency: React renders straight from source in
+      jsdom, so nothing here needs a prior `npm run build`), and walks
+      `querySelectorAll("*")` on each, asserting zero collisions across the
+      whole tree.
+      **Getting there required expanding `tailwindClassCollisions.ts` well
+      past the six components' vocabulary**: checked all 160 distinct class
+      tokens used anywhere in `src/**/*.tsx` against it and fixed every
+      throw, adding per-side modelling for padding/margin/position (the same
+      fix border needed), display/flex/grid/z-index/overflow families, two
+      recognized non-utility classes (`.primary`/`.danger`, which live in
+      `@layer base` and are therefore beaten by any utility deterministically
+      by layer order — not the fragile same-layer rule 4 is about — so they
+      correctly claim no property slots), and a generic
+      `[property-name:value]` arbitrary-property handler so a future one-off
+      utility doesn't need a hand-written table entry.
+      **Found and fixed a real false positive in the classifier itself**:
+      `gap-x-4 gap-y-3` (`PageHeading`, appears on every page tested) was
+      flagged as a collision on one "gap" family — wrong, `column-gap` and
+      `row-gap` are independent CSS properties. Split into a proper
+      column-gap/row-gap model (bare `gap` claims both axes, `gap-x-`/
+      `gap-y-` claim one each) with its own regression test — the inverse
+      finding from T2-1's real collision, and worth recording for the same
+      reason: the checker itself needs the same "verify, don't assume"
+      discipline as the code it checks.
+      **Verified the page-level test has teeth**: reintroduced T2-1's
+      already-fixed `Card` border collision (`1b4fda5`) and confirmed
+      *exactly* the one page rendering `Card`'s `danger` variant
+      (`SettingsPage`) failed — `MacrosPage`, `DiagnosticsPage`,
+      `PackageManagementPage` correctly stayed green, proving the check is
+      precise per-element, not a blunt whole-suite trip-wire. Reverted,
+      confirmed clean. `npm run test`: 569/569. `check-webapp.sh`: EXIT=0.
 - [ ] **T2-3** A test that fails on a class token that generates no CSS,
       allowlisting exactly the three hooks in `SPEC` §7. This is the direct
       guard against §4.1's silent-failure mode. Needs the built stylesheet, so
