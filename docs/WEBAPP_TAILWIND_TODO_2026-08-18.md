@@ -538,12 +538,34 @@ defect, and none is any longer a silent one either.
       unchanged (`index-Csw5pEWc.css` before and after), `check:no-orphan-classes`
       and `check:status-badge-shapes` both still green — proving the reorder
       is render-neutral, not just visually spot-checked.
-- [ ] **T4-3** Review the two sharp component APIs: `Dialog` hardcodes
+- [x] **T4-3** Review the two sharp component APIs: `Dialog` hardcodes
       `role="alertdialog"` (correct for all three call sites today, wrong the
       first time a non-alert dialog is needed) and `DangerZone` derives
       `tabIndex` from `role`. Either is fine to keep; the task is to decide
       deliberately and document the decision, not necessarily to change code.
-      *Evidence:*
+      *Evidence:* Commit `252868e`. Reviewed both against every real call
+      site (not just the claims in the existing comments): `Dialog`'s three
+      users (`ConfirmPhraseDialog`, `UnsavedChangesPrompt`, the restart
+      confirmation in `SettingsPage`) are all consequential yes/no
+      confirmations — exactly what `alertdialog` is for; no general
+      content/editing `Dialog` exists. `DangerZone`'s four users
+      (`PackageManagementPage`, `SnapshotsPage`'s import confirm,
+      `SnapshotRow`'s delete confirm, `SnapshotRow`'s static "permanent"
+      callout) split exactly along the derivation's line: the three confirm
+      flows pass `role="alertdialog"` with a `containerRef` and need the
+      derived `tabIndex={-1}` for `useFocusTrap`; the static callout passes
+      neither and needs neither. **Decision: keep both as-is, no code
+      behaviour change.** `Dialog`'s hardcoding is fine today and the
+      extension point (a `role` prop, mirroring `DangerZone`'s own
+      `role?: "alertdialog"` shape) is cheap to add the day a non-alert
+      dialog is actually needed — not worth carrying unused now.
+      `DangerZone`'s derivation is the stronger design, not just a shortcut:
+      it makes "focus-trapped container with no role" or "alertdialog
+      assistive tech can't focus into" structurally unrepresentable rather
+      than merely undocumented. Documented both decisions directly in the
+      components' header comments. Full gate: `./scripts/check-webapp.sh` —
+      EXIT=0, 578/578 vitest, all 46 Playwright visual scenarios / 98
+      baselines matched (doc-comment-only change, no `className` touched).
 
 ---
 
