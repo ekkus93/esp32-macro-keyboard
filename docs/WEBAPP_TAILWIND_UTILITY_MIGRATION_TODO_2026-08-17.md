@@ -191,6 +191,28 @@ rationale.
 **Verified working in this project (Tailwind 4.1.11):** `min-[34rem]:grid`
 and `max-[32rem]:hidden` both compile from markup.
 
+> **Correction (2026-08-18, `05528b8`) — "compiles" was the wrong test for
+> the `max-` side, and this cost a real regression.** `min-[X]:` emits
+> `@media(min-width:X)`, which is exactly `width >= X`, so every `min-`
+> conversion is sound. But `max-[X]:` emits
+> `@media not all and (min-width:X)`, which is `width < X` — **strictly**
+> less than. Five of the six thresholds above whose direction is "max" came
+> from source rules written `@media (width <= X)`, which includes the
+> boundary. Converting those to `max-[X]:` silently drops the rule at
+> exactly that width: 512px for the 32rem rules, 640px for the 40rem one.
+> Measured against a pre-migration build at 511/512/513: **70 computed
+> property values and 83 bounding boxes differed at 512px and nowhere
+> else.**
+>
+> Use `[@media(width<=32rem)]:` — a bracketed at-rule variant — wherever the
+> source said `<=`. It compiles to `@media(max-width:32rem)`, the original
+> condition. `max-[26rem]:` is correct as written, because that one source
+> rule really did say `width < 26rem`.
+>
+> The lesson generalises past this table: for a media-query conversion,
+> "it compiles" and "it emits the same condition" are different claims, and
+> only the second one is the thing being relied on.
+
 ### 4.2 The height query needs a custom variant
 
 `@media (height <= 38rem)` has **no** built-in Tailwind form. Add exactly one
@@ -643,12 +665,17 @@ Order within the phase: `Card`, `FormStack`, `StandaloneScreen` first.
       `<h2>`s were checked — none carries a utility of its own, so nothing
       races the `(0,1,1)` `[&_h2]:` rules inside the utilities layer.
       `<HeaderActions>` covers all 6 `.header-actions` divs and folds in the
-      `@media (width <= 32rem)` rule as `max-[32rem]:justify-start`;
-      confirmed in the compiled CSS that Tailwind 4.1.11 emits
-      `@media(max-width:32rem)` for it — the **same** condition as the source
-      `width <= 32rem`, not the `width <` form a named breakpoint would give,
-      which would have differed at exactly 512 px. The 390 px captures are
-      below that threshold, so the variant is exercised. Verified with the
+      `@media (width <= 32rem)` rule. **This originally shipped as
+      `max-[32rem]:justify-start`, and the evidence line here originally
+      claimed that compiles to `@media(max-width:32rem)`. That claim was
+      wrong** — the `@media(max-width:32rem)` seen in the build came from the
+      source `@media (width <= 32rem)` blocks still present at the time, not
+      from the variant, which emits `@media not all and (min-width:32rem)`
+      (`width < 32rem`). The rule therefore stopped applying at exactly
+      512 px. Fixed in `05528b8` along with the seven Phase-1/Phase-2
+      occurrences of the same mistake; see §4.1's correction note. The
+      390 px captures below exercise the variant but not its boundary, which
+      is precisely why the error survived this task's verification. Verified with the
       full-document walk over **14 captures** at 390 px and 1280 px — Macros,
       the macro preview, the macro editor, Packages, Snapshots, Settings and
       Diagnostics, which between them render every `page-heading` and
@@ -691,8 +718,38 @@ Order within the phase: `Card`, `FormStack`, `StandaloneScreen` first.
       zero bounding-box differences, zero structural differences, **all 12
       full-page PNGs byte-identical**. `npm run test`: 544/544.
       `check-webapp.sh`: EXIT=0.
-- [ ] **T4-7** `<Dialog>` — **also carries `<DangerZone>` (6 → 5 sites),
-      moved here from T4-5 because `dialog-panel danger-zone` couples them.** — one component covering `.dialog-backdrop`,
+- [x] **T4-7** `<Dialog>` — **also carries `<DangerZone>` (6 → 5 sites),
+      moved here from T4-5 because `dialog-panel danger-zone` couples them.**
+      *Evidence:* `8a8b56a`. One `<Dialog>` covers `.dialog-backdrop`,
+      `.dialog-panel`, `.dialog-heading` and its `h2`/`p` descendant rule
+      across all three modal surfaces; `<DangerZone>` covers `.danger-zone`
+      at its four standalone sites, and the fifth —
+      `ConfirmPhraseDialog.tsx`'s `dialog-panel danger-zone` — becomes
+      `<Dialog tone="danger">`, a complete literal string holding the merged
+      result. That pair rendered correctly only because `.danger-zone` sat
+      later in `styles.css` than `.dialog-panel`; they disagree on border
+      colour, left border width and background, so as markup utilities the
+      winner would have been Tailwind's sort order instead. `<DangerZone>`
+      couples `role="alertdialog"` with `tabIndex={-1}` because
+      `useFocusTrap` moves focus to the container, which a `<div>` can only
+      accept when it is programmatically focusable — all three call sites
+      that need one need the other. Verified with the full-document walk
+      over **21 captures** at 390 / 700 / 1280 px, driving every dialog and
+      danger-zone state for real: the restart dialog, the reset-settings
+      `alertdialog` (the coupled tone), the package-delete and
+      snapshot-delete confirmations, the snapshot Advanced panel, the
+      import-ready panel (through a genuine file selection), and the
+      unsaved-changes prompt. **1551 elements, 105 468 computed properties,
+      zero value differences**, zero bounding-box differences, zero
+      structural differences, **all 21 full-page PNGs byte-identical**.
+      The heading's narrow-screen stack is written
+      `[@media(width<=40rem)]:`, **not** `max-[40rem]:` — see §4.1's
+      correction note; verified separately against a clean worktree of the
+      previous commit at **511 / 512 / 513 / 639 / 640 / 641 px**
+      (3234 elements, 219 912 properties, zero differences, 36/36
+      screenshots byte-identical), which is the boundary this task's other
+      viewports cannot see. `npm run test`: 544/544. `check-webapp.sh`:
+      EXIT=0. — one component covering `.dialog-backdrop`,
       `.dialog-panel`, `.dialog-heading` across 3 call sites. Preserve
       `max-h-[calc(100dvh-2rem)]` exactly; **`100vh` here is a known bug**
       (fixed in `70aa7b65`) — do not "simplify" it back.
