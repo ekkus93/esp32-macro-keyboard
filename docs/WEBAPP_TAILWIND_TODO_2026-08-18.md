@@ -510,7 +510,7 @@ defect, and none is any longer a silent one either.
       a claim that a deleted class still governs behaviour). Full gate:
       `./scripts/check-webapp.sh` — EXIT=0, 578/578 vitest tests passed,
       Playwright visual suite green.
-- [ ] **T4-2** Decide on `prettier-plugin-tailwindcss`. Class ordering is
+- [x] **T4-2** Decide on `prettier-plugin-tailwindcss`. Class ordering is
       unenforced and already inconsistent (`MacroEditorPage.tsx:322` has base
       utilities after variants). Adopting it reorders nearly every class
       string in one commit, which is noisy but mechanical and provably
@@ -518,7 +518,26 @@ defect, and none is any longer a silent one either.
       **This is a judgement call with a real cost; put the options and a
       recommendation to the user rather than deciding unilaterally.** If
       adopted, land the reformat as its own commit with a visual diff.
-      *Evidence:*
+      *Evidence:* Raised to Phil via `AskUserQuestion`; decision: adopt.
+      Commit `e168cbc`. Added `prettier-plugin-tailwindcss` as an exact-pinned
+      devDependency and `prettier.config.js` (needed since ordering is a
+      plugin, not a Prettier default — `webapp` had no prior Prettier config
+      file). Pinned to **0.7.2, not npm's `latest` tag 0.8.1**: 0.8.1
+      (everything ≥0.7.3) throws `TypeError: e.charAt is not a function` on
+      every TS/TSX file under Prettier 3.6.2, a known regression
+      (tailwindlabs/prettier-plugin-tailwindcss#456), reproduced here first
+      and confirmed fixed by downgrading. `tsconfig.node.json` gained
+      `prettier.config.js` in its `include` (same pattern already used for
+      `eslint.config.js`/`stylelint.config.mjs`/`vite.config.ts`) so
+      typescript-eslint's `projectService` can lint the config file itself.
+      Reorder touched 6 `.tsx` files plus `styles.css`'s `@apply` directives
+      (fewer than "nearly every class string" predicted — most call sites
+      were already close to canonical order); full `check-webapp.sh` gate
+      green afterward — 578/578 vitest, all 46 Playwright visual scenarios /
+      98 baselines matched with **zero diffs**, compiled `dist` CSS hash
+      unchanged (`index-Csw5pEWc.css` before and after), `check:no-orphan-classes`
+      and `check:status-badge-shapes` both still green — proving the reorder
+      is render-neutral, not just visually spot-checked.
 - [ ] **T4-3** Review the two sharp component APIs: `Dialog` hardcodes
       `role="alertdialog"` (correct for all three call sites today, wrong the
       first time a non-alert dialog is needed) and `DangerZone` derives
