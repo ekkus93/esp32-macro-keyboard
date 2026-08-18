@@ -557,11 +557,55 @@ Order within the phase: `Card`, `FormStack`, `StandaloneScreen` first.
       `comment-empty-line-before` caught the dangling header; the rebuild
       after that edit produced a **byte-identical** CSS bundle (same content
       hash `index-Cn3DbjP1.css`), so the visual proof above still stands.
-- [ ] **T4-3** `<StandaloneScreen>` — 19 usages. Carries the four-sided
+- [x] **T4-3** `<StandaloneScreen>` — 19 usages. Carries the four-sided
       `env(safe-area-inset-*)` padding and the `*:` child rule
       (`.standalone > *`). Express as `*:mx-auto *:w-[min(100%,27rem)]`
       (verified working) or keep that one rule in CSS if it reads badly.
-      *Evidence:*
+      *Evidence:* `1231e61`. `src/components/StandaloneScreen.tsx`, always a
+      `<main>` so the bare `main` rule (which stays in CSS, §5.3) keeps
+      supplying `px-4 py-5 [flex:1_1_auto]`; the component carries only
+      `mx-auto flex min-h-dvh w-[min(100%,48rem)] flex-col bg-shell
+      min-[60rem]:w-[min(100%,64rem)]` plus the child rule as
+      `*:mx-auto *:w-[min(100%,27rem)]`, which compiles to
+      `:is(.*\:mx-auto>*)` — the same `(0,1,0)` specificity `.standalone > *`
+      had. Every direct child was checked first: they are `h1`/`p`/`section`/
+      `button`/`form`/`ul`/`ErrorBanner`, and none carries a margin or width
+      utility, so nothing races the `*:` rules inside the utilities layer.
+      Verified in real Chrome across **18 captures** — sign-in, first-run
+      setup, the first-run review step, no-stored-snapshots, snapshot
+      recovery, and the ordinary shell (to prove narrowing `.standalone, main`
+      to `main` left the shell's own `<main>` untouched) — at **390 / 800 /
+      1280 px**, where 800 exercises the `48rem` cap and 1280 the `60rem`
+      step (confirmed: `width: 1024px` there): **71 001 computed properties,
+      zero value differences**, zero bounding-box differences, zero
+      `innerText` differences, **all 18 full-page PNGs byte-identical**.
+      `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
+      **Finding — `.standalone`'s safe-area padding was dead code, and §7.5's
+      "count 5 sites" check was measuring presence, not effect.** `.standalone`
+      declared `padding: calc(max(2rem,7vh) + env(safe-area-inset-top)) …` for
+      all four sides, but the `.standalone, main` rule *after* it set
+      `padding-inline` / `padding-block` at equal specificity, overriding every
+      one of them. Measured on the pre-change build at 390×844: computed
+      padding `20px 16px 20px 16px`, i.e. `py-5 px-4` — not the `≈59px` top
+      the declaration asks for. Re-expressing it as utilities would have
+      **revived** it (utilities beat the components layer), a rendering change
+      this refactor is not allowed to make, so it was dropped instead. Two
+      consequences. (1) `env(safe-area-inset` now appears **7 times across 4
+      elements** in the compiled CSS (`.app-header` 1, `.bottom-nav` 1,
+      `landscape-block` 4, `.recovery-overlay` 1), not 5 elements — §7.5's row
+      should read 4, and the check should verify *effect*, not presence; this
+      task is the proof that a present `env()` declaration can be entirely
+      overridden. (2) **`UI_UX_SPEC_V2` §13 "Safe-area insets are respected on
+      devices with display cutouts or gesture navigation" is not actually
+      satisfied on the single-task screens** (Sign In, First-Run Setup, the
+      reconnect screens, every repository-startup screen). This is
+      **pre-existing**, not introduced here. Per §7.5 it is reported rather
+      than fixed inside a refactor commit: the fix is a one-line change to
+      `StandaloneScreen.tsx`'s class string
+      (`pt-[calc(max(2rem,7vh)+env(safe-area-inset-top))]` and its three
+      siblings, which now *would* take effect), but it changes rendering on
+      notched hardware, cannot be validated on this bench, and so needs its
+      own commit and its own decision.
 - [ ] **T4-4** `<FieldHelp>` (14), `<FormActions>` (11).
       *Evidence:*
 - [ ] **T4-5** `<PageHeading>` (6), `<HeaderActions>` (6), `<DangerZone>` (6).
