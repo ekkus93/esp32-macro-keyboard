@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { DangerZone } from "../../../components/DangerZone";
 import { Card } from "../../../components/Card";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import { useFocusTrap } from "../../shell/v2/useFocusTrap";
@@ -88,12 +89,7 @@ export function SnapshotRow({
           {busy === "download" ? "Downloading…" : "Download"}
         </button>
         {confirmingDelete ? (
-          <div
-            className="danger-zone"
-            ref={deleteConfirmRef}
-            role="alertdialog"
-            tabIndex={-1}
-          >
+          <DangerZone containerRef={deleteConfirmRef} role="alertdialog">
             <p>
               This permanently deletes snapshot <strong>{id}</strong> (
               {formatBytes(sizeBytes)}). This cannot be undone. Type the
@@ -130,7 +126,7 @@ export function SnapshotRow({
             >
               Cancel
             </button>
-          </div>
+          </DangerZone>
         ) : (
           <button
             aria-label={`Delete snapshot ${id}`}
@@ -154,7 +150,7 @@ export function SnapshotRow({
           Advanced
         </button>
         {advancedOpen ? (
-          <div className="danger-zone">
+          <DangerZone>
             {confirmingReplace ? (
               <>
                 <p>
@@ -210,7 +206,7 @@ export function SnapshotRow({
                 {v2ErrorText(replaceResult.error)}. Nothing was changed.
               </p>
             ) : null}
-          </div>
+          </DangerZone>
         ) : null}
       </div>
     </Card>

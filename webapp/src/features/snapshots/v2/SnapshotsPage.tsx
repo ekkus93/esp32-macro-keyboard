@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { DangerZone } from "../../../components/DangerZone";
 import { HeaderActions } from "../../../components/HeaderActions";
 import { PageHeading } from "../../../components/PageHeading";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
@@ -560,12 +561,7 @@ export function SnapshotsPage({
         ) : null}
 
         {importState.kind === "ready" ? (
-          <div
-            className="danger-zone"
-            ref={importConfirmRef}
-            role="alertdialog"
-            tabIndex={-1}
-          >
+          <DangerZone containerRef={importConfirmRef} role="alertdialog">
             <p>
               This file contains {String(importState.packageCount)} packages and{" "}
               {String(importState.macroCount)} macros. Importing replaces your
@@ -589,7 +585,7 @@ export function SnapshotsPage({
             >
               Cancel
             </button>
-          </div>
+          </DangerZone>
         ) : null}
 
         {confirmingImportWhileDirty && importState.kind === "ready" ? (

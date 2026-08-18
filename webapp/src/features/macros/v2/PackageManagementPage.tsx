@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { DangerZone } from "../../../components/DangerZone";
 import { PageHeading } from "../../../components/PageHeading";
 import { FieldHelp } from "../../../components/FieldHelp";
 import { FormActions } from "../../../components/FormActions";
@@ -276,12 +277,7 @@ function PackageRow({
           </button>
         </div>
         {confirmingDelete ? (
-          <div
-            className="danger-zone"
-            ref={confirmRef}
-            role="alertdialog"
-            tabIndex={-1}
-          >
+          <DangerZone containerRef={confirmRef} role="alertdialog">
             <p>
               Delete <strong>{pkg.name}</strong> and all{" "}
               {String(pkg.macros.length)} of its macros? This cannot be undone
@@ -311,7 +307,7 @@ function PackageRow({
             >
               Cancel
             </button>
-          </div>
+          </DangerZone>
         ) : (
           <button
             aria-label={`Delete ${pkg.name}`}

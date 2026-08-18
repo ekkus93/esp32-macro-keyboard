@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { Dialog } from "../../../components/Dialog";
 import { FormActions } from "../../../components/FormActions";
 import { useFocusTrap } from "./useFocusTrap";
 
@@ -52,42 +53,35 @@ export function UnsavedChangesPrompt({
   useFocusTrap({ active: true, containerRef, onClose: onCancel });
 
   return (
-    <div className="dialog-backdrop" role="presentation">
-      <div
-        aria-labelledby="unsaved-changes-prompt-title"
-        className="dialog-panel"
-        ref={containerRef}
-        role="alertdialog"
-        tabIndex={-1}
-      >
-        <div className="dialog-heading">
-          <h2 id="unsaved-changes-prompt-title">Unsaved changes</h2>
-        </div>
-        <p>
-          You have unsaved changes. Continuing to {actionLabel} will lose them —
-          once this working copy is closed without saving, the changes cannot be
-          recovered.
-        </p>
-        <FormActions>
-          <button onClick={onCancel} type="button">
-            Cancel
-          </button>
-          <button disabled={exporting} onClick={onExport} type="button">
-            {exporting ? "Exporting…" : "Export working copy"}
-          </button>
-          <button
-            className="primary"
-            disabled={saving}
-            onClick={onSaveSnapshot}
-            type="button"
-          >
-            {saving ? "Saving…" : "Save snapshot"}
-          </button>
-          <button className="danger" onClick={onDiscard} type="button">
-            {discardLabel}
-          </button>
-        </FormActions>
-      </div>
-    </div>
+    <Dialog
+      aria-labelledby="unsaved-changes-prompt-title"
+      containerRef={containerRef}
+      heading={<h2 id="unsaved-changes-prompt-title">Unsaved changes</h2>}
+    >
+      <p>
+        You have unsaved changes. Continuing to {actionLabel} will lose them —
+        once this working copy is closed without saving, the changes cannot be
+        recovered.
+      </p>
+      <FormActions>
+        <button onClick={onCancel} type="button">
+          Cancel
+        </button>
+        <button disabled={exporting} onClick={onExport} type="button">
+          {exporting ? "Exporting…" : "Export working copy"}
+        </button>
+        <button
+          className="primary"
+          disabled={saving}
+          onClick={onSaveSnapshot}
+          type="button"
+        >
+          {saving ? "Saving…" : "Save snapshot"}
+        </button>
+        <button className="danger" onClick={onDiscard} type="button">
+          {discardLabel}
+        </button>
+      </FormActions>
+    </Dialog>
   );
 }

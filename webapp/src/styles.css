@@ -368,54 +368,6 @@
     @apply h-[0.45rem] w-[0.45rem] border-[1.5px] border-current bg-transparent;
   }
 
-  /* --- Dialogs -------------------------------------------------------------
-     Modal surfaces. These lived in a second stylesheet (src/management.css)
-     that predated the design system and never joined it: it hardcoded a cold
-     slate/blue palette (#94a3b8, #2563eb, #0f172a scrims) against this file's
-     warm PBT-and-petrol one, so every dialog in the app rendered in a
-     different colour language than the page behind it. Folded in here on the
-     @theme tokens instead -- the scrim is legend ink, the panel is a raised
-     keycap face, and the radius is the same 0.5rem as every other surface. */
-  .dialog-backdrop {
-    @apply fixed inset-0 z-20 grid place-items-center overflow-y-auto bg-legend/70 p-4;
-  }
-
-  /* dvh, not vh -- the same fix StandaloneScreen.tsx needed. A 100vh cap
-     measures against the largest-possible viewport, so on a mobile browser
-     the bottom of a full-height dialog sat behind the address bar with no
-     scroll path to it. This one is a max-height on an overflow-y: auto
-     panel, which is exactly the case where that clips content away rather
-     than merely looking off. */
-  .dialog-panel {
-    @apply max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-keycap border border-cap-edge bg-cap p-4 shadow-[0_1.5rem_4rem_rgb(33_30_26_/_35%)];
-
-    width: min(100%, 38rem);
-  }
-
-  .dialog-heading {
-    @apply mb-4 flex items-start justify-between gap-4;
-  }
-
-  .dialog-heading h2,
-  .dialog-heading p {
-    @apply mt-0;
-  }
-
-  /* Destructive confirmations (role="alertdialog"): the same structural
-     treatment as .confirmation-panel -- a left accent rule on a tinted
-     panel -- but in the alert palette rather than the lamp one, so "this
-     permanently deletes something" reads as more severe than "this needs
-     your attention". */
-  .danger-zone {
-    @apply mt-4 rounded-keycap border border-l-[3px] border-alert bg-bad-tint p-4;
-  }
-
-  @media (width <= 40rem) {
-    .dialog-heading {
-      @apply flex-col items-stretch;
-    }
-  }
-
   @media (width <= 32rem) {
     .timing-grid {
       @apply [grid-template-columns:1fr];

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Dialog } from "../../../components/Dialog";
 import { PageHeading } from "../../../components/PageHeading";
 import { FormActions } from "../../../components/FormActions";
 import { Card } from "../../../components/Card";
@@ -406,45 +407,38 @@ export function SettingsPage({
       </Card>
 
       {restartConfirming ? (
-        <div className="dialog-backdrop" role="presentation">
-          <div
-            aria-labelledby="confirm-restart-title"
-            className="dialog-panel"
-            ref={restartConfirmRef}
-            role="alertdialog"
-            tabIndex={-1}
-          >
-            <div className="dialog-heading">
-              <h2 id="confirm-restart-title">Restart the device?</h2>
-            </div>
-            <p>
-              The device restarts and its Wi-Fi access point briefly drops. This
-              tab reconnects automatically and, once the device is back, asks
-              you to sign in again — your unsaved work, if any, is preserved.
-            </p>
-            <FormActions>
-              <button
-                disabled={actionBusy !== null}
-                onClick={() => {
-                  setRestartConfirming(false);
-                }}
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                className="danger"
-                disabled={actionBusy !== null}
-                onClick={() => {
-                  void doRestart();
-                }}
-                type="button"
-              >
-                {actionBusy === "restart" ? "Restarting…" : "Restart now"}
-              </button>
-            </FormActions>
-          </div>
-        </div>
+        <Dialog
+          aria-labelledby="confirm-restart-title"
+          containerRef={restartConfirmRef}
+          heading={<h2 id="confirm-restart-title">Restart the device?</h2>}
+        >
+          <p>
+            The device restarts and its Wi-Fi access point briefly drops. This
+            tab reconnects automatically and, once the device is back, asks you
+            to sign in again — your unsaved work, if any, is preserved.
+          </p>
+          <FormActions>
+            <button
+              disabled={actionBusy !== null}
+              onClick={() => {
+                setRestartConfirming(false);
+              }}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="danger"
+              disabled={actionBusy !== null}
+              onClick={() => {
+                void doRestart();
+              }}
+              type="button"
+            >
+              {actionBusy === "restart" ? "Restarting…" : "Restart now"}
+            </button>
+          </FormActions>
+        </Dialog>
       ) : null}
 
       {confirmPhrase !== null ? (

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Dialog } from "../../../components/Dialog";
 import { FormActions } from "../../../components/FormActions";
 import { v2Limits } from "../../../v2/limits";
 import { utf8ByteLength } from "../../../v2/repository";
@@ -30,82 +31,78 @@ export function ConfirmPhraseDialog({
   useFocusTrap({ active: true, containerRef, onClose: onCancel });
 
   return (
-    <div className="dialog-backdrop" role="presentation">
-      <div
-        aria-labelledby="confirm-phrase-title"
-        className="dialog-panel danger-zone"
-        ref={containerRef}
-        role="alertdialog"
-        tabIndex={-1}
-      >
-        <div className="dialog-heading">
-          <h2 id="confirm-phrase-title">
-            {kind === "reset-settings" ? "Reset settings" : "Factory reset"}
-          </h2>
-        </div>
-        {kind === "reset-settings" ? (
-          <p>
-            This restores device name, serial-confirmation policy, sending
-            behavior, retention target, and source-preview preference to their
-            defaults, and removes the station network. The access-point network,
-            administrator password, provisioning state, and every stored
-            repository blob are preserved. All sessions are invalidated and the
-            device restarts.
-          </p>
-        ) : (
-          <p>
-            This erases device configuration, the administrator password, all
-            sessions, and <strong>every stored repository blob</strong>, then
-            restarts unprovisioned. Firmware and web assets are preserved. This
-            cannot be undone.
-          </p>
-        )}
-        {kind === "factory-reset" ? (
-          <label htmlFor="confirm-phrase-password">
-            Administrator password
-            <input
-              autoComplete="current-password"
-              disabled={busy}
-              id="confirm-phrase-password"
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                setAdminPassword(event.currentTarget.value);
-              }}
-              type="password"
-              value={adminPassword}
-            />
-          </label>
-        ) : null}
-        <label htmlFor="confirm-phrase-input">
-          Type &quot;{phrase}&quot; to confirm
+    <Dialog
+      aria-labelledby="confirm-phrase-title"
+      containerRef={containerRef}
+      heading={
+        <h2 id="confirm-phrase-title">
+          {kind === "reset-settings" ? "Reset settings" : "Factory reset"}
+        </h2>
+      }
+      tone="danger"
+    >
+      {kind === "reset-settings" ? (
+        <p>
+          This restores device name, serial-confirmation policy, sending
+          behavior, retention target, and source-preview preference to their
+          defaults, and removes the station network. The access-point network,
+          administrator password, provisioning state, and every stored
+          repository blob are preserved. All sessions are invalidated and the
+          device restarts.
+        </p>
+      ) : (
+        <p>
+          This erases device configuration, the administrator password, all
+          sessions, and <strong>every stored repository blob</strong>, then
+          restarts unprovisioned. Firmware and web assets are preserved. This
+          cannot be undone.
+        </p>
+      )}
+      {kind === "factory-reset" ? (
+        <label htmlFor="confirm-phrase-password">
+          Administrator password
           <input
+            autoComplete="current-password"
             disabled={busy}
-            id="confirm-phrase-input"
+            id="confirm-phrase-password"
             onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-              setTyped(event.currentTarget.value);
+              setAdminPassword(event.currentTarget.value);
             }}
-            value={typed}
+            type="password"
+            value={adminPassword}
           />
         </label>
-        <FormActions>
-          <button disabled={busy} onClick={onCancel} type="button">
-            Cancel
-          </button>
-          <button
-            className="danger"
-            disabled={!canConfirm}
-            onClick={() => {
-              onConfirm(adminPassword);
-            }}
-            type="button"
-          >
-            {busy
-              ? "Working…"
-              : kind === "reset-settings"
-                ? "Confirm reset settings"
-                : "Erase everything"}
-          </button>
-        </FormActions>
-      </div>
-    </div>
+      ) : null}
+      <label htmlFor="confirm-phrase-input">
+        Type &quot;{phrase}&quot; to confirm
+        <input
+          disabled={busy}
+          id="confirm-phrase-input"
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+            setTyped(event.currentTarget.value);
+          }}
+          value={typed}
+        />
+      </label>
+      <FormActions>
+        <button disabled={busy} onClick={onCancel} type="button">
+          Cancel
+        </button>
+        <button
+          className="danger"
+          disabled={!canConfirm}
+          onClick={() => {
+            onConfirm(adminPassword);
+          }}
+          type="button"
+        >
+          {busy
+            ? "Working…"
+            : kind === "reset-settings"
+              ? "Confirm reset settings"
+              : "Erase everything"}
+        </button>
+      </FormActions>
+    </Dialog>
   );
 }
