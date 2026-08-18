@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Eyebrow } from "../../../components/Eyebrow";
 import { SendStatus } from "../../../components/SendStatus";
 import { HeaderActions } from "../../../components/HeaderActions";
 import { PageHeading } from "../../../components/PageHeading";
@@ -488,7 +489,7 @@ export function MacrosPage({
     <section aria-labelledby="macros-title">
       <PageHeading>
         <div className="min-w-0 overflow-hidden">
-          <p className="eyebrow dark">Selected package</p>
+          <Eyebrow tone="dark">Selected package</Eyebrow>
           <h2 id="macros-title">{activePackage.name}</h2>
           <p>{String(activePackage.macros.length)} macros</p>
         </div>

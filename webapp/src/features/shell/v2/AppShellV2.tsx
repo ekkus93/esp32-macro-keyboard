@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Eyebrow } from "../../../components/Eyebrow";
 import { HeaderActions } from "../../../components/HeaderActions";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { StatusBadge } from "../../../components/StatusBadge";
@@ -110,7 +111,7 @@ export function AppShellV2({
           of that floor, not because the content needed it. */}
       <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pb-[0.4rem] pt-[calc(0.4rem+env(safe-area-inset-top))] text-panel">
         <div className="min-w-0 overflow-hidden">
-          <p className="eyebrow">{deviceName}</p>
+          <Eyebrow>{deviceName}</Eyebrow>
           <h1 className="m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.05rem] tracking-[-0.01em]">
             {packageName ?? "No package selected"}
           </h1>

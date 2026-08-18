@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Eyebrow } from "../../../components/Eyebrow";
 import { PageHeading } from "../../../components/PageHeading";
 import { FieldHelp } from "../../../components/FieldHelp";
 import { compileMacro } from "../../../v2/macroCompiler";
@@ -275,7 +276,7 @@ export function MacroEditorPage({
     >
       <PageHeading>
         <div className="min-w-0 overflow-hidden">
-          <p className="eyebrow dark">{pkg.name}</p>
+          <Eyebrow tone="dark">{pkg.name}</Eyebrow>
           <h2 id="macro-editor-title">
             {macroId === null ? "Create macro" : "Edit macro"}
           </h2>

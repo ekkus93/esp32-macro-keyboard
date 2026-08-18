@@ -297,16 +297,6 @@
     @apply min-h-0 overflow-y-auto overscroll-y-contain;
   }
 
-  /* --- Faceplate -------------------------------------------------------------
-     Keycap legend: small, tight-tracked, uppercase. */
-  .eyebrow {
-    @apply m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[0.65rem] font-bold uppercase tracking-legend text-lamp;
-  }
-
-  .eyebrow.dark {
-    @apply text-actuate;
-  }
-
   /* An empty list is an invitation to act, not a statement of absence: it
      names what is missing, says what the thing is, and offers the action. */
   .error-message {
