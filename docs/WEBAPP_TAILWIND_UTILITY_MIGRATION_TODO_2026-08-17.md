@@ -666,9 +666,31 @@ Order within the phase: `Card`, `FormStack`, `StandaloneScreen` first.
       here, so per the handoff's rule for coupled tasks it moves whole into
       the commit that owns `.dialog-panel`. `.danger-zone` stays in CSS until
       then, unchanged and serving its five remaining call sites.
-- [ ] **T4-6** `<CheckboxRow>` (5), `<SendStatus>` (5, note the
+- [x] **T4-6** `<CheckboxRow>` (5), `<SendStatus>` (5, note the
       `[role="alert"]` variant — verified as `[&[role=alert]]:` or a prop).
-      *Evidence:*
+      *Evidence:* `a2faefb`. Resolved as a **prop**, not `[&[role=alert]]:`,
+      and it had to be: `DismissibleBanner` passes `role` through as a runtime
+      value, so an interpolated class name would compile to nothing (§8.2),
+      and the two branches disagree on both border colour and background.
+      `role` therefore selects one of two complete literal strings.
+      `overlay` — the landscape surface's `w-[min(100%,24rem)] text-legend`,
+      inlined there by T3-3 — *appends* instead, which is safe here for the
+      reason T3-3 recorded: both are properties the base string never sets,
+      so there is no property for them to race over. `<CheckboxRow>` covers
+      all 5 `.checkbox-row` labels; its `min-h-[44px]` is `UI_UX_SPEC_V2`
+      §13's touch target measured on the label rather than the input, so it
+      now lives in the component instead of in a class a call site can
+      forget. Verified with the full-document walk over **12 captures**:
+      390 px and 1280 px for the in-flight `role="status"` banner, the
+      completed banner, the `role="alert"` failure banner (driven for real
+      via "Send Trigger failure"), Settings (four checkbox rows) and
+      first-run setup (the fifth); plus the landscape overlay at 844×390
+      with `hasTouch`, in **both** the idle and the awaiting-confirmation
+      states, which is the only place the `overlay` variant renders.
+      **1178 elements, 80 104 computed properties, zero value differences**,
+      zero bounding-box differences, zero structural differences, **all 12
+      full-page PNGs byte-identical**. `npm run test`: 544/544.
+      `check-webapp.sh`: EXIT=0.
 - [ ] **T4-7** `<Dialog>` — **also carries `<DangerZone>` (6 → 5 sites),
       moved here from T4-5 because `dialog-panel danger-zone` couples them.** — one component covering `.dialog-backdrop`,
       `.dialog-panel`, `.dialog-heading` across 3 call sites. Preserve
