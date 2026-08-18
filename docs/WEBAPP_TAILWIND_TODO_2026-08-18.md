@@ -45,13 +45,42 @@ The whole migration's correctness rests on diffs that were run by hand and
 then deleted. Nothing in CI can catch their recurrence. This phase is the
 highest-value work in the document and everything else depends on it.
 
-- [ ] **T1-1** Check in the visual-regression harness. Promote the throwaway
+- [x] **T1-1** Check in the visual-regression harness. Promote the throwaway
       probe into `webapp/tests/browser/visual/`: the element walk (the fixed
       property list from `SPEC` §10.2), the comparator that comments as sorted
       key→value maps, and a scenario driver. It must accept a baseline
       directory so it can run tree-vs-tree, and must fail loudly rather than
       silently skip a scenario it could not reach.
-      *Evidence:*
+      *Evidence:* `3d77a1f`. `props.mjs` (the curated property list, plus a
+      separate pseudo-element list for `StatusBadge`'s `::before` shapes),
+      `capture.mjs` (the element walk + screenshot), `compare.mjs`
+      (sorted key→value diff), `scenarios.mjs` (35 independent scenarios —
+      every ordinary page, every dialog/danger-zone state, all four USB
+      badge states, both landscape-overlay states, the three send banners,
+      and every pre-auth/pre-provisioning screen reachable by a fixture),
+      and `run-visual-tests.mjs` (the driver). `--baseline-dir` verified
+      tree-vs-tree: wrote a baseline to a scratch directory, compared
+      against it successfully, independent of the checked-in baseline path.
+      "Fail loudly" verified: with no baseline present, every scenario
+      reports `no baseline at … -- run with --update-baselines` and the run
+      exits nonzero — a missing baseline is a failure, not a skip.
+      **Verified the harness actually catches a regression**, not just that
+      it runs: injected `Card`'s `default` margin `my-3` → `my-6`, rebuilt,
+      and the diff named the exact element, `margin-top: "12px" -> "24px"`,
+      `margin-bottom` likewise, plus the correct downstream position shift
+      on every element below it in the document — then reverted and
+      confirmed clean again. The full 77-capture set (two boundary-width
+      scenarios included, proving the pattern T1-5 extends) ran clean three
+      times in a row, ~11s each. One genuine timing race was found and
+      fixed during that stabilization: `send-in-flight` originally waited
+      for the "starting" lifecycle text, which exists only until the first
+      1000ms status poll resolves (`sendClient.ts`'s `pollIntervalMs`) and
+      is inherently racy to capture; it now waits for the "active" state's
+      Cancel button, which holds for a full poll interval. `npm run
+      format:check` / `lint` / `typecheck`: clean (required a
+      `.prettierignore` entry for the not-yet-committed baseline JSON,
+      included in this commit). Baselines themselves are not committed
+      here — that is T1-2.
 - [ ] **T1-2** Commit baselines for the scenario set in `SPEC` §10.4, at the
       viewports in §10.3. Decide and document where baselines live (in-repo
       PNG + JSON, or JSON only with screenshots on demand) — in-repo binaries
