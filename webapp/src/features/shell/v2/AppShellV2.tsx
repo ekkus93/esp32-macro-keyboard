@@ -88,8 +88,8 @@ export function AppShellV2({
     // bottom nav are fixed chrome and #main-content below is the one
     // scrolling region, so a page can genuinely pin something outside the
     // part that scrolls. width: min(100%, 48rem)/64rem>=60rem is shared with
-    // .standalone (still in styles.css, Phase 4) -- kept identical by hand
-    // since both need the same measured column width.
+    // StandaloneScreen.tsx -- kept identical by hand since both need the
+    // same measured column width.
     <div
       // app-shell carries no CSS rule (styling is inline below); kept as a
       // structural test hook only --

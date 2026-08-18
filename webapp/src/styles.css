@@ -278,60 +278,23 @@
 @layer components {
   /* --- Shell ---------------------------------------------------------------
      A column so `main` takes the slack and the navigation sits on the bottom
-     edge of the viewport instead of floating part-way up a short page.
-     .app-shell (AppShellV2.tsx) shares this exact width formula but is
-     inlined there directly -- .standalone stays on the old min-height
-     behaviour, it has no header/nav chrome to fix in place, and a
-     single-task screen is fine growing taller than the viewport; .app-shell
-     is locked to the viewport (h-dvh overflow-hidden, inlined alongside it)
-     since it does have fixed chrome. Kept in sync by hand if this formula
-     ever changes.
-
-     dvh, not vh, for the same reason: vh is the static, largest-possible
-     viewport, dvh is the current one net of the mobile browser's address
-     bar. A vh floor on a screen shorter than that static measurement left a
-     phantom gap outside the visible viewport that the address bar opened
-     and closed on scroll -- read as the page sliding a little. Content that
-     genuinely needs more room than the viewport still grows past this floor
-     exactly as before; only the floor itself changed. */
-  .standalone {
-    @apply mx-auto flex min-h-dvh flex-col bg-shell;
-
-    width: min(100%, 48rem);
-
-    /* No Tailwind utility composes four independently-calc()'d sides with
-       env(safe-area-inset-*) in one declaration. */
-    padding: calc(max(2rem, 7vh) + env(safe-area-inset-top))
-      calc(1rem + env(safe-area-inset-right))
-      calc(1.25rem + env(safe-area-inset-bottom))
-      calc(1rem + env(safe-area-inset-left));
-  }
-
-  @media (width >= 60rem) {
-    .standalone {
-      width: min(100%, 64rem);
-    }
-  }
-
-  .standalone,
+     edge of the viewport instead of floating part-way up a short page. Both
+     column surfaces are now inlined in their components and share this
+     rule's padding: StandaloneScreen.tsx keeps the old min-height behaviour
+     (no header/nav chrome to fix in place, and a single-task screen is fine
+     growing taller than the viewport), while AppShellV2.tsx is locked to the
+     viewport (h-dvh overflow-hidden) since it does have fixed chrome. Their
+     width formulas are kept in sync by hand. */
   main {
     @apply px-4 py-5 [flex:1_1_auto];
   }
 
-  /* #main-content, not the bare `main` selector: .standalone is itself a
-     <main> element (single-task screens have no separate shell wrapper), and
-     it must keep growing/scrolling with the document rather than becoming
-     its own clipped scroll region. */
+  /* #main-content, not the bare `main` selector: the single-task screens are
+     themselves <main> elements (they have no separate shell wrapper), and
+     they must keep growing/scrolling with the document rather than becoming
+     their own clipped scroll region. */
   #main-content {
     @apply min-h-0 overflow-y-auto overscroll-y-contain;
-  }
-
-  /* Sign In, First-Run Setup and the reconnect screens are single tasks, so
-     they get a measured column rather than the full shell width. */
-  .standalone > * {
-    @apply mx-auto;
-
-    width: min(100%, 27rem);
   }
 
   /* --- Faceplate ------------------------------------------------------------- */
@@ -466,12 +429,12 @@
     @apply fixed inset-0 z-20 grid place-items-center overflow-y-auto bg-legend/70 p-4;
   }
 
-  /* dvh, not vh -- the same fix .standalone needed. A 100vh cap measures
-     against the largest-possible viewport, so on a mobile browser the bottom
-     of a full-height dialog sat behind the address bar with no scroll path
-     to it. This one is a max-height on an overflow-y: auto panel, which is
-     exactly the case where that clips content away rather than merely
-     looking off. */
+  /* dvh, not vh -- the same fix StandaloneScreen.tsx needed. A 100vh cap
+     measures against the largest-possible viewport, so on a mobile browser
+     the bottom of a full-height dialog sat behind the address bar with no
+     scroll path to it. This one is a max-height on an overflow-y: auto
+     panel, which is exactly the case where that clips content away rather
+     than merely looking off. */
   .dialog-panel {
     @apply max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-keycap border border-cap-edge bg-cap p-4 shadow-[0_1.5rem_4rem_rgb(33_30_26_/_35%)];
 

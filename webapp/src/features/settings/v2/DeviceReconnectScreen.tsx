@@ -1,4 +1,5 @@
 import type { DeviceReconnectPhase } from "./useDeviceReconnect";
+import { StandaloneScreen } from "../../../components/StandaloneScreen";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 
 export type DeviceActionKind = "restart" | "reset-settings" | "factory-reset";
@@ -44,7 +45,7 @@ export function DeviceReconnectScreen({
   onManualReload,
 }: DeviceReconnectScreenProps): React.JSX.Element {
   return (
-    <main aria-busy={phase === "waiting"} className="standalone">
+    <StandaloneScreen aria-busy={phase === "waiting"}>
       <section aria-labelledby="reconnect-title">
         <h1 id="reconnect-title">Reconnecting…</h1>
         {phase === "waiting" ? (
@@ -65,6 +66,6 @@ export function DeviceReconnectScreen({
           </>
         ) : null}
       </section>
-    </main>
+    </StandaloneScreen>
   );
 }

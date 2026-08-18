@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { StandaloneScreen } from "./components/StandaloneScreen";
 import { v2ErrorText } from "./features/auth/v2/v2ErrorText";
 import { FirstRunSetupPage } from "./features/auth/v2/FirstRunSetupPage";
 import { SignInPage } from "./features/auth/v2/SignInPage";
@@ -290,7 +291,7 @@ export function AuthenticatedShell({
 
   if (settingsError !== null) {
     return (
-      <main className="standalone">
+      <StandaloneScreen>
         <h1>Couldn&apos;t load device settings</h1>
         <ErrorBanner message={settingsError} />
         <button
@@ -301,15 +302,15 @@ export function AuthenticatedShell({
         >
           Retry
         </button>
-      </main>
+      </StandaloneScreen>
     );
   }
 
   if (settings === null) {
     return (
-      <main aria-busy="true" className="standalone">
+      <StandaloneScreen aria-busy="true">
         <p role="status">Loading device settings…</p>
-      </main>
+      </StandaloneScreen>
     );
   }
 
@@ -554,13 +555,13 @@ export default function AppV2(): React.JSX.Element {
   switch (phase.kind) {
     case "checking":
       return (
-        <main aria-busy="true" className="standalone">
+        <StandaloneScreen aria-busy="true">
           <p role="status">Checking device mode…</p>
-        </main>
+        </StandaloneScreen>
       );
     case "device-unreachable":
       return (
-        <main className="standalone">
+        <StandaloneScreen>
           <h1>Device unreachable</h1>
           <ErrorBanner message={phase.message} />
           <button
@@ -571,7 +572,7 @@ export default function AppV2(): React.JSX.Element {
           >
             Retry
           </button>
-        </main>
+        </StandaloneScreen>
       );
     case "setup":
       return (

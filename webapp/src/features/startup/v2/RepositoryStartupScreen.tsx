@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { StandaloneScreen } from "../../../components/StandaloneScreen";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import { isGzipSupported } from "../../../v2/gzip";
@@ -134,13 +135,13 @@ function RetryScreen({
   onRetry,
 }: RetryScreenProps): React.JSX.Element {
   return (
-    <main className="standalone">
+    <StandaloneScreen>
       <h1>{title}</h1>
       <ErrorBanner message={message} />
       <button className="primary" onClick={onRetry} type="button">
         Retry
       </button>
-    </main>
+    </StandaloneScreen>
   );
 }
 
@@ -206,7 +207,7 @@ function FirstPackageForm({
   };
 
   return (
-    <main className="standalone">
+    <StandaloneScreen>
       <h1>
         {origin === "no-blobs"
           ? "Create Your First Repository"
@@ -251,7 +252,7 @@ function FirstPackageForm({
         </button>
       </form>
       <p role="status">Unsaved changes</p>
-    </main>
+    </StandaloneScreen>
   );
 }
 
@@ -297,7 +298,7 @@ function PackageChooserView({
   };
 
   return (
-    <main className="standalone">
+    <StandaloneScreen>
       <h1>Choose a package</h1>
       <p>Select which package to open.</p>
       <ul className="grid gap-[0.85rem]">
@@ -317,7 +318,7 @@ function PackageChooserView({
           </li>
         ))}
       </ul>
-    </main>
+    </StandaloneScreen>
   );
 }
 
@@ -460,7 +461,7 @@ function SnapshotRecoveryView({
   };
 
   return (
-    <main className="standalone">
+    <StandaloneScreen>
       <h1>Snapshot recovery</h1>
       <p>Blob {initialBlobId} could not be opened automatically.</p>
       <ErrorBanner message={message} />
@@ -488,7 +489,7 @@ function SnapshotRecoveryView({
       <button onClick={onRestart} type="button">
         Start over
       </button>
-    </main>
+    </StandaloneScreen>
   );
 }
 
@@ -622,14 +623,14 @@ export function RepositoryStartupScreen({
   switch (phase.kind) {
     case "loading":
       return (
-        <main aria-busy="true" className="standalone">
+        <StandaloneScreen aria-busy="true">
           <p role="status">Opening your repository…</p>
           <p>Loading the newest snapshot from the device.</p>
-        </main>
+        </StandaloneScreen>
       );
     case "gzip-unsupported":
       return (
-        <main className="standalone">
+        <StandaloneScreen>
           <h1>Browser not supported</h1>
           <p>
             This browser does not support the compression features this
@@ -638,7 +639,7 @@ export function RepositoryStartupScreen({
             <code>CompressionStream</code> and <code>DecompressionStream</code>,
             then reload.
           </p>
-        </main>
+        </StandaloneScreen>
       );
     case "device-unreachable":
       return (

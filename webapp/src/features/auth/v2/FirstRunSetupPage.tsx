@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { StandaloneScreen } from "../../../components/StandaloneScreen";
 import { V2ApiError, v2GetJson, v2PostJson } from "../../../v2/apiClient";
 import { isSetupAccepted, isSetupStateResponse } from "../../../v2/apiGuards";
 import { isSetupRequest } from "../../../v2/apiRequestGuards";
@@ -104,16 +105,16 @@ export function FirstRunSetupPage({
 
   if (phase === "loading") {
     return (
-      <main className="standalone" aria-busy="true">
+      <StandaloneScreen aria-busy="true">
         <p role="status">Loading setup information…</p>
-      </main>
+      </StandaloneScreen>
     );
   }
 
   if (phase === "unavailable") {
     const alreadyProvisioned = loadError?.status === 404;
     return (
-      <main className="standalone">
+      <StandaloneScreen>
         <h1>Setup unavailable</h1>
         <p>
           {alreadyProvisioned
@@ -131,13 +132,13 @@ export function FirstRunSetupPage({
         >
           {alreadyProvisioned ? "Continue" : "Reload"}
         </button>
-      </main>
+      </StandaloneScreen>
     );
   }
 
   if (phase === "complete") {
     return (
-      <main className="standalone">
+      <StandaloneScreen>
         <h1>Setup complete</h1>
         <p>
           The device applied your configuration and is restarting its Wi-Fi
@@ -150,13 +151,13 @@ export function FirstRunSetupPage({
         <button className="primary" onClick={onSetupComplete} type="button">
           Continue to Sign In
         </button>
-      </main>
+      </StandaloneScreen>
     );
   }
 
   if (phase === "review") {
     return (
-      <main className="standalone">
+      <StandaloneScreen>
         <h1>Review setup</h1>
         <p>
           Your Wi-Fi passphrase, administrator password, and setup code are
@@ -193,12 +194,12 @@ export function FirstRunSetupPage({
             {submitting ? "Applying setup…" : "Apply setup"}
           </button>
         </div>
-      </main>
+      </StandaloneScreen>
     );
   }
 
   return (
-    <main className="standalone">
+    <StandaloneScreen>
       <section>
         <h1>First-run setup</h1>
         <p>
@@ -296,6 +297,6 @@ export function FirstRunSetupPage({
           </button>
         </form>
       </section>
-    </main>
+    </StandaloneScreen>
   );
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { StandaloneScreen } from "../../../components/StandaloneScreen";
 import { V2ApiError, v2GetJson, v2PostJson } from "../../../v2/apiClient";
 import { isSessionStatus } from "../../../v2/apiGuards";
 import { isLoginRequest } from "../../../v2/apiRequestGuards";
@@ -141,15 +142,15 @@ export function SignInPage({
 
   if (phase === "checking") {
     return (
-      <main className="standalone" aria-busy="true">
+      <StandaloneScreen aria-busy="true">
         <p role="status">Checking for an existing session…</p>
-      </main>
+      </StandaloneScreen>
     );
   }
 
   if (phase === "check-error") {
     return (
-      <main className="standalone">
+      <StandaloneScreen>
         <section>
           <h1>Unable to check session</h1>
           <ErrorBanner message={sessionCheckError} />
@@ -163,14 +164,14 @@ export function SignInPage({
             Retry
           </button>
         </section>
-      </main>
+      </StandaloneScreen>
     );
   }
 
   const requestValid = isLoginRequest({ adminPassword });
 
   return (
-    <main className="standalone">
+    <StandaloneScreen>
       <section>
         <h1>Sign in</h1>
         <form
@@ -222,6 +223,6 @@ export function SignInPage({
           </button>
         </form>
       </section>
-    </main>
+    </StandaloneScreen>
   );
 }
