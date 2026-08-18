@@ -23,13 +23,20 @@ export const STANDARD_VIEWPORTS = [
 ];
 
 /**
- * The exact media-query boundaries in play (SPEC §5.3) plus one pixel either
- * side -- T1-5. Kept separate from STANDARD_VIEWPORTS because most scenarios
- * gain nothing from running at eight widths instead of two; only the ones
- * that render an element carrying one of these thresholds need it, and each
- * such scenario opts in via `boundaryScenario()` below.
+ * Boundary scenarios (T1-5, `*-boundary` names below) each define their own
+ * three-viewport array -- the exact SPEC §5.3 threshold, one pixel below,
+ * one pixel above -- rather than sharing one constant. Kept separate from
+ * STANDARD_VIEWPORTS because most scenarios gain nothing from running at
+ * six widths instead of two; only the element that actually carries a given
+ * threshold needs its boundary swept, and every SPEC §5.3 threshold has
+ * exactly one boundary scenario covering it: 26rem
+ * (`snapshots-storage-summary-boundary`), 32rem (`macros-32rem-boundary`),
+ * 34rem (`macros-34rem-boundary`), 40rem (`dialog-restart-heading-boundary`),
+ * 42rem (`macro-editor-42rem-boundary`), 60rem (`macros-60rem-boundary` for
+ * the shell, `signin-60rem-boundary` for `StandaloneScreen`), and the one
+ * height-based threshold, 38rem
+ * (`macro-editor-short-viewport-boundary`).
  */
-export const BOUNDARY_WIDTHS = [511, 512, 513, 639, 640, 641];
 
 let importFixturePathPromise = null;
 async function importFixturePath() {
@@ -117,6 +124,42 @@ export const SCENARIOS = [
   scenario("macros", STANDARD_VIEWPORTS, (browser, viewport) =>
     withApp(browser, viewport, (page) => captureScenario(page)),
   ),
+  // Two of SPEC §5.3's thresholds land on this one page at once: 32rem
+  // (<=, HeaderActions' narrow-screen justify-start, and each macro row's
+  // action cluster going full-width) and 34rem (>=, Card's two-column
+  // grid -- every macro row is a Card with two children).
+  scenario(
+    "macros-32rem-boundary",
+    [
+      { name: "511x900", width: 511, height: 900 }, // 32rem - 1px
+      { name: "512x900", width: 512, height: 900 }, // 32rem
+      { name: "513x900", width: 513, height: 900 }, // 32rem + 1px
+    ],
+    (browser, viewport) =>
+      withApp(browser, viewport, (page) => captureScenario(page)),
+  ),
+  scenario(
+    "macros-34rem-boundary",
+    [
+      { name: "543x900", width: 543, height: 900 }, // 34rem - 1px
+      { name: "544x900", width: 544, height: 900 }, // 34rem
+      { name: "545x900", width: 545, height: 900 }, // 34rem + 1px
+    ],
+    (browser, viewport) =>
+      withApp(browser, viewport, (page) => captureScenario(page)),
+  ),
+  // 60rem (>=): the shell-chrome half of this pair -- see
+  // signin-60rem-boundary for StandaloneScreen's identical formula.
+  scenario(
+    "macros-60rem-boundary",
+    [
+      { name: "959x900", width: 959, height: 900 }, // 60rem - 1px
+      { name: "960x900", width: 960, height: 900 }, // 60rem
+      { name: "961x900", width: 961, height: 900 }, // 60rem + 1px
+    ],
+    (browser, viewport) =>
+      withApp(browser, viewport, (page) => captureScenario(page)),
+  ),
   scenario("macros-overflow-menu", STANDARD_VIEWPORTS, (browser, viewport) =>
     withApp(browser, viewport, async (page) => {
       await clickButtonByAriaLabel(page, "More actions for Open terminal");
@@ -197,11 +240,36 @@ export const SCENARIOS = [
     }),
   ),
   // The editor's short-viewport fallback (`short:` variant, SPEC §5.3) --
-  // one fixed height, not the standard pair, since the split it toggles is
-  // driven by viewport *height*, not width.
+  // Its own viewport set, not the standard pair: the split it toggles is
+  // driven by viewport *height*, not width, and this is the 38rem (<=)
+  // height boundary itself (SPEC §5.3's one height-based threshold),
+  // 607/608/609px -- 390px wide throughout since width is not what varies.
   scenario(
-    "macro-editor-short-viewport",
-    [{ name: "390x600", width: 390, height: 600 }],
+    "macro-editor-short-viewport-boundary",
+    [
+      { name: "390x607", width: 390, height: 607 }, // 38rem - 1px
+      { name: "390x608", width: 390, height: 608 }, // 38rem
+      { name: "390x609", width: 390, height: 609 }, // 38rem + 1px
+    ],
+    (browser, viewport) =>
+      withApp(browser, viewport, async (page) => {
+        await clickButtonByAriaLabel(page, "Edit Open terminal");
+        await waitFor(
+          page,
+          () => document.querySelector("#macro-editor-name") !== null,
+          "The macro editor did not open.",
+        );
+        return captureScenario(page);
+      }),
+  ),
+  // 42rem (>=): the editor's toolbar/timing controls go two-column.
+  scenario(
+    "macro-editor-42rem-boundary",
+    [
+      { name: "671x900", width: 671, height: 900 }, // 42rem - 1px
+      { name: "672x900", width: 672, height: 900 }, // 42rem
+      { name: "673x900", width: 673, height: 900 }, // 42rem + 1px
+    ],
     (browser, viewport) =>
       withApp(browser, viewport, async (page) => {
         await clickButtonByAriaLabel(page, "Edit Open terminal");
@@ -628,6 +696,25 @@ export const SCENARIOS = [
       "Sign in",
       (page) => captureScenario(page),
     ),
+  ),
+  // 60rem (>=): StandaloneScreen's column widens from 48rem to 64rem cap.
+  // AppShellV2 shares the identical formula (SPEC §5.3) -- see
+  // macros-60rem-boundary below for the shell-chrome half of this pair.
+  scenario(
+    "signin-60rem-boundary",
+    [
+      { name: "959x900", width: 959, height: 900 }, // 60rem - 1px
+      { name: "960x900", width: 960, height: 900 }, // 60rem
+      { name: "961x900", width: 961, height: 900 }, // 60rem + 1px
+    ],
+    (browser, viewport) =>
+      withStartup(
+        browser,
+        viewport,
+        { authenticated: false },
+        "Sign in",
+        (page) => captureScenario(page),
+      ),
   ),
   scenario("signin-error", STANDARD_VIEWPORTS, (browser, viewport) =>
     withStartup(
