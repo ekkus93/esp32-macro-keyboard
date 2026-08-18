@@ -26,6 +26,20 @@
  * full-height dialog sat behind the address bar with no scroll path to it.
  * This is a max-height on an `overflow-y: auto` panel, which is exactly the
  * case where that clips content away rather than merely looking off.
+ *
+ * ## `role="alertdialog"` is hardcoded, not a prop
+ *
+ * Reviewed deliberately (`WEBAPP_TAILWIND_TODO_2026-08-18.md` T4-3): all
+ * three call sites today (`ConfirmPhraseDialog`, `UnsavedChangesPrompt`,
+ * the restart confirmation in `SettingsPage`) are exactly what
+ * `alertdialog` is for — a modal interrupting the user to demand an
+ * immediate yes/no response to a consequential action. None is a general
+ * content or editing surface, where `alertdialog`'s implicit "respond now"
+ * semantics would be wrong for assistive tech. Kept hardcoded rather than
+ * parameterized: `DangerZone` already shows the parameterized shape
+ * (`role?: "alertdialog"`) this component would take on the day a non-alert
+ * `Dialog` use case actually shows up — no need to carry that option
+ * unused until then.
  */
 const DIALOG_PANEL_CLASS = {
   panel:

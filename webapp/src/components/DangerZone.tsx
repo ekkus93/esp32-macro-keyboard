@@ -10,6 +10,17 @@
  * accept when it is programmatically focusable. All three call sites that
  * announce themselves as an `alertdialog` need both, and none needs one
  * without the other.
+ *
+ * Reviewed deliberately (`WEBAPP_TAILWIND_TODO_2026-08-18.md` T4-3): kept as
+ * a derivation rather than two independent props. Verified against every
+ * call site — `PackageManagementPage`, `SnapshotsPage`'s import confirm, and
+ * `SnapshotRow`'s delete confirm all pass `role="alertdialog"` with a
+ * `containerRef` and get `tabIndex={-1}` for free; `SnapshotRow`'s other use
+ * (a static "this is permanent" callout, no confirm flow, nothing to focus)
+ * passes neither. Deriving the two together makes the bug this component
+ * exists to prevent — a focus-trapped container with no `role`, or an
+ * `alertdialog` assistive tech can't move focus into — structurally
+ * unrepresentable rather than merely undocumented.
  */
 export interface DangerZoneProps {
   children: React.ReactNode;
