@@ -81,12 +81,35 @@ highest-value work in the document and everything else depends on it.
       `.prettierignore` entry for the not-yet-committed baseline JSON,
       included in this commit). Baselines themselves are not committed
       here — that is T1-2.
-- [ ] **T1-2** Commit baselines for the scenario set in `SPEC` §10.4, at the
+- [x] **T1-2** Commit baselines for the scenario set in `SPEC` §10.4, at the
       viewports in §10.3. Decide and document where baselines live (in-repo
       PNG + JSON, or JSON only with screenshots on demand) — in-repo binaries
       have a real cost in a firmware repo that also ships a flash image, so
       justify the choice in the evidence line rather than defaulting.
-      *Evidence:*
+      *Evidence:* `2864bd4` (prep: extracted the H4 recovery fixture so the
+      execution-recovery-overlay scenario could share it rather than
+      duplicate a second copy of that server — verified behavior-preserving
+      by running `run-h4-recovery-tests.mjs` unchanged against the extracted
+      version) and `d67c7e7` (the baselines). **Decision: JSON only, no
+      PNG**, recorded in full in `baselines/README.md`: the property walk
+      already caught everything a screenshot did during the review that
+      produced this harness, plus differences a screenshot structurally
+      cannot see (inside a scroll container, behind a modal overlay); PNG
+      baselines at two viewports per scenario would roughly double this
+      directory's cost in a repo that also ships a flash image; and a
+      changed PNG shows nothing in a `git diff`, while the JSON shows the
+      exact property that moved. Screenshots are still captured every run
+      and written to `--diff-dir` on failure, for human debugging, never
+      committed as truth. Every screen `SPEC` §10.4 names is covered — the
+      execution recovery overlay was the one entry still missing after
+      T1-1, added here using the newly-extracted fixture. 79 baseline files
+      (one per scenario/viewport pair), ~14MB, at the viewports `SPEC` §10.3
+      requires. Verified: the full 79-capture set regenerated from a clean
+      slate (`rm -rf baselines && … --update-baselines`, so no leftover
+      state from T1-1's smaller subset) and then ran clean three times in a
+      row. `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
+      `check-docs.sh`: EXIT=0 — `markdownlint-cli2` scans `**/*.md` from the
+      repo root, so it reaches `baselines/README.md` too.
 - [ ] **T1-3** Wire it into `check-webapp.sh` after the browser workflows.
       Must be deterministic: fixed viewports, no animation timing races, no
       wall-clock in any fixture. If a scenario proves flaky, quarantine that
