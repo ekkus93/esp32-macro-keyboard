@@ -26,7 +26,14 @@ export async function captureDocument(page) {
       const rect = element.getBoundingClientRect();
       return {
         tag: element.tagName,
-        cls: String(element.className),
+        // getAttribute, not element.className: on an SVG element
+        // `className` is an SVGAnimatedString, not a string, and
+        // String(element.className) on one produces the literal text
+        // "[object SVGAnimatedString]" -- found by T2-3's token collector,
+        // which choked on exactly that text as an unrecognized class.
+        // getAttribute("class") returns the real attribute text (or null,
+        // hence ?? "") for both HTML and SVG elements uniformly.
+        cls: element.getAttribute("class") ?? "",
         rect: [
           round(rect.x),
           round(rect.y),
@@ -57,7 +64,14 @@ export async function capturePseudoElements(page) {
       }
       results.push({
         tag: element.tagName,
-        cls: String(element.className),
+        // getAttribute, not element.className: on an SVG element
+        // `className` is an SVGAnimatedString, not a string, and
+        // String(element.className) on one produces the literal text
+        // "[object SVGAnimatedString]" -- found by T2-3's token collector,
+        // which choked on exactly that text as an unrecognized class.
+        // getAttribute("class") returns the real attribute text (or null,
+        // hence ?? "") for both HTML and SVG elements uniformly.
+        cls: element.getAttribute("class") ?? "",
         values,
       });
     }

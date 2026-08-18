@@ -1442,7 +1442,7 @@
   },
   {
    "tag": "svg",
-   "cls": "[object SVGAnimatedString]",
+   "cls": "",
    "rect": [
     659.7,
     154.3,
@@ -1522,7 +1522,7 @@
   },
   {
    "tag": "path",
-   "cls": "[object SVGAnimatedString]",
+   "cls": "",
    "rect": [
     660.54,
     158.46,
@@ -1602,7 +1602,7 @@
   },
   {
    "tag": "circle",
-   "cls": "[object SVGAnimatedString]",
+   "cls": "",
    "rect": [
     667.2,
     161.8,

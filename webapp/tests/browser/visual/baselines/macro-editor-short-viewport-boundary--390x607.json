@@ -6642,7 +6642,7 @@
   },
   {
    "tag": "DIV",
-   "cls": "rounded-keycap border border-l-[3px] border-cap-edge border-l-actuate bg-panel p-4",
+   "cls": "rounded-keycap border-y border-r border-l-[3px] border-y-cap-edge border-r-cap-edge border-l-actuate bg-panel p-4",
    "rect": [
     16,
     1408.27,

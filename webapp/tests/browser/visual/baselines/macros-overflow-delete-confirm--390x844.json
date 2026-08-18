@@ -3922,7 +3922,7 @@
   },
   {
    "tag": "DIV",
-   "cls": "my-4 rounded-keycap border border-l-[3px] border-lamp bg-warning-tint p-4",
+   "cls": "my-4 rounded-keycap border-y border-r border-l-[3px] border-lamp bg-warning-tint p-4",
    "rect": [
     46,
     404.97,

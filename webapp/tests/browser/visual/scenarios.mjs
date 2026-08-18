@@ -373,7 +373,7 @@ export const SCENARIOS = [
       await clickButton(page, "Snapshots");
       await waitFor(
         page,
-        () => document.body.innerText.includes("Save current snapshot"),
+        () => document.body.innerText.toUpperCase().includes("STORED"),
         "The Snapshots page did not render.",
       );
       return captureScenario(page);
@@ -393,7 +393,7 @@ export const SCENARIOS = [
         await clickButton(page, "Snapshots");
         await waitFor(
           page,
-          () => document.body.innerText.includes("Save current snapshot"),
+          () => document.body.innerText.toUpperCase().includes("STORED"),
           "The Snapshots page did not render.",
         );
         return captureScenario(page);
@@ -404,7 +404,7 @@ export const SCENARIOS = [
       await clickButton(page, "Snapshots");
       await waitFor(
         page,
-        () => document.body.innerText.includes("Save current snapshot"),
+        () => document.body.innerText.toUpperCase().includes("STORED"),
         "The Snapshots page did not render.",
       );
       await clickButtonByAriaLabel(
@@ -427,7 +427,7 @@ export const SCENARIOS = [
         await clickButton(page, "Snapshots");
         await waitFor(
           page,
-          () => document.body.innerText.includes("Save current snapshot"),
+          () => document.body.innerText.toUpperCase().includes("STORED"),
           "The Snapshots page did not render.",
         );
         await clickButtonByAriaLabel(page, "Delete snapshot 1");
@@ -444,7 +444,7 @@ export const SCENARIOS = [
       await clickButton(page, "Snapshots");
       await waitFor(
         page,
-        () => document.body.innerText.includes("Save current snapshot"),
+        () => document.body.innerText.toUpperCase().includes("STORED"),
         "The Snapshots page did not render.",
       );
       const path = await importFixturePath();
