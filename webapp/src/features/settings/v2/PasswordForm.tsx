@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { FieldHelp } from "../../../components/FieldHelp";
+import { FormActions } from "../../../components/FormActions";
 import { v2Limits } from "../../../v2/limits";
 import { utf8ByteLength } from "../../../v2/repository";
 
@@ -65,10 +67,10 @@ export function PasswordForm({
           value={newPassword}
         />
       </label>
-      <p className="field-help">
+      <FieldHelp as="p">
         {String(v2Limits.adminPasswordMinBytes)}-
         {String(v2Limits.adminPasswordMaxBytes)} UTF-8 bytes.
-      </p>
+      </FieldHelp>
       <label htmlFor="settings-confirm-password">
         Confirm new password
         <input
@@ -85,14 +87,14 @@ export function PasswordForm({
       {!matches && confirmPassword.length > 0 ? (
         <p role="alert">New password and confirmation do not match.</p>
       ) : null}
-      <div className="form-actions">
+      <FormActions>
         <button className="primary" disabled={busy || !valid} type="submit">
           {busy ? "Changing…" : "Change password"}
         </button>
-      </div>
-      <p className="field-help">
+      </FormActions>
+      <FieldHelp as="p">
         Changing the password signs out every session, including this one.
-      </p>
+      </FieldHelp>
     </form>
   );
 }

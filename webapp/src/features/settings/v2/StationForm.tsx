@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { FieldHelp } from "../../../components/FieldHelp";
+import { FormActions } from "../../../components/FormActions";
 import { isSettingsUpdateRequest } from "../../../v2/apiContracts";
 import {
   byteCountLabel,
@@ -33,7 +35,7 @@ export function StationForm({
     return (
       <div className="grid gap-[0.85rem]">
         <p>Connected network: {stationSsid}</p>
-        <div className="form-actions">
+        <FormActions>
           <button
             disabled={busy}
             onClick={() => {
@@ -51,7 +53,7 @@ export function StationForm({
           >
             Remove station network
           </button>
-        </div>
+        </FormActions>
       </div>
     );
   }
@@ -81,7 +83,7 @@ export function StationForm({
           value={ssid}
         />
       </label>
-      <p className="field-help">{byteCountLabel(ssid, ssidMaxBytes)}</p>
+      <FieldHelp as="p">{byteCountLabel(ssid, ssidMaxBytes)}</FieldHelp>
 
       <label htmlFor="settings-station-passphrase">
         Passphrase
@@ -96,12 +98,12 @@ export function StationForm({
           value={passphrase}
         />
       </label>
-      <p className="field-help">
+      <FieldHelp as="p">
         {byteCountLabel(passphrase, passphraseMaxBytes)} (
         {String(passphraseMinBytes)}-{String(passphraseMaxBytes)} required).
-      </p>
+      </FieldHelp>
 
-      <div className="form-actions">
+      <FormActions>
         <button className="primary" disabled={busy || !valid} type="submit">
           {busy ? "Saving…" : "Connect"}
         </button>
@@ -116,7 +118,7 @@ export function StationForm({
             Cancel
           </button>
         ) : null}
-      </div>
+      </FormActions>
     </form>
   );
 }

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { FieldHelp } from "../../../components/FieldHelp";
+import { FormActions } from "../../../components/FormActions";
 import { StandaloneScreen } from "../../../components/StandaloneScreen";
 import { V2ApiError, v2GetJson, v2PostJson } from "../../../v2/apiClient";
 import { isSetupAccepted, isSetupStateResponse } from "../../../v2/apiGuards";
@@ -172,7 +174,7 @@ export function FirstRunSetupPage({
           <dd>{requireSerialConfirmation ? "Yes" : "No"}</dd>
         </dl>
         <ErrorBanner message={submitError} />
-        <div className="form-actions">
+        <FormActions>
           <button
             disabled={submitting}
             onClick={() => {
@@ -193,7 +195,7 @@ export function FirstRunSetupPage({
           >
             {submitting ? "Applying setup…" : "Apply setup"}
           </button>
-        </div>
+        </FormActions>
       </StandaloneScreen>
     );
   }
@@ -227,7 +229,7 @@ export function FirstRunSetupPage({
             required
             value={setupCode}
           />
-          <span className="field-help">Exactly 8 digits.</span>
+          <FieldHelp>Exactly 8 digits.</FieldHelp>
 
           <label htmlFor="device-name">Device name</label>
           <input
@@ -238,7 +240,7 @@ export function FirstRunSetupPage({
             required
             value={deviceName}
           />
-          <span className="field-help">1 through 32 UTF-8 bytes.</span>
+          <FieldHelp>1 through 32 UTF-8 bytes.</FieldHelp>
 
           <label htmlFor="ap-ssid">Wi-Fi network name (access point)</label>
           <input
@@ -249,7 +251,7 @@ export function FirstRunSetupPage({
             required
             value={apSsid}
           />
-          <span className="field-help">1 through 32 UTF-8 bytes.</span>
+          <FieldHelp>1 through 32 UTF-8 bytes.</FieldHelp>
 
           <label htmlFor="ap-passphrase">Wi-Fi passphrase</label>
           <input
@@ -262,7 +264,7 @@ export function FirstRunSetupPage({
             type="password"
             value={apPassphrase}
           />
-          <span className="field-help">8 through 63 UTF-8 bytes.</span>
+          <FieldHelp>8 through 63 UTF-8 bytes.</FieldHelp>
 
           <label htmlFor="admin-password">Administrator password</label>
           <input
@@ -275,10 +277,10 @@ export function FirstRunSetupPage({
             type="password"
             value={adminPassword}
           />
-          <span className="field-help">
+          <FieldHelp>
             {v2Limits.adminPasswordMinBytes} through{" "}
             {v2Limits.adminPasswordMaxBytes} UTF-8 bytes.
-          </span>
+          </FieldHelp>
 
           <label className="checkbox-row">
             <input

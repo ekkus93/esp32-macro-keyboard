@@ -392,18 +392,6 @@
     @apply m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.35rem] tracking-[-0.01em];
   }
 
-  .field-help {
-    @apply mt-[0.3rem] block text-[0.8rem] font-normal text-legend-soft;
-  }
-
-  .limit-exceeded {
-    @apply font-bold text-alert;
-  }
-
-  .form-actions {
-    @apply mt-2 flex flex-wrap gap-[0.4rem];
-  }
-
   /* --- Send status --------------------------------------------------------- */
   .send-status {
     @apply my-3 rounded-keycap border-l-[3px] border-actuate bg-send-tint px-4 py-[0.8rem];

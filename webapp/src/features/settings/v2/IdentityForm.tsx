@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { FieldHelp } from "../../../components/FieldHelp";
+import { FormActions } from "../../../components/FormActions";
 import { isSettingsUpdateRequest } from "../../../v2/apiContracts";
 import { v2Limits } from "../../../v2/limits";
 import { byteCountLabel, deviceNameMaxBytes } from "./settingsFieldLimits";
@@ -76,9 +78,9 @@ export function IdentityForm({
           value={deviceName}
         />
       </label>
-      <p className="field-help">
+      <FieldHelp as="p">
         {byteCountLabel(deviceName, deviceNameMaxBytes)}
-      </p>
+      </FieldHelp>
 
       <label className="checkbox-row" htmlFor="settings-serial-confirmation">
         <input
@@ -148,15 +150,15 @@ export function IdentityForm({
         />
         Show macro source previews
       </label>
-      <p className="field-help">
+      <FieldHelp as="p">
         Off by default — macro source can contain passwords or private commands.
-      </p>
+      </FieldHelp>
 
-      <div className="form-actions">
+      <FormActions>
         <button className="primary" disabled={busy || !valid} type="submit">
           {busy ? "Saving…" : "Save"}
         </button>
-      </div>
+      </FormActions>
     </form>
   );
 }

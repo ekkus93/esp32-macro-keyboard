@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { FormActions } from "../../../components/FormActions";
 import { useFocusTrap } from "./useFocusTrap";
 
 /**
@@ -67,7 +68,7 @@ export function UnsavedChangesPrompt({
           once this working copy is closed without saving, the changes cannot be
           recovered.
         </p>
-        <div className="form-actions">
+        <FormActions>
           <button onClick={onCancel} type="button">
             Cancel
           </button>
@@ -85,7 +86,7 @@ export function UnsavedChangesPrompt({
           <button className="danger" onClick={onDiscard} type="button">
             {discardLabel}
           </button>
-        </div>
+        </FormActions>
       </div>
     </div>
   );

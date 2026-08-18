@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { FieldHelp } from "../../../components/FieldHelp";
 import { StandaloneScreen } from "../../../components/StandaloneScreen";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
@@ -240,9 +241,9 @@ function FirstPackageForm({
           required
           value={name}
         />
-        <span className="field-help">
+        <FieldHelp>
           1 through {v2Limits.packageNameMaxBytes} UTF-8 bytes.
-        </span>
+        </FieldHelp>
         <button
           className="primary"
           disabled={!validation.ok || submitting}

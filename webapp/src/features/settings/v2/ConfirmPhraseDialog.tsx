@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { FormActions } from "../../../components/FormActions";
 import { v2Limits } from "../../../v2/limits";
 import { utf8ByteLength } from "../../../v2/repository";
 import { useFocusTrap } from "../../shell/v2/useFocusTrap";
@@ -85,7 +86,7 @@ export function ConfirmPhraseDialog({
             value={typed}
           />
         </label>
-        <div className="form-actions">
+        <FormActions>
           <button disabled={busy} onClick={onCancel} type="button">
             Cancel
           </button>
@@ -103,7 +104,7 @@ export function ConfirmPhraseDialog({
                 ? "Confirm reset settings"
                 : "Erase everything"}
           </button>
-        </div>
+        </FormActions>
       </div>
     </div>
   );

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { FieldHelp } from "../../../components/FieldHelp";
+import { FormActions } from "../../../components/FormActions";
 import { isSettingsUpdateRequest } from "../../../v2/apiContracts";
 import {
   byteCountLabel,
@@ -47,7 +49,7 @@ export function AccessPointForm({
           value={ssid}
         />
       </label>
-      <p className="field-help">{byteCountLabel(ssid, ssidMaxBytes)}</p>
+      <FieldHelp as="p">{byteCountLabel(ssid, ssidMaxBytes)}</FieldHelp>
 
       <label htmlFor="settings-ap-passphrase">
         New access-point passphrase
@@ -62,18 +64,18 @@ export function AccessPointForm({
           value={passphrase}
         />
       </label>
-      <p className="field-help">
+      <FieldHelp as="p">
         {byteCountLabel(passphrase, passphraseMaxBytes)} (
         {String(passphraseMinBytes)}-{String(passphraseMaxBytes)} required). The
         current passphrase cannot be shown — enter a new one to change the
         network name, too.
-      </p>
+      </FieldHelp>
 
-      <div className="form-actions">
+      <FormActions>
         <button className="primary" disabled={busy || !valid} type="submit">
           {busy ? "Saving…" : "Update access point"}
         </button>
-      </div>
+      </FormActions>
     </form>
   );
 }

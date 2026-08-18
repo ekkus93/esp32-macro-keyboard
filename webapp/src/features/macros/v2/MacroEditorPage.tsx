@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { FieldHelp } from "../../../components/FieldHelp";
 import { compileMacro } from "../../../v2/macroCompiler";
 import type { MacroCompileResult } from "../../../v2/macroCompiler";
 import { v2Limits } from "../../../v2/limits";
@@ -309,16 +310,10 @@ export function MacroEditorPage({
           spellCheck="false"
           value={source}
         />
-        <span
-          className={
-            sourceBytes > v2Limits.macroSourceMaxBytes
-              ? "field-help limit-exceeded"
-              : "field-help"
-          }
-        >
+        <FieldHelp exceeded={sourceBytes > v2Limits.macroSourceMaxBytes}>
           {String(sourceBytes)} / {String(v2Limits.macroSourceMaxBytes)} UTF-8
           bytes
-        </span>
+        </FieldHelp>
       </label>
 
       <form
@@ -338,16 +333,10 @@ export function MacroEditorPage({
             }}
             value={name}
           />
-          <span
-            className={
-              nameBytes > v2Limits.macroNameMaxBytes
-                ? "field-help limit-exceeded"
-                : "field-help"
-            }
-          >
+          <FieldHelp exceeded={nameBytes > v2Limits.macroNameMaxBytes}>
             {String(nameBytes)} / {String(v2Limits.macroNameMaxBytes)} UTF-8
             bytes
-          </span>
+          </FieldHelp>
         </label>
 
         <div>

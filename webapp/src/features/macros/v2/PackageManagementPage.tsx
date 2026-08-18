@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { FieldHelp } from "../../../components/FieldHelp";
+import { FormActions } from "../../../components/FormActions";
 import { Card } from "../../../components/Card";
 import { v2Limits } from "../../../v2/limits";
 import {
@@ -101,16 +103,10 @@ function CreatePackageForm({
           }}
           value={name}
         />
-        <span
-          className={
-            nameBytes > v2Limits.packageNameMaxBytes
-              ? "field-help limit-exceeded"
-              : "field-help"
-          }
-        >
+        <FieldHelp exceeded={nameBytes > v2Limits.packageNameMaxBytes}>
           {String(nameBytes)} / {String(v2Limits.packageNameMaxBytes)} UTF-8
           bytes
-        </span>
+        </FieldHelp>
       </label>
       <button className="primary" disabled={!valid} type="submit">
         Create package
@@ -191,7 +187,7 @@ function PackageRow({
                 value={draftName}
               />
             </label>
-            <div className="form-actions">
+            <FormActions>
               <button className="primary" disabled={!draftValid} type="submit">
                 Save name
               </button>
@@ -204,7 +200,7 @@ function PackageRow({
               >
                 Cancel
               </button>
-            </div>
+            </FormActions>
           </form>
         ) : null}
       </div>

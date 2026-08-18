@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { FormActions } from "../../../components/FormActions";
 import { Card } from "../../../components/Card";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
@@ -370,7 +371,7 @@ export function SettingsPage({
 
       <Card aria-labelledby="settings-danger-title" variant="danger">
         <h3 id="settings-danger-title">Device actions</h3>
-        <div className="form-actions">
+        <FormActions>
           <button
             disabled={actionBusy !== null}
             onClick={() => {
@@ -400,7 +401,7 @@ export function SettingsPage({
           >
             Factory reset
           </button>
-        </div>
+        </FormActions>
       </Card>
 
       {restartConfirming ? (
@@ -420,7 +421,7 @@ export function SettingsPage({
               tab reconnects automatically and, once the device is back, asks
               you to sign in again — your unsaved work, if any, is preserved.
             </p>
-            <div className="form-actions">
+            <FormActions>
               <button
                 disabled={actionBusy !== null}
                 onClick={() => {
@@ -440,7 +441,7 @@ export function SettingsPage({
               >
                 {actionBusy === "restart" ? "Restarting…" : "Restart now"}
               </button>
-            </div>
+            </FormActions>
           </div>
         </div>
       ) : null}
