@@ -222,7 +222,7 @@ function FirstPackageForm({
         <strong>Save snapshot</strong> succeeds.
       </p>
       <form
-        className="form-stack"
+        className="grid gap-[0.85rem]"
         onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
           event.preventDefault();
           void submit();
@@ -300,7 +300,7 @@ function PackageChooserView({
     <main className="standalone">
       <h1>Choose a package</h1>
       <p>Select which package to open.</p>
-      <ul className="form-stack">
+      <ul className="grid gap-[0.85rem]">
         {repository.packages.map((pkg) => (
           <li key={pkg.id}>
             <button
@@ -467,7 +467,7 @@ function SnapshotRecoveryView({
       {candidates.length === 0 ? (
         <p>No other stored snapshots are available to try.</p>
       ) : (
-        <ul className="form-stack">
+        <ul className="grid gap-[0.85rem]">
           {candidates.map((blob) => (
             <li key={blob.id}>
               <button

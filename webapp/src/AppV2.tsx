@@ -462,7 +462,7 @@ export function AuthenticatedShell({
             />
           ) : null}
           {sendRecovery.kind === "unavailable" ? (
-            <div className="form-stack">
+            <div className="grid gap-[0.85rem]">
               <ErrorBanner
                 message={`Execution state unavailable. ${sendRecovery.message} An active send may still be running on the device.`}
               />
@@ -480,7 +480,7 @@ export function AuthenticatedShell({
             </div>
           ) : null}
           {selectionPersistenceFailure !== null ? (
-            <div className="form-stack">
+            <div className="grid gap-[0.85rem]">
               <ErrorBanner
                 message={`${packageSelectionPersistenceWarning} ${v2ErrorText(
                   selectionPersistenceFailure.error,

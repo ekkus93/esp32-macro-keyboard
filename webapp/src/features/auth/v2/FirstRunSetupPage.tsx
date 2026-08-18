@@ -205,7 +205,7 @@ export function FirstRunSetupPage({
           Device <strong>{currentDeviceName}</strong> is in isolated setup mode.
         </p>
         <form
-          className="form-stack"
+          className="grid gap-[0.85rem]"
           onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
             event.preventDefault();
             if (requestValid) {

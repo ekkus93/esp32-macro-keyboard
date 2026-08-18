@@ -27,7 +27,7 @@ export function PasswordForm({
 
   return (
     <form
-      className="form-stack"
+      className="grid gap-[0.85rem]"
       onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!valid) {

@@ -31,7 +31,7 @@ export function StationForm({
 
   if (stationConfigured && !editing) {
     return (
-      <div className="form-stack">
+      <div className="grid gap-[0.85rem]">
         <p>Connected network: {stationSsid}</p>
         <div className="form-actions">
           <button
@@ -58,7 +58,7 @@ export function StationForm({
 
   return (
     <form
-      className="form-stack"
+      className="grid gap-[0.85rem]"
       onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         if (!valid) {

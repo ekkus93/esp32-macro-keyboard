@@ -174,7 +174,7 @@ export function SignInPage({
       <section>
         <h1>Sign in</h1>
         <form
-          className="form-stack"
+          className="grid gap-[0.85rem]"
           onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
             void submit(event);
           }}

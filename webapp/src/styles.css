@@ -348,11 +348,6 @@
     @apply text-actuate;
   }
 
-  /* --- Keycap surfaces ----------------------------------------------------- */
-  .form-stack {
-    @apply grid gap-[0.85rem];
-  }
-
   /* An empty list is an invitation to act, not a statement of absence: it
      names what is missing, says what the thing is, and offers the action. */
   .checkbox-row {

@@ -322,7 +322,7 @@ export function MacroEditorPage({
       </label>
 
       <form
-        className="min-h-0 [flex:1_1_auto] overflow-y-auto overscroll-y-contain short:flex-none short:overflow-y-visible form-stack"
+        className="min-h-0 [flex:1_1_auto] overflow-y-auto overscroll-y-contain short:flex-none short:overflow-y-visible grid gap-[0.85rem]"
         id="macro-editor-form"
         onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
           event.preventDefault();
