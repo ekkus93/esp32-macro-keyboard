@@ -141,10 +141,32 @@ highest-value work in the document and everything else depends on it.
       `baselines/README.md` for the full workflow rather than duplicating
       it, matching this document's existing terse style (53 lines before
       this addition). `check-docs.sh`: EXIT=0.
-- [ ] **T1-5** Add the boundary-width scenarios: every threshold in `SPEC`
+- [x] **T1-5** Add the boundary-width scenarios: every threshold in `SPEC`
       §5.3 at exactly `X` and `X±1px`. This is the check that would have
       caught the `max-[X]:` defect on the day it was written.
-      *Evidence:*
+      *Evidence:* `46a9186`. Six new scenarios cover the six thresholds T1-1
+      hadn't reached (`macros-32rem-boundary`, `macros-34rem-boundary`,
+      `macro-editor-42rem-boundary`, `macros-60rem-boundary` and
+      `signin-60rem-boundary` for the shell/standalone width pair, and
+      `macro-editor-short-viewport-boundary` for the one height-based
+      threshold — replacing the single arbitrary 600px point T1-1 shipped
+      with a real 607/608/609px sweep). Combined with T1-1's two
+      (`snapshots-storage-summary-boundary` at 26rem,
+      `dialog-restart-heading-boundary` at 40rem), **every threshold in
+      `SPEC` §5.3 now has a boundary scenario.** Verified each is real, not
+      a vacuous three-times-identical capture: diffed each threshold's
+      `-1px` capture directly against its `+1px` capture (not against
+      baseline) and confirmed every pair differs — 23 to 196
+      property/geometry changes each, none zero. The full 96-capture set
+      (was 79) regenerated from a clean slate and ran clean three times in
+      a row. `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
+
+**Phase 1 complete.** The visual-regression gap `SPEC` §10.1 named — the
+gate asserting nothing about spacing, colour or geometry — is closed: 96
+scenario/viewport captures, every `SPEC` §10.4 screen, every `SPEC` §5.3
+boundary, wired into `check-webapp.sh`, documented for maintainers. Proven
+twice over on two separate injected regressions (T1-1, T1-3) that it
+actually fails the gate, not merely that it runs.
 
 ---
 
