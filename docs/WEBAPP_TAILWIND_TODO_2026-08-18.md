@@ -418,11 +418,36 @@ someone nests two components.
       the compiled CSS**: only `Card`'s and `Dialog`'s `[&_h2]:` rules
       remain; `PageHeading`'s six are gone. `npm run test`: 569/569.
       `check-webapp.sh`: EXIT=0.
-- [ ] **T3-2** Same treatment for `[&_p]` across `Card`, `SendStatus` and
+- [x] **T3-2** Same treatment for `[&_p]` across `Card`, `SendStatus` and
       `Dialog`. Today's order happens to match the old stylesheet, by luck
       rather than design — an added or reordered utility anywhere could flip
       it with no visible cause.
-      *Evidence:*
+      *Evidence:* `664557d`. **Not "the same treatment" as T3-1** — moving
+      `Card`'s `[&_p]:` out to its call sites is infeasible (it scopes every
+      paragraph across all of Diagnostics, every form's field help, every
+      row's summary line), so this took T3-1's own named alternative: a
+      guard, not a move. `descendantVariantNesting.ts` is deliberately
+      general rather than `[&_p]:`-specific — for every element it walks
+      ancestors counting how many own a descendant-variant scope matching
+      that element's own tag, and fails on two or more. Covers `Card`,
+      `Dialog` and `SendStatus`'s `[&_p]:` in one pass, plus `[&_h2]:`/
+      `[&_h3]:`/`[&_button]:` for defence in depth against a *future*
+      instance of this same trap, not just the one T3-1 already fixed.
+      Extracted `representativePages.tsx` from T2-2's
+      `no-rendered-property-collisions.test.tsx` so this reuses the same
+      four real page renders (behavior-preserving: that file's own 4 tests
+      still pass unchanged) rather than re-deriving fixture setup.
+      **Verified the detector has teeth**, not merely that it runs clean on
+      pages with no nesting today: a deliberately constructed `Card` nested
+      inside a `SendStatus` (no real call site does this) is caught —
+      exactly one violation, the doubly-scoped `<p>`, both ancestors named —
+      and a sibling `Card`/`SendStatus` pair (not nested) correctly reports
+      zero violations, proving the detector does not over-fire on ordinary
+      composition. `SPEC` §6.1 updated (`8859608`) — the `[&_p]` case is
+      recorded as guarded, not resolved, since the underlying hazard (two
+      components able to nest and collide) still exists; only its
+      consequence is now caught automatically. `npm run test`: 575/575.
+      `check-webapp.sh`: EXIT=0.
 - [ ] **T3-3** Guard `StandaloneScreen`'s `*:` child rule (`SPEC` §6.2)
       against a `fixed`-positioned direct child, which would be given a 27rem
       width and stop covering the viewport. A comment on the component plus a
