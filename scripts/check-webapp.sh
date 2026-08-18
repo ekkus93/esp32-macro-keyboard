@@ -15,4 +15,5 @@ npm run test:coverage
 npm run build
 npm run test:browser
 npm run test:visual
+npm run check:no-orphan-classes
 "${repo_root}/scripts/verify-no-remote-assets.sh" "${repo_root}/webapp/dist"
