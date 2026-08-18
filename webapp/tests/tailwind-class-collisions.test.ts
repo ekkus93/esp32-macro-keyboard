@@ -80,6 +80,25 @@ describe("findPropertyCollisions", () => {
     });
   });
 
+  describe("gap-x and gap-y are independent axes", () => {
+    test("gap-x and gap-y on the same element do not collide", () => {
+      // The real false positive T2-2's page-level sweep found: PageHeading's
+      // `gap-x-4 gap-y-3` was flagged as colliding on a single "gap" family
+      // before this was split into column-gap/row-gap. column-gap and
+      // row-gap are genuinely independent CSS properties.
+      expect(findPropertyCollisions("gap-x-4 gap-y-3")).toEqual([]);
+    });
+
+    test("the bare gap shorthand still collides with either axis", () => {
+      expect(findPropertyCollisions("gap-4 gap-x-2")).toEqual([
+        "column-gap: gap-4, gap-x-2",
+      ]);
+      expect(findPropertyCollisions("gap-4 gap-y-2")).toEqual([
+        "row-gap: gap-4, gap-y-2",
+      ]);
+    });
+  });
+
   test("an unrecognized utility throws rather than passing silently", () => {
     // §4.1/§4.2's whole point is that a wrong or unaudited class must never
     // pass quietly -- the classifier enforces the same discipline on itself.
