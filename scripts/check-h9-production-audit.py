@@ -83,6 +83,19 @@ ALLOWED_FALLBACK_LINES = Counter(
             "webapp/src/v2/snapshotClient.ts",
             "* silently falling back (SPEC_V2 §9).",
         ): 1,
+        # Classified 2026-08-18. Not a runtime fallback at all: this comment
+        # describes a *layout* branch. Below ~38rem of viewport height the
+        # editor abandons its fixed/scroll split and becomes one ordinary
+        # scrolling page, expressed purely as the `short:` media variant on
+        # the elements below it. There is no error path, no degraded mode and
+        # nothing for H9 to audit -- the phrasing is what the check matches,
+        # not the behaviour. Introduced by the Tailwind utility migration
+        # (T2-1, dcf7e53), which moved the rationale from styles.css into the
+        # component that applies it.
+        (
+            "webapp/src/features/macros/v2/MacroEditorPage.tsx",
+            "// fall back to one ordinary scrolling page through #main-content, the",
+        ): 1,
     }
 )
 
