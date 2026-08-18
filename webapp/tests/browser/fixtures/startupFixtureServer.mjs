@@ -129,6 +129,17 @@ export async function startStartupFixtureServer(options = {}) {
           return;
         }
 
+        if (method === "POST" && url.pathname === "/api/v1/device/restart") {
+          // Two simulated-down polls before the ordinary auth gate takes
+          // over -- see the "waiting" case in /api/v1/status above.
+          state.rebootPollsRemaining = 2;
+          sendJson(response, 202, {
+            accepted: true,
+            connectionWillClose: true,
+            reprovisioningRequired: false,
+          });
+          return;
+        }
         if (method === "GET" && url.pathname === "/api/v1/settings") {
           sendJson(response, 200, state.settings);
           return;
@@ -151,6 +162,32 @@ export async function startStartupFixtureServer(options = {}) {
           return;
         }
         if (method === "GET" && url.pathname === "/api/v1/status") {
+          // Simulates the device actually being down after `POST
+          // /api/v1/device/restart` -- useDeviceReconnect.ts treats a
+          // transient 503 the same as a dropped connection ("still down,
+          // keep polling"), which is the closest an HTTP fixture can get to
+          // a real TCP-level outage. Once the simulated downtime ends,
+          // dropping `state.authenticated` lets the ordinary auth gate
+          // above answer the next poll with 401 -- the real device's RAM-
+          // only sessions do not survive a reboot -- which is what drives
+          // DeviceReconnectScreen from "waiting" to "needs-reauth" without
+          // this route needing its own special-cased response.
+          if (
+            state.rebootPollsRemaining !== undefined &&
+            state.rebootPollsRemaining > 0
+          ) {
+            state.rebootPollsRemaining -= 1;
+            if (state.rebootPollsRemaining === 0) {
+              state.authenticated = false;
+            }
+            sendError(
+              response,
+              503,
+              "temporarily_unavailable",
+              "Device is restarting.",
+            );
+            return;
+          }
           const usedBytes = state.blobs.reduce(
             (sum, blob) => sum + blob.bytes.byteLength,
             0,

@@ -510,6 +510,46 @@ export const SCENARIOS = [
       return captureScenario(page);
     }),
   ),
+  // --- DeviceReconnectScreen (T2-4) -----------------------------------------
+  // The one StandaloneScreen call site the migration never visually
+  // verified -- neither fixture implemented `POST /api/v1/device/restart`
+  // until this task added it to startStartupFixtureServer, which already
+  // supports the fully-authenticated app state (it shares its repository
+  // fixture data with startApplicationServer -- both reach "Lab bench
+  // workflow") and so needs no separate fixture module.
+  scenario("reconnect-waiting", STANDARD_VIEWPORTS, (browser, viewport) =>
+    withStartup(browser, viewport, {}, "Lab bench workflow", async (page) => {
+      await clickButton(page, "Settings");
+      await waitFor(
+        page,
+        () => document.querySelector("#settings-device-name") !== null,
+        "The Settings page did not render.",
+      );
+      await clickButton(page, "Restart");
+      await waitFor(
+        page,
+        () => document.body.innerText.includes("Restart the device?"),
+        "The restart dialog did not open.",
+      );
+      await clickButton(page, "Restart now");
+      await waitFor(
+        page,
+        () => document.body.innerText.includes("Reconnecting"),
+        "The reconnect screen did not render.",
+      );
+      return captureScenario(page);
+    }),
+  ),
+  // No `reconnect-needs-reauth` scenario: AppV2.tsx's own comment confirms
+  // why. A 401 on the reconnect poll ALSO fires the shared
+  // `subscribeUnauthorized` mechanism, which drops the top-level app to
+  // Sign In directly -- "this shell unmounts on its own once that happens".
+  // `DeviceReconnectScreen`'s `phase === "needs-reauth"` render branch loses
+  // that race in every case this fixture can drive (confirmed: the fixture
+  // reaches Sign In, never the reconnect screen's own "needs-reauth" copy).
+  // Whether that branch is reachable by *any* real sequence, or is
+  // effectively dead code, is a question for the app itself, not something
+  // a visual scenario should paper over by racing timings until one passes.
   // The dialog heading's own breakpoint (40rem, `<=`) -- T1-5.
   scenario(
     "dialog-restart-heading-boundary",
