@@ -33,21 +33,40 @@
  * *shape* per state as well as their text; controls stay >= 44px; the layout is
  * single-column and fluid to 320px; focus is always visible.
  *
- * Implementation: every rule below is a Tailwind v4 @theme token or an
- * `@apply` composition of Tailwind utilities, not hand-written property:value
- * CSS -- @theme is the single source of truth for the palette, radius and
- * type stack, and it generates real utility classes (bg-shell, text-legend,
- * rounded-keycap, ...) as well as the custom properties below. Class names
- * are kept exactly as they were (.app-header, .card, .status-badge, ...) so
- * every component file's className stays unchanged; what changed is that
- * each class's definition is now Tailwind-driven instead of raw CSS. The few
- * declarations that stay as plain CSS are ones Tailwind genuinely has no
- * utility for (`font-synthesis`, the `font` shorthand, the global
- * prefers-reduced-motion `!important` reset on `*`), or ones an arbitrary
- * value could reach (`env(safe-area-inset-*)` calc() paddings, `min()`
- * widths) but converting would only wrap the same raw expression in bracket
- * syntax for no real benefit -- no token, no reuse, no variant ever applies
- * to it (noted inline where that applies).
+ * Implementation: this file is deliberately small, and what is left in it is
+ * exactly what markup cannot express. It holds three things and nothing else.
+ *
+ *   1. @theme -- the single source of truth for palette, radius, tracking and
+ *      type stack. It generates the real utility classes the components use
+ *      (bg-shell, text-legend, rounded-keycap, tracking-legend, ...) as well
+ *      as the custom properties below. Change a colour here and it changes
+ *      everywhere; there are no hardcoded hex values anywhere else.
+ *   2. @layer base -- element defaults for unclassed HTML: the type scale,
+ *      the keycap treatment every bare <button> gets, form controls, focus
+ *      rings, dl/dt/dd, details/summary. These style elements nobody put a
+ *      class on, so they have no markup to live in. `.primary` and `.danger`
+ *      belong here too: they are variants of the base keycap treatment,
+ *      applied to bare <button>s, and `button:active:not(:disabled)` must
+ *      keep beating both regardless of which one a button carries.
+ *   3. The two globals -- `body`, and the `main`/`#main-content` pair whose
+ *      selectors are shared between the shell and the standalone screens.
+ *      Plus the reduced-motion block, which applies to `*`, `*::before` and
+ *      `*::after` with !important and has no utility form (UI_UX_SPEC_V2 §14,
+ *      TODO_V2 V2-133), and the `short` custom variant above.
+ *
+ * Component styling is NOT here. It lives as Tailwind utilities in the markup
+ * of the component that owns it, under src/components/ and
+ * src/features/<domain>/v2/. That is where to look for a card, a dialog, a
+ * status badge, a form row: the classes are on the element, not indirected
+ * through a name defined in this file. Rules with several conflicting
+ * variants (StatusBadge's four states, Card's three tones, Dialog's two)
+ * select one complete literal class string per variant rather than layering
+ * overrides, because conflicting utilities on one element are resolved by
+ * Tailwind's own stylesheet order rather than by the order in `className`.
+ *
+ * Layer order matters and is Tailwind's: theme, then base, then components,
+ * then utilities. A utility in markup therefore beats anything in this file,
+ * which is what makes the arrangement above work.
  */
 
 @theme {
@@ -296,22 +315,4 @@
   #main-content {
     @apply min-h-0 overflow-y-auto overscroll-y-contain;
   }
-
-  /* An empty list is an invitation to act, not a statement of absence: it
-     names what is missing, says what the thing is, and offers the action. */
-  .error-message {
-    @apply rounded-keycap bg-alert px-[0.9rem] py-3 text-cap;
-  }
-
-  /* --- The bottom key row -------------------------------------------------- */
-
-  /* --- Status lamps --------------------------------------------------------
-     Each state gets its own lamp *shape* as well as its own colour, so the
-     badges remain distinguishable without colour vision.
-
-     Deliberately NOT uppercased, unlike the key legends. These carry
-     sentences ("Unsaved changes"), not labels, and `text-transform` rewrites
-     `innerText` -- which silently broke a real-browser assertion matching
-     "Unsaved changes". Legends are uppercase because they label a key;
-     status text is prose. */
 }

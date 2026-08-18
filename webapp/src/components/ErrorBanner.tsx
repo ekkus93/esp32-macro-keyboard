@@ -9,7 +9,10 @@ export function ErrorBanner({
     return null;
   }
   return (
-    <p className="error-message" role="alert">
+    <p
+      className="rounded-keycap bg-alert px-[0.9rem] py-3 text-cap"
+      role="alert"
+    >
       {message}
     </p>
   );

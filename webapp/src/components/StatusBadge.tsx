@@ -4,6 +4,12 @@
  *
  * ## Every state has its own shape, not just its own colour
  *
+ * Deliberately NOT uppercased, unlike the key legends elsewhere in the
+ * interface. These carry sentences ("Unsaved changes"), not labels, and
+ * `text-transform` rewrites `innerText` — which silently broke a real-browser
+ * assertion matching "Unsaved changes". Legends are uppercase because they
+ * label a key; status text is prose.
+ *
  * `UI_UX_SPEC_V2` §14 requires that colour is never the only indicator, so
  * the `::before` dot differs structurally in all four states: a filled disc
  * with a halo (good), a hollow ring (warning), a square (bad), and a smaller
