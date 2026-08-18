@@ -280,6 +280,15 @@ element instead, where specificity is unambiguous.
 stop covering the viewport. No such child exists today. This is inherited
 behaviour from the `.standalone > *` rule it replaced, not new.
 
+**Guarded** (T3-3, `c0c0f2e`): `webapp/tests/no-fixed-standalone-child.test.tsx`
+fails if any direct child ever carries the `fixed` utility token. Checks the
+class token, not the computed `position` property — jsdom applies no
+stylesheet at all, so `getComputedStyle` would report every element's
+`position` as the default `static` regardless of which classes it carries.
+Verified the detector catches a deliberately constructed `fixed` direct
+child and correctly ignores one nested one level deeper (`*:` is Tailwind's
+child combinator, `> *`, not a descendant selector).
+
 ---
 
 ## 7. Test hooks
