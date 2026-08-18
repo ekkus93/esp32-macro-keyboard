@@ -253,24 +253,25 @@ node_modules/.vite`; a stale build or a stale cache both read as "still
 present" — see §2.1's `@source` entry for why the first verification attempt
 was misleading) that only `Card`'s and `Dialog`'s `[&_h2]` rules remain.
 
-**`[&_p]` is the same hazard, still open** — `Card`, `Dialog` and
-`SendStatus` all own it at `(0,1,1)`. Measured order on `646ca7c` (byte
-offset in the compiled stylesheet):
+**`[&_p]` is the same hazard, and cannot be fixed the same way.** `Card`,
+`Dialog` and `SendStatus` all own it at `(0,1,1)`, and `SendStatus` inside
+`Card` would resolve **correctly** only by luck of emission order matching
+the pre-migration source order — exactly the situation the `[&_h2]` case was
+in before T3-1 fixed it. But `Card`'s `[&_p]:` cannot be moved out to its
+call sites: it scopes far too many paragraphs across the app (all of
+Diagnostics, every form's field help, every row's summary line) for
+restyling each individually to be safe or readable. **Guarded instead**
+(T3-2, `664557d`): `webapp/tests/descendantVariantNesting.ts` walks every
+element's ancestors for more than one owner of the same descendant-variant
+scope and fails the build if it finds one — general across every current
+owner (`[&_p]:`, `[&_h2]:`, `[&_h3]:`, `[&_button]:`), not written per scope
+name. No such nesting occurs today, verified against four real rendered
+pages; a deliberately constructed `Card`-inside-`SendStatus` case proves the
+detector actually catches it rather than only ever passing.
 
-```text
-Card         [&_p]:my-[0.2rem]
-Dialog       [&_p]:mt-0
-SendStatus   [&_p]:mb-2
-SendStatus   [&_p]:font-bold
-Card         [&_p]:text-legend-soft
-```
-
-`SendStatus` inside `Card` would resolve **correctly** today (`SendStatus`
-later, matching the pre-migration source order) — but that is luck, not
-design, exactly as the `[&_h2]` case was before it was fixed. No such
-nesting occurs today. **Rule: do not nest two components that own the same
-descendant variant.** If a change would create such a nesting, put the
-utilities on the child element instead, where specificity is unambiguous.
+**Rule: do not nest two components that own the same descendant variant.**
+If a change would create such a nesting, put the utilities on the child
+element instead, where specificity is unambiguous.
 
 ### 6.2 `StandaloneScreen`'s child rule
 
