@@ -95,7 +95,7 @@ export function MacroOverflowMenu({
           </button>
           {confirmingDelete ? (
             <div
-              className="my-4 rounded-keycap border border-l-[3px] border-lamp bg-warning-tint p-4"
+              className="my-4 rounded-keycap border-y border-r border-l-[3px] border-lamp bg-warning-tint p-4"
               ref={confirmRef}
               role="alertdialog"
               tabIndex={-1}

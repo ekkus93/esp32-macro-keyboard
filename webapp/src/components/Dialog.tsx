@@ -31,7 +31,7 @@ const DIALOG_PANEL_CLASS = {
   panel:
     "max-h-[calc(100dvh-2rem)] w-[min(100%,38rem)] overflow-y-auto rounded-keycap border border-cap-edge bg-cap p-4 shadow-[0_1.5rem_4rem_rgb(33_30_26_/_35%)]",
   danger:
-    "mt-4 max-h-[calc(100dvh-2rem)] w-[min(100%,38rem)] overflow-y-auto rounded-keycap border border-l-[3px] border-alert bg-bad-tint p-4 shadow-[0_1.5rem_4rem_rgb(33_30_26_/_35%)]",
+    "mt-4 max-h-[calc(100dvh-2rem)] w-[min(100%,38rem)] overflow-y-auto rounded-keycap border-y border-r border-l-[3px] border-alert bg-bad-tint p-4 shadow-[0_1.5rem_4rem_rgb(33_30_26_/_35%)]",
 } as const;
 
 /**

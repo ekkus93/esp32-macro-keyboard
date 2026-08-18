@@ -36,7 +36,7 @@ const CARD_CLASS = {
   flush: `${CARD_SHAPE} border border-cap-edge bg-panel`,
   /* "This permanently deletes something" — the alert palette and the left
      accent rule, with the wider top gap `.danger-zone` set. */
-  danger: `${CARD_SHAPE} mb-3 mt-4 border border-l-[3px] border-alert bg-bad-tint`,
+  danger: `${CARD_SHAPE} mb-3 mt-4 border-y border-r border-l-[3px] border-alert bg-bad-tint`,
 } as const;
 
 export type CardVariant = keyof typeof CARD_CLASS;

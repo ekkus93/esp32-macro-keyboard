@@ -509,7 +509,7 @@ export function MacroEditorPage({
 
         <div
           aria-live="polite"
-          className="rounded-keycap border border-l-[3px] border-cap-edge border-l-actuate bg-panel p-4"
+          className="rounded-keycap border-y border-r border-l-[3px] border-y-cap-edge border-r-cap-edge border-l-actuate bg-panel p-4"
         >
           <h3 className="mt-0">Validation</h3>
           {compiled.ok ? (
