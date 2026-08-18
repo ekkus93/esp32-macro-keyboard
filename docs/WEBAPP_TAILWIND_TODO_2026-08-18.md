@@ -335,11 +335,41 @@ actually fails the gate, not merely that it runs.
       racing fixture timings until one scenario happens to pass.
       Regenerated all 98 baselines (was 96) and ran clean 5 times in a row.
       `npm run test`: 569/569. `check-webapp.sh`: EXIT=0.
-- [ ] **T2-5** Assert the four `StatusBadge` `::before` shapes are mutually
+- [x] **T2-5** Assert the four `StatusBadge` `::before` shapes are mutually
       distinct in geometry, not only in colour — `UI_UX_SPEC_V2` §14. Compare
       width/height/border-radius/border-width/background across the four
       states and fail if any two are identical.
-      *Evidence:*
+      *Evidence:* `134a6ff`. **Deliberately excludes `background` from the
+      comparison, unlike this task's own wording** — the whole point of "not
+      only in colour" is that the four states must be told apart by shape
+      *alone*; including `background-color` in the signature would let two
+      states with identical geometry but different fill pass, which is
+      exactly the failure `UI_UX_SPEC_V2` §14 forbids. Compares width,
+      height, all four `border-radius` corners, all four `border-width`
+      sides, and `box-shadow` (the "good" state's halo is a shadow, not a
+      border, so its presence is part of the shape). Needs real Chrome —
+      `::before` computed style is what `SPEC` §10.1 says jsdom cannot
+      produce — so it reuses the visual harness's own `usb-badge-*`
+      scenarios rather than a separate fixture drive. The shell header
+      renders two `StatusBadge`s (USB, then Saved/Unsaved, itself always
+      `neutral`); DOM order reliably puts the USB one first, asserted
+      explicitly (`>= 2` found) rather than silently indexed.
+      **Verified it has teeth**: collapsed the `bad`/error state's shape
+      into `warning`'s (square → hollow ring, colour left alone), confirmed
+      the check failed naming exactly that pair, reverted, confirmed clean.
+      Printed signatures confirm all four documented shapes are real: ready
+      = filled disc with a halo (`box-shadow` present), suspended = hollow
+      ring (2px border), error = square (1px radius, filled), disconnected
+      = smaller hollow dot (7.19px vs 9.59px, 1px border). `npm run test`:
+      569/569. `check-webapp.sh`: EXIT=0.
+
+**Phase 2 complete.** Every scenario `check-webapp.sh` now runs — the six
+`SPEC` §4.2 variant maps (T2-1), every element on four real pages (T2-2), the
+SPEC §7 bare-hook allowlist (T2-3), `DeviceReconnectScreen`'s previously
+unreachable `StandaloneScreen` call site (T2-4), and `StatusBadge`'s
+accessibility-load-bearing shape distinctness (T2-5) — is now something CI
+checks on every run, not something that depends on a human remembering to run
+a hand-built diff.
 
 ---
 
