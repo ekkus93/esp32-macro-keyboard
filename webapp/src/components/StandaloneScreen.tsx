@@ -31,6 +31,18 @@
  * halves of the old CSS: single-task screens get a measured 27rem column
  * inside a page that is itself capped at 48rem (64rem on wide viewports).
  *
+ * ## `*:` sizes every direct child, without exception
+ *
+ * A `position: fixed` direct child (a dialog backdrop, say) would be given
+ * this 27rem width too and stop covering the viewport -- `*:` has no way to
+ * exempt one child from the rule it applies to all of them
+ * (WEBAPP_TAILWIND_SPEC_2026-08-18.md §6.2). No call site does this today;
+ * `no-fixed-standalone-child.test.tsx` (T3-3) guards against it happening
+ * by accident. If a screen genuinely needs a
+ * fixed-position child, wrap the fixed element's content in one more
+ * wrapper `<div>` so `*:` sizes the wrapper, not the fixed element itself --
+ * do not remove or narrow this rule to work around the guard.
+ *
  * `min-h-dvh`, not `min-h-screen`: `vh` is the static, largest-possible
  * viewport, `dvh` the current one net of the mobile browser's address bar. A
  * `vh` floor on a screen shorter than that static measurement left a phantom
