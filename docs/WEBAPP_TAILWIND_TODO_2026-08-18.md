@@ -594,14 +594,40 @@ line; implying full coverage is not.
 
 ## 6. Definition of done
 
-- [ ] Every task above ticked with a commit SHA and command evidence.
-- [ ] A visual regression in any covered scenario fails `check-webapp.sh`.
-- [ ] The `SPEC` §3 no-conflict invariant and the §7 orphan-token rule are
-      executable checks, not one-off scans.
-- [ ] `docs/SPEC_V2.md` and `docs/UI_UX_SPEC_V2.md` unmodified.
-- [ ] No `*.tmp.mjs` left in `webapp/tests/browser/`.
-- [ ] `docs/WEBAPP_TAILWIND_SPEC_2026-08-18.md` still accurate — if a task
+- [x] Every task above ticked with a commit SHA and command evidence. All 22
+      tasks across Phases 1–4 are `[x]` with an *Evidence:* line naming a real
+      commit SHA and the commands/results that back it.
+- [x] A visual regression in any covered scenario fails `check-webapp.sh`.
+      Demonstrated with teeth, not assumed: T2-3's SVG-`className` capture bug
+      and the T2-1/T2-2 border/gap-axis collisions were all *found* by these
+      checks failing on real defects before being fixed; the harness's own
+      injected-regression tests (`no-descendant-variant-nesting.test.tsx`,
+      `no-fixed-standalone-child.test.tsx`) additionally prove the checkers
+      themselves catch a deliberately reintroduced violation, not just render
+      it green on already-clean code. `test:visual`, `check:no-orphan-classes`
+      and `check:status-badge-shapes` are unconditional steps in
+      `scripts/check-webapp.sh` (no `|| true`, no skip flag).
+- [x] The `SPEC` §3 no-conflict invariant and the §7 orphan-token rule are
+      executable checks, not one-off scans. `tests/tailwindClassCollisions.ts`
+      + `no-rendered-property-collisions.test.tsx`/
+      `component-variant-maps.test.tsx` (§3, run every `npm run test`) and
+      `tests/browser/checkNoOrphanClasses.mjs` (§7, run every
+      `check-webapp.sh` via `npm run check:no-orphan-classes`) — both wired
+      into the gate, confirmed by reading `scripts/check-webapp.sh` directly
+      rather than assuming.
+- [x] `docs/SPEC_V2.md` and `docs/UI_UX_SPEC_V2.md` unmodified. Confirmed:
+      neither file appears in any commit made across this TODO's execution
+      (`3d77a1f` through `a0d5861`).
+- [x] No `*.tmp.mjs` left in `webapp/tests/browser/`. Confirmed empty by
+      `find webapp/tests/browser -name '*.tmp.mjs'`.
+- [x] `docs/WEBAPP_TAILWIND_SPEC_2026-08-18.md` still accurate — if a task
       changed the architecture, the spec was updated in the same commit.
+      Phase 3 (T3-1/T3-2/T3-3, the only phase that changed the
+      `[&_h2]:`/`[&_p]:`/`*:` cascade architecture) updated the spec in
+      lockstep — commits `b38a9a9`, `8859608`, `f2faf5c`. Phase 4 was
+      consistency/rot cleanup (stale comments, class-ordering tooling,
+      documenting two already-correct decisions) and did not change the
+      architecture the spec describes, so no spec update was needed there.
 
 ---
 
