@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { PageHeading } from "../../../components/PageHeading";
 import { FieldHelp } from "../../../components/FieldHelp";
 import { compileMacro } from "../../../v2/macroCompiler";
 import type { MacroCompileResult } from "../../../v2/macroCompiler";
@@ -272,7 +273,7 @@ export function MacroEditorPage({
       aria-labelledby="macro-editor-title"
       className="flex h-full flex-col short:h-auto"
     >
-      <div className="page-heading">
+      <PageHeading>
         <div className="min-w-0 overflow-hidden">
           <p className="eyebrow dark">{pkg.name}</p>
           <h2 id="macro-editor-title">
@@ -282,7 +283,7 @@ export function MacroEditorPage({
         <button onClick={onBack} type="button">
           Cancel
         </button>
-      </div>
+      </PageHeading>
 
       {/* Fixed, not merely pinned via scroll tracking: everything below
           inserts at this textarea's cursor and needs to stay visible while

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { HeaderActions } from "../../../components/HeaderActions";
+import { PageHeading } from "../../../components/PageHeading";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import type { ActiveSendSummary } from "../../shell/v2/activeSendSummary";
 import { V2ApiError } from "../../../v2/apiClient";
@@ -483,21 +485,21 @@ export function MacrosPage({
 
   return (
     <section aria-labelledby="macros-title">
-      <div className="page-heading">
+      <PageHeading>
         <div className="min-w-0 overflow-hidden">
           <p className="eyebrow dark">Selected package</p>
           <h2 id="macros-title">{activePackage.name}</h2>
           <p>{String(activePackage.macros.length)} macros</p>
         </div>
-        <div className="header-actions">
+        <HeaderActions>
           <button onClick={onChangePackage} type="button">
             Change
           </button>
           <button className="primary" onClick={onOpenAddMacro} type="button">
             Add macro
           </button>
-        </div>
-      </div>
+        </HeaderActions>
+      </PageHeading>
 
       {lifecycle.kind === "starting" ? (
         <div aria-live="polite" className="send-status" role="status">

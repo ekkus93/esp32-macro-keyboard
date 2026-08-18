@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { PageHeading } from "../../../components/PageHeading";
 import { FieldHelp } from "../../../components/FieldHelp";
 import { FormActions } from "../../../components/FormActions";
 import { Card } from "../../../components/Card";
@@ -449,12 +450,12 @@ export function PackageManagementPage({
 
   return (
     <section aria-labelledby="package-management-title">
-      <div className="page-heading">
+      <PageHeading>
         <div>
           <h2 id="package-management-title">Packages</h2>
           <p>{String(repository.packages.length)} packages</p>
         </div>
-      </div>
+      </PageHeading>
 
       <CreatePackageForm onCreate={createPackage} />
 

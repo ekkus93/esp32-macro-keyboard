@@ -297,12 +297,8 @@
     @apply min-h-0 overflow-y-auto overscroll-y-contain;
   }
 
-  /* --- Faceplate ------------------------------------------------------------- */
-  .header-actions {
-    @apply flex flex-wrap items-center justify-end gap-[0.4rem];
-  }
-
-  /* Keycap legend: small, tight-tracked, uppercase. */
+  /* --- Faceplate -------------------------------------------------------------
+     Keycap legend: small, tight-tracked, uppercase. */
   .eyebrow {
     @apply m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[0.65rem] font-bold uppercase tracking-legend text-lamp;
   }
@@ -376,22 +372,6 @@
     @apply h-[0.45rem] w-[0.45rem] border-[1.5px] border-current bg-transparent;
   }
 
-  /* One wrapping row at every width, like .app-header -- not the
-     unconditional 2-row stack this used to force on phones. Measured on a
-     real device: on the macro editor specifically, that stacking cost 120px
-     versus roughly 64px here, and that difference was most of why the
-     directive toolbar had no room left to render at all in the ordinary
-     "unsaved changes" state. The title truncates before it would need a
-     second row, the same protection .app-header-title already has for the
-     same reason (a package name is arbitrary-length, up to 64 UTF-8 bytes). */
-  .page-heading {
-    @apply mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-cap-edge pb-3;
-  }
-
-  .page-heading h2 {
-    @apply m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.35rem] tracking-[-0.01em];
-  }
-
   /* --- Send status --------------------------------------------------------- */
   .send-status {
     @apply my-3 rounded-keycap border-l-[3px] border-actuate bg-send-tint px-4 py-[0.8rem];
@@ -454,15 +434,6 @@
   }
 
   @media (width <= 32rem) {
-    /* Neither .app-header nor .page-heading force-stacks here anymore: both
-       stay one wrapping row, truncating their title before it would need a
-       second row, instead of unconditionally paying for 2-3 full-height
-       blocks regardless of whether the content actually needed that much
-       room. */
-    .header-actions {
-      @apply justify-start;
-    }
-
     .timing-grid {
       @apply [grid-template-columns:1fr];
     }

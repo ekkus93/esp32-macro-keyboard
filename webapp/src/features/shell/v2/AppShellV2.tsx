@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { HeaderActions } from "../../../components/HeaderActions";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { StatusBadge } from "../../../components/StatusBadge";
 import type { ScreenV2 } from "../../../v2/routingV2";
@@ -114,7 +115,7 @@ export function AppShellV2({
             {packageName ?? "No package selected"}
           </h1>
         </div>
-        <div className="header-actions">
+        <HeaderActions>
           <StatusBadge
             label={`USB ${usbState}`}
             state={usbBadgeState(usbState)}
@@ -139,7 +140,7 @@ export function AppShellV2({
               {saving ? "Saving…" : "Save snapshot"}
             </button>
           ) : null}
-        </div>
+        </HeaderActions>
       </header>
       <ErrorBanner message={saveError} />
       <main id="main-content" tabIndex={-1}>

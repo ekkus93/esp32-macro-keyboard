@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { HeaderActions } from "../../../components/HeaderActions";
+import { PageHeading } from "../../../components/PageHeading";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { UnsavedChangesPrompt } from "../../shell/v2/UnsavedChangesPrompt";
@@ -390,7 +392,7 @@ export function SnapshotsPage({
 
   return (
     <section aria-labelledby="snapshots-title">
-      <div className="page-heading">
+      <PageHeading>
         <div>
           <h2 id="snapshots-title">Snapshots</h2>
           {list.kind === "loaded" ? (
@@ -421,7 +423,7 @@ export function SnapshotsPage({
             </dl>
           ) : null}
         </div>
-        <div className="header-actions">
+        <HeaderActions>
           <button
             className="primary"
             disabled={saving}
@@ -432,8 +434,8 @@ export function SnapshotsPage({
           >
             {saving ? "Saving…" : "Save current snapshot"}
           </button>
-        </div>
-      </div>
+        </HeaderActions>
+      </PageHeading>
 
       <ErrorBanner message={saveError} />
       <ErrorBanner message={rowError} />

@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { PageHeading } from "../../../components/PageHeading";
 import { FormActions } from "../../../components/FormActions";
 import { Card } from "../../../components/Card";
 import { ErrorBanner } from "../../../components/ErrorBanner";
@@ -294,9 +295,9 @@ export function SettingsPage({
 
   return (
     <section aria-labelledby="settings-title">
-      <div className="page-heading">
+      <PageHeading>
         <h2 id="settings-title">Settings</h2>
-      </div>
+      </PageHeading>
 
       <Card aria-labelledby="settings-identity-title">
         <h3 id="settings-identity-title">Device</h3>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { HeaderActions } from "../../../components/HeaderActions";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import { V2ApiError } from "../../../v2/apiClient";
 import { ErrorBanner } from "../../../components/ErrorBanner";
@@ -191,7 +192,7 @@ export function MacroPreviewPage({
         </dd>
       </dl>
       <ErrorBanner message={sendError} />
-      <div className="header-actions">
+      <HeaderActions>
         <button
           className="primary"
           disabled={sending || usbState !== "ready"}
@@ -205,7 +206,7 @@ export function MacroPreviewPage({
         <button disabled={sending} onClick={onBack} type="button">
           Cancel
         </button>
-      </div>
+      </HeaderActions>
     </section>
   );
 }

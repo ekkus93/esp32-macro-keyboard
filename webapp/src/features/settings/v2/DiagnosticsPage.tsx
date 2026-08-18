@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { HeaderActions } from "../../../components/HeaderActions";
+import { PageHeading } from "../../../components/PageHeading";
 import { Card } from "../../../components/Card";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
@@ -105,14 +107,14 @@ export function DiagnosticsPage({
 
   return (
     <section aria-labelledby="diagnostics-title">
-      <div className="page-heading">
+      <PageHeading>
         <h2 id="diagnostics-title">Diagnostics</h2>
-        <div className="header-actions">
+        <HeaderActions>
           <button onClick={onBack} type="button">
             Back to Settings
           </button>
-        </div>
-      </div>
+        </HeaderActions>
+      </PageHeading>
 
       {state.kind === "loading" ? (
         <p role="status">Loading diagnostics…</p>
@@ -128,7 +130,7 @@ export function DiagnosticsPage({
 
       {state.kind === "loaded" ? (
         <>
-          <div className="header-actions">
+          <HeaderActions>
             <button
               disabled={copyState === "copying"}
               onClick={() => {
@@ -150,7 +152,7 @@ export function DiagnosticsPage({
             >
               Download diagnostics
             </button>
-          </div>
+          </HeaderActions>
           {copyState === "error" ? <ErrorBanner message={copyError} /> : null}
 
           <Card aria-labelledby="diagnostics-firmware-title">
