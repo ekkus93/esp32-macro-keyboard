@@ -2,3 +2,7 @@ coverage
 dist
 node_modules
 package-lock.json
+# Machine-written by run-visual-tests.mjs --update-baselines; never
+# hand-edited, and prettier's JSON formatting would fight the script's own
+# compact one-space indent for no benefit.
+tests/browser/visual/baselines
