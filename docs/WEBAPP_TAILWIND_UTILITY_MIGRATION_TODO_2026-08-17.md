@@ -776,13 +776,41 @@ Order within the phase: `Card`, `FormStack`, `StandaloneScreen` first.
 Isolated because it is the only pseudo-element cluster and the only
 fully-dynamic class construction.
 
-- [ ] **T5-1** `StatusBadge.tsx` — `.status-badge` + `::before` + four state
+- [x] **T5-1** `StatusBadge.tsx` — `.status-badge` + `::before` + four state
       variants, each with its own `::before` override. Use a **literal lookup
       map** (§8.2). Verified: `before:content-['']` and friends compile.
       The four states differ by shape as well as colour — this is a
       `UI_UX_SPEC_V2` §14 requirement (never colour alone); preserve all four
       distinct `::before` treatments exactly.
-      *Evidence:*
+      *Evidence:* `c7e7d1f`. Four complete literal strings. This was the one
+      site where §8.2's failure mode was not hypothetical: the component built
+      `` `status-${state}` ``, so once those rules left `styles.css` the four
+      state classes would never have been emitted at all, and the badge would
+      have rendered unstyled **with no build error**. Each entry also spells
+      out only the *winning* `::before` declarations, because the per-state
+      treatments override the base rather than adding to it — `warning`
+      replaces `bg-current` with `bg-transparent`, `bad` replaces
+      `rounded-full` with `rounded-[1px]`, `neutral` replaces both the size
+      and the fill. Verified by capturing **`::before` computed style for
+      every element in the page**, which an ordinary element walk cannot see
+      and which is exactly where the §14 requirement lives, in all four states
+      driven for real through the fixture's `usbState`
+      (`ready`→good, `suspended`→warning, `error`→bad,
+      `disconnected`→neutral), on both surfaces that render the badge (the
+      shell header and the macro preview page): **12 160 pseudo-element
+      properties, zero differences**, alongside **640 elements / 43 520
+      element properties, zero differences**, zero bounding-box differences,
+      and **all 8 full-page PNGs byte-identical**. The four shapes measured
+      distinct in the baseline and unchanged after: 9.59px filled disc plus
+      halo, 9.59px hollow 2px ring, 9.59px square (1px radius), 7.19px hollow
+      dot. Compiled CSS: `status-badge`/`status-good`/`status-warning`/
+      `status-bad`/`status-neutral` all appear **0 times**, and
+      `before:content`, `before:shadow`, `before:rounded-[1px]` and
+      `before:border-[1.5px]` are all emitted. Also converted the shell's
+      unsaved-changes indicator, which had been using the raw classes rather
+      than the component. `npm run test`: 544/544. `check-webapp.sh`: EXIT=0.
+
+**Phase 5 complete.**
 
 ### Phase 6 — Sweep and close
 
