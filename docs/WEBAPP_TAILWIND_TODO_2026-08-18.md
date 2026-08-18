@@ -378,13 +378,46 @@ a hand-built diff.
 None of these is a live defect. Each is a loaded gun that fires the first time
 someone nests two components.
 
-- [ ] **T3-1** Resolve the `[&_h2]` precedence inversion (`SPEC` §6.1):
+- [x] **T3-1** Resolve the `[&_h2]` precedence inversion (`SPEC` §6.1):
       `PageHeading` inside `Card` would now resolve backwards relative to the
       pre-migration stylesheet. Either move the heading utilities onto the
       `<h2>` elements at the six `PageHeading` call sites, where specificity
       is unambiguous, or add a guard that fails if the nesting appears.
       Prefer the former; record which and why.
-      *Evidence:*
+      *Evidence:* `a25fbc2`, prepared by `646ca7c` (see below). Took the
+      preferred path: moved the six `[&_h2]:` utilities off `PageHeading`
+      onto the `<h2>` at each of its six call sites (exported
+      `PAGE_HEADING_TITLE_CLASS` so they share one definition rather than
+      repeating the literal string — confirmed this doesn't trip
+      `react-refresh/only-export-components`; a plain string constant is
+      covered by `allowConstantExport`, unlike the object export `CARD_CLASS`
+      attempt earlier in the migration, which did trip it).
+      **Found a second, higher-impact defect while verifying this one**
+      (`646ca7c`, its own commit, done first): after the move, the compiled
+      CSS kept emitting `PageHeading`'s old `[&_h2]:` rules — not stale
+      caching (confirmed with `rm -rf dist node_modules/.vite` and a fully
+      clean rebuild, twice) but Tailwind's default content scan picking up
+      `tests/browser/visual/baselines/*.json`, which are git-tracked and
+      store, as literal text, every className the visual harness has ever
+      captured — including from commits before this one. Any class that
+      ever appeared in any baseline was permanently keeping its CSS rule
+      alive, growing the bundle with dead utilities forever and, as found
+      here, silently defeating exactly the kind of "did this rule actually
+      disappear" verification this task needed. Fixed with Tailwind v4's
+      `@source not` directive, excluding the baseline directory — the path
+      is relative to `styles.css` itself, not the project root, and a first
+      attempt using `./tests/…` resolved to nonexistent `src/tests/` and had
+      no effect; only checking the compiled output (not trusting the
+      directive syntax) caught that. Compiled CSS shrank 29.41kB → 29.02kB
+      from the exclusion alone, before any source change. Verified
+      render-neutral: all 98 visual-harness captures matched their existing
+      baselines unchanged (confirming every removed rule was genuinely
+      unused by any live markup), and zero baseline files themselves
+      changed. `SPEC` §2.1/§6.1 updated in the same session (`b38a9a9`).
+      **After both fixes, re-verified the actual T3-1 goal directly against
+      the compiled CSS**: only `Card`'s and `Dialog`'s `[&_h2]:` rules
+      remain; `PageHeading`'s six are gone. `npm run test`: 569/569.
+      `check-webapp.sh`: EXIT=0.
 - [ ] **T3-2** Same treatment for `[&_p]` across `Card`, `SendStatus` and
       `Dialog`. Today's order happens to match the old stylesheet, by luck
       rather than design — an added or reordered utility anywhere could flip
