@@ -754,8 +754,22 @@ Order within the phase: `Card`, `FormStack`, `StandaloneScreen` first.
       `max-h-[calc(100dvh-2rem)]` exactly; **`100vh` here is a known bug**
       (fixed in `70aa7b65`) — do not "simplify" it back.
       *Evidence:*
-- [ ] **T4-8** `<Eyebrow>` (3, with the `.dark` tone variant).
-      *Evidence:*
+- [x] **T4-8** `<Eyebrow>` (3, with the `.dark` tone variant).
+      *Evidence:* `4fa01b2`. All three `.eyebrow` sites, with
+      `.eyebrow.dark` as a `tone` prop. The two tones are complete literal
+      strings (§8.2): they differ only in `color`, and as a class pair that
+      resolved by specificity — `.eyebrow.dark` is `(0,2,0)` against
+      `.eyebrow`'s `(0,1,0)` — whereas two colour utilities on one element
+      have no such tiebreak and would fall to Tailwind's emission order.
+      Verified with the full-document walk over **6 captures** at 390 px and
+      1280 px (Macros and the macro editor, which carry the two `dark`
+      eyebrows, plus Settings; the shell header's plain eyebrow is on all
+      three): **606 elements, 41 208 computed properties, zero value
+      differences**, zero bounding-box differences, zero structural
+      differences, **all 6 full-page PNGs byte-identical**. `npm run test`:
+      544/544. `check-webapp.sh`: EXIT=0.
+
+**Phase 4 complete.**
 
 ### Phase 5 — Status badges
 
