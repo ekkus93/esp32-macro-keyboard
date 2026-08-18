@@ -448,12 +448,36 @@ someone nests two components.
       components able to nest and collide) still exists; only its
       consequence is now caught automatically. `npm run test`: 575/575.
       `check-webapp.sh`: EXIT=0.
-- [ ] **T3-3** Guard `StandaloneScreen`'s `*:` child rule (`SPEC` §6.2)
+- [x] **T3-3** Guard `StandaloneScreen`'s `*:` child rule (`SPEC` §6.2)
       against a `fixed`-positioned direct child, which would be given a 27rem
       width and stop covering the viewport. A comment on the component plus a
       test asserting no direct child is `position: fixed` is probably enough;
       do not restructure the rule without a diff.
-      *Evidence:*
+      *Evidence:* `c0c0f2e`. Did exactly the scope this task named — a
+      comment on `StandaloneScreen.tsx` pointing at the guard and the
+      workaround (wrap a genuinely fixed child in one more `<div>`, since
+      `*:` cannot exempt one child from a rule it applies to all of them),
+      plus `no-fixed-standalone-child.test.tsx`. Did **not** restructure the
+      rule. Checks the `fixed` class *token*, not the computed `position`
+      property — as this task's own wording assumed it might be asserted —
+      because jsdom applies no stylesheet at all (`SPEC` §10.1), so
+      `getComputedStyle` would report every element's `position` as the
+      browser default `static` regardless of which Tailwind classes it
+      carries; the token is the only signal jsdom can see, and also the
+      only thing a real call site could actually write. **Verified the
+      detector has teeth**: a deliberately constructed `fixed` direct child
+      is caught, and — the false-positive check this task didn't ask for
+      but the detector needed — a `fixed` element nested one level *deeper*
+      (a grandchild) is correctly **not** flagged, since `*:` is Tailwind's
+      child combinator (`> *`), not a descendant selector. `SPEC` §6.2
+      updated (`f2faf5c`). `npm run test`: 578/578. `check-webapp.sh`:
+      EXIT=0.
+
+**Phase 3 complete.** Every latent cascade trap `SPEC` §6 named now has
+either no live instance (`[&_h2]`, T3-1) or an automated guard against one
+ever forming (`[&_p]` across `Card`/`Dialog`/`SendStatus`, T3-2;
+`StandaloneScreen`'s `*:` child rule, T3-3) — none of these was a live
+defect, and none is any longer a silent one either.
 
 ---
 
