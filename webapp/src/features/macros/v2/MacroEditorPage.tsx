@@ -433,144 +433,78 @@ export function MacroEditorPage({
               Literal {"}"}
             </button>
           </div>
-
-          {/* Insert delay and Insert chord are two independent tool groups,
-              not a sequence, so on tablet/desktop widths (UI_UX_SPEC_V2 13:
-              "tablets and desktops may use wider... layouts") they sit side
-              by side instead of stacking under the full shell width for no
-              reason. Phones keep the single-column stack. */}
-          <div className="min-[42rem]:grid min-[42rem]:grid-cols-2 min-[42rem]:items-start min-[42rem]:gap-4">
-            <div
-              aria-label="Insert delay"
-              className="mt-2 flex flex-wrap gap-[0.4rem]"
-            >
-              <label htmlFor="macro-editor-delay-ms">
-                Delay (ms)
-                <input
-                  id="macro-editor-delay-ms"
-                  max={v2Limits.delayDirectiveMaxMs}
-                  min={1}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                    setDelayMs(event.currentTarget.valueAsNumber);
-                  }}
-                  type="number"
-                  value={Number.isNaN(delayMs) ? "" : delayMs}
-                />
-              </label>
-              <button onClick={insertDelay} type="button">
-                Insert delay
-              </button>
-            </div>
-
-            <div
-              aria-label="Insert chord"
-              className="mt-2 flex flex-wrap gap-[0.4rem]"
-            >
-              {/* Toggle buttons, not checkboxes: a native checkbox is
-                  ~22px, half the 44px touch-target floor, and wrapping it
-                  in a taller label only makes the *row* legal, not the
-                  control itself. A pressable keycap-style toggle is both a
-                  real 44px target and matches the same "physical key"
-                  language as the directive buttons above, rather than
-                  mixing in a different control type. The pressed state uses
-                  the same colour+inset-highlight pairing as .bottom-nav's
-                  active tab (never colour alone) so "pressed" is legible
-                  without relying on hue. */}
-              {modifiers.map((modifier) => {
-                const pressed = chordModifiers.has(modifier);
-                return (
-                  <button
-                    aria-pressed={pressed}
-                    className={
-                      pressed
-                        ? "min-w-[3.5rem] border-actuate-edge bg-actuate px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem] text-cap shadow-[inset_0_2px_0_var(--color-lamp)]"
-                        : "min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem]"
-                    }
-                    key={modifier}
-                    onClick={() => {
-                      setChordModifiers((current) => {
-                        const next = new Set(current);
-                        if (next.has(modifier)) {
-                          next.delete(modifier);
-                        } else {
-                          next.add(modifier);
-                        }
-                        return next;
-                      });
-                    }}
-                    type="button"
-                  >
-                    {modifier}
-                  </button>
-                );
-              })}
-              <label htmlFor="macro-editor-chord-key">
-                Key
-                <input
-                  id="macro-editor-chord-key"
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                    setChordKey(event.currentTarget.value);
-                  }}
-                  value={chordKey}
-                />
-              </label>
-              <button onClick={insertChord} type="button">
-                Insert chord
-              </button>
-            </div>
-          </div>
         </div>
 
-        <div
-          aria-live="polite"
-          className="rounded-keycap border-y border-r border-l-[3px] border-y-cap-edge border-r-cap-edge border-l-actuate bg-panel p-4"
-        >
-          <h3 className="mt-0">Validation</h3>
-          {compiled.ok ? (
-            <>
+        {/* The bordered panel only appears when there's something to react
+            to: an invalid source or an invalid name. The common case (both
+            valid) collapses to one compact line -- still `aria-live` so a
+            screen reader hears the transition either way, still carrying
+            the same required content (SPEC_V2 §7.1: "action count and
+            estimated duration when valid"), just without permanently paying
+            for a bordered panel's padding and a "Validation" heading to
+            show it. */}
+        {compiled.ok && nameValid ? (
+          <p aria-live="polite" className="font-bold text-good">
+            Macro is valid — {estimatedDurationText(compiled)}
+          </p>
+        ) : (
+          <div
+            aria-live="polite"
+            className="rounded-keycap border-y border-r border-l-[3px] border-y-cap-edge border-r-cap-edge border-l-actuate bg-panel p-4"
+          >
+            <h3 className="mt-0">Validation</h3>
+            {compiled.ok ? (
               <p className="font-bold text-good">Macro is valid.</p>
-              <p>{estimatedDurationText(compiled)}</p>
-            </>
-          ) : (
-            <>
+            ) : (
+              <>
+                <p className="font-bold text-alert" role="alert">
+                  {compiled.error.message}
+                </p>
+                <p>
+                  Line {String(compiled.error.line)}, column{" "}
+                  {String(compiled.error.column)}, byte{" "}
+                  {String(compiled.error.byteOffset)}.
+                </p>
+                <button onClick={goToError} type="button">
+                  Go to error
+                </button>
+              </>
+            )}
+            {nameValid ? null : (
               <p className="font-bold text-alert" role="alert">
-                {compiled.error.message}
+                Name must be non-empty after trimming and at most{" "}
+                {String(v2Limits.macroNameMaxBytes)} UTF-8 bytes.
               </p>
-              <p>
-                Line {String(compiled.error.line)}, column{" "}
-                {String(compiled.error.column)}, byte{" "}
-                {String(compiled.error.byteOffset)}.
-              </p>
-              <button onClick={goToError} type="button">
-                Go to error
-              </button>
-            </>
-          )}
-          {nameValid ? null : (
-            <p className="font-bold text-alert" role="alert">
-              Name must be non-empty after trimming and at most{" "}
-              {String(v2Limits.macroNameMaxBytes)} UTF-8 bytes.
-            </p>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </form>
 
-      {/* Set-once metadata, not part of the insert workflow that the fixed
-          region above and the directive toolbar below both serve -- moved
-          into its own dialog (not the scrolling form) so it stops
-          permanently occupying page space for two fields most edits never
-          touch. `role="dialog"`, not `alertdialog`: this edits ordinary
-          field values with no consequential action to confirm. `form` keeps
-          both inputs associated with #macro-editor-form for submission
-          despite living outside its DOM subtree. */}
+      {/* Set-once metadata and the two lower-frequency insert tools, none
+          part of the single-click insert workflow the fixed region above
+          and the directive toolbar below serve directly -- moved into their
+          own dialog (not the scrolling form) so they stop permanently
+          occupying page space for controls most edits never touch.
+          `role="dialog"`, not `alertdialog`: this edits ordinary field
+          values with no consequential action to confirm. `form` keeps every
+          input here associated with #macro-editor-form for submission
+          despite living outside its DOM subtree.
+
+          Insert delay/Insert chord moved in from the main toolbar: both
+          still call insertAtCursor and still insert at Macro source's real
+          cursor position correctly (the textarea keeps its selection while
+          unfocused), but the insertion no longer happens in view since this
+          dialog covers Macro source while open -- an accepted tradeoff
+          because, unlike the single-click named-directive buttons, both
+          require typing a value first and are reached far less often. */}
       {advancedOpen ? (
         <Dialog
           aria-labelledby="macro-editor-advanced-title"
           containerRef={advancedContainerRef}
-          heading={<h2 id="macro-editor-advanced-title">Advanced timing</h2>}
+          heading={<h2 id="macro-editor-advanced-title">Advanced</h2>}
           role="dialog"
         >
-          {/* `block` on both labels below: `<label>` is inline by default
+          {/* `block` on every label below: `<label>` is inline by default
               and Dialog's panel is a plain div, not flex/grid, so nothing
               else blockifies it -- full rationale at Name's label above. */}
           <label className="block" htmlFor="macro-editor-key-press">
@@ -603,6 +537,76 @@ export function MacroEditorPage({
               value={Number.isNaN(interKeyMs) ? "" : interKeyMs}
             />
           </label>
+
+          <div
+            aria-label="Insert delay"
+            className="mt-3 flex flex-wrap gap-[0.4rem]"
+          >
+            <label className="block" htmlFor="macro-editor-delay-ms">
+              Delay (ms)
+              <input
+                id="macro-editor-delay-ms"
+                max={v2Limits.delayDirectiveMaxMs}
+                min={1}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                  setDelayMs(event.currentTarget.valueAsNumber);
+                }}
+                type="number"
+                value={Number.isNaN(delayMs) ? "" : delayMs}
+              />
+            </label>
+            <button onClick={insertDelay} type="button">
+              Insert delay
+            </button>
+          </div>
+
+          <div
+            aria-label="Insert chord"
+            className="mt-3 flex flex-wrap gap-[0.4rem]"
+          >
+            {modifiers.map((modifier) => {
+              const pressed = chordModifiers.has(modifier);
+              return (
+                <button
+                  aria-pressed={pressed}
+                  className={
+                    pressed
+                      ? "min-w-[3.5rem] border-actuate-edge bg-actuate px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem] text-cap shadow-[inset_0_2px_0_var(--color-lamp)]"
+                      : "min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem]"
+                  }
+                  key={modifier}
+                  onClick={() => {
+                    setChordModifiers((current) => {
+                      const next = new Set(current);
+                      if (next.has(modifier)) {
+                        next.delete(modifier);
+                      } else {
+                        next.add(modifier);
+                      }
+                      return next;
+                    });
+                  }}
+                  type="button"
+                >
+                  {modifier}
+                </button>
+              );
+            })}
+            <label className="block" htmlFor="macro-editor-chord-key">
+              Key
+              <input
+                id="macro-editor-chord-key"
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                  setChordKey(event.currentTarget.value);
+                }}
+                value={chordKey}
+              />
+            </label>
+            <button onClick={insertChord} type="button">
+              Insert chord
+            </button>
+          </div>
+
           <FormActions>
             <button
               onClick={() => {

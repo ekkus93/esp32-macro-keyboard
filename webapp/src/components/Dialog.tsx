@@ -36,10 +36,10 @@
  * demanding an immediate yes/no response to a consequential action, and the
  * comment here said the day a general content/editing surface actually
  * needed this component, `role` would become a required prop rather than
- * carrying an unused option. `MacroEditorPage`'s Advanced timing panel is
- * that day: it edits ordinary field values with no consequential action to
- * confirm, so `alertdialog`'s implicit "respond now" semantics would be
- * wrong for assistive tech there. Required, not defaulted, so every call
+ * carrying an unused option. `MacroEditorPage`'s Advanced panel is
+ * that day: it edits ordinary field values and triggers non-consequential
+ * inserts, none needing a yes/no response, so `alertdialog`'s implicit
+ * "respond now" semantics would be wrong for assistive tech there. Required, not defaulted, so every call
  * site states its intent rather than inheriting the original three's.
  */
 const DIALOG_PANEL_CLASS = {

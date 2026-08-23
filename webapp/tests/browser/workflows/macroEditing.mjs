@@ -48,7 +48,7 @@ export async function runMacroEditingWorkflows(browser) {
     await page.getByRole("button", { name: "ENTER", exact: true }).click();
     await waitFor(
       page,
-      () => document.body.innerText.includes("Macro is valid."),
+      () => document.body.innerText.includes("Macro is valid"),
       "The new macro's source did not validate after inserting a directive.",
     );
     const sourceAfterInsert = await evaluate(page, () => {
@@ -106,7 +106,7 @@ export async function runMacroEditingWorkflows(browser) {
     await page.locator("#macro-editor-source").fill("r{ENTER}");
     await waitFor(
       page,
-      () => document.body.innerText.includes("Macro is valid."),
+      () => document.body.innerText.includes("Macro is valid"),
       "The corrected macro source did not validate.",
     );
     await clickButton(page, "Save changes");
