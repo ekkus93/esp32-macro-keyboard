@@ -57,6 +57,7 @@ export function UnsavedChangesPrompt({
       aria-labelledby="unsaved-changes-prompt-title"
       containerRef={containerRef}
       heading={<h2 id="unsaved-changes-prompt-title">Unsaved changes</h2>}
+      role="alertdialog"
     >
       <p>
         You have unsaved changes. Continuing to {actionLabel} will lose them —

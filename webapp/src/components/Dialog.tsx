@@ -27,19 +27,20 @@
  * This is a max-height on an `overflow-y: auto` panel, which is exactly the
  * case where that clips content away rather than merely looking off.
  *
- * ## `role="alertdialog"` is hardcoded, not a prop
+ * ## `role`
  *
- * Reviewed deliberately (`WEBAPP_TAILWIND_TODO_2026-08-18.md` T4-3): all
- * three call sites today (`ConfirmPhraseDialog`, `UnsavedChangesPrompt`,
- * the restart confirmation in `SettingsPage`) are exactly what
- * `alertdialog` is for — a modal interrupting the user to demand an
- * immediate yes/no response to a consequential action. None is a general
- * content or editing surface, where `alertdialog`'s implicit "respond now"
- * semantics would be wrong for assistive tech. Kept hardcoded rather than
- * parameterized: `DangerZone` already shows the parameterized shape
- * (`role?: "alertdialog"`) this component would take on the day a non-alert
- * `Dialog` use case actually shows up — no need to carry that option
- * unused until then.
+ * Originally hardcoded to `"alertdialog"` (reviewed deliberately,
+ * `WEBAPP_TAILWIND_TODO_2026-08-18.md` T4-3): every call site at the time
+ * — `ConfirmPhraseDialog`, `UnsavedChangesPrompt`, the restart confirmation
+ * in `SettingsPage` — was exactly what `alertdialog` is for, a modal
+ * demanding an immediate yes/no response to a consequential action, and the
+ * comment here said the day a general content/editing surface actually
+ * needed this component, `role` would become a required prop rather than
+ * carrying an unused option. `MacroEditorPage`'s Advanced timing panel is
+ * that day: it edits ordinary field values with no consequential action to
+ * confirm, so `alertdialog`'s implicit "respond now" semantics would be
+ * wrong for assistive tech there. Required, not defaulted, so every call
+ * site states its intent rather than inheriting the original three's.
  */
 const DIALOG_PANEL_CLASS = {
   panel:
@@ -63,12 +64,14 @@ const DIALOG_HEADING_CLASS =
   "mb-4 flex items-start justify-between gap-4 [@media(width<=40rem)]:flex-col [@media(width<=40rem)]:items-stretch [&_h2]:mt-0 [&_p]:mt-0";
 
 export type DialogTone = keyof typeof DIALOG_PANEL_CLASS;
+export type DialogRole = "alertdialog" | "dialog";
 
 export interface DialogProps {
   "aria-labelledby": string;
   children: React.ReactNode;
   containerRef: React.RefObject<HTMLDivElement | null>;
   heading: React.ReactNode;
+  role: DialogRole;
   tone?: DialogTone;
 }
 
@@ -77,6 +80,7 @@ export function Dialog({
   children,
   containerRef,
   heading,
+  role,
   tone = "panel",
 }: DialogProps): React.JSX.Element {
   return (
@@ -88,7 +92,7 @@ export function Dialog({
         aria-labelledby={ariaLabelledBy}
         className={DIALOG_PANEL_CLASS[tone]}
         ref={containerRef}
-        role="alertdialog"
+        role={role}
         tabIndex={-1}
       >
         <div className={DIALOG_HEADING_CLASS}>{heading}</div>

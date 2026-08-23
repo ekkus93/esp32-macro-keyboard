@@ -59,8 +59,15 @@ export async function runMacroEditingWorkflows(browser) {
       sourceAfterInsert === "r{ENTER}",
       `Inserting the ENTER directive did not append it to the macro source: ${String(sourceAfterInsert)}`,
     );
+    await clickButton(page, "Advanced");
+    await waitFor(
+      page,
+      () => document.querySelector("#macro-editor-key-press") !== null,
+      "Advanced did not open the timing dialog.",
+    );
     await page.locator("#macro-editor-key-press").fill("10");
     await page.locator("#macro-editor-inter-key").fill("20");
+    await clickButton(page, "Done");
     await clickButton(page, "Save changes");
     await waitFor(
       page,

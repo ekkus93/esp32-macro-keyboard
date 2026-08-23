@@ -39,6 +39,7 @@ export function ConfirmPhraseDialog({
           {kind === "reset-settings" ? "Reset settings" : "Factory reset"}
         </h2>
       }
+      role="alertdialog"
       tone="danger"
     >
       {kind === "reset-settings" ? (

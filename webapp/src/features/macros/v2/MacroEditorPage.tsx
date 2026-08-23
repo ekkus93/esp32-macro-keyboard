@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { Dialog } from "../../../components/Dialog";
 import { Eyebrow } from "../../../components/Eyebrow";
+import { FormActions } from "../../../components/FormActions";
+import { HeaderActions } from "../../../components/HeaderActions";
 import {
   PAGE_HEADING_TITLE_CLASS,
   PageHeading,
@@ -18,6 +21,7 @@ import {
   updateMacro,
 } from "../../../v2/repositoryEditing";
 import type { RepositoryWorkingCopyStore } from "../../../v2/repositoryWorkingCopy";
+import { useFocusTrap } from "../../shell/v2/useFocusTrap";
 
 /**
  * The Macro editor, per UI_UX_SPEC_V2 §7.1 (TODO_V2 V2-100). Purely local:
@@ -142,6 +146,15 @@ export function MacroEditorPage({
     new Set(),
   );
   const [delayMs, setDelayMs] = useState(500);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const advancedContainerRef = useRef<HTMLDivElement>(null);
+  useFocusTrap({
+    active: advancedOpen,
+    containerRef: advancedContainerRef,
+    onClose: () => {
+      setAdvancedOpen(false);
+    },
+  });
 
   useEffect(() => {
     if (pendingSelection.current === null) {
@@ -284,9 +297,19 @@ export function MacroEditorPage({
             {macroId === null ? "Create macro" : "Edit macro"}
           </h2>
         </div>
-        <button onClick={onBack} type="button">
-          Cancel
-        </button>
+        <HeaderActions>
+          <button
+            onClick={() => {
+              setAdvancedOpen(true);
+            }}
+            type="button"
+          >
+            Advanced
+          </button>
+          <button onClick={onBack} type="button">
+            Cancel
+          </button>
+        </HeaderActions>
       </PageHeading>
 
       {/* Fixed, not merely pinned via scroll tracking: everything below
@@ -314,8 +337,7 @@ export function MacroEditorPage({
           value={name}
         />
         <FieldHelp exceeded={nameBytes > v2Limits.macroNameMaxBytes}>
-          {String(nameBytes)} / {String(v2Limits.macroNameMaxBytes)} UTF-8
-          bytes
+          {String(nameBytes)} / {String(v2Limits.macroNameMaxBytes)} UTF-8 bytes
         </FieldHelp>
       </label>
 
@@ -481,39 +503,6 @@ export function MacroEditorPage({
           </div>
         </div>
 
-        {/* Set-once metadata, not part of the insert workflow, so it moved
-            below the tools that are. */}
-        <div className="grid [grid-template-columns:repeat(2,minmax(0,1fr))] gap-3 [@media(width<=32rem)]:[grid-template-columns:1fr]">
-          <label htmlFor="macro-editor-key-press">
-            Key-press duration (ms)
-            <input
-              id="macro-editor-key-press"
-              max={v2Limits.keyPressMaxMs}
-              min={0}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                setKeyPressMs(event.currentTarget.valueAsNumber);
-              }}
-              step={1}
-              type="number"
-              value={Number.isNaN(keyPressMs) ? "" : keyPressMs}
-            />
-          </label>
-          <label htmlFor="macro-editor-inter-key">
-            Inter-key delay (ms)
-            <input
-              id="macro-editor-inter-key"
-              max={v2Limits.interKeyMaxMs}
-              min={0}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                setInterKeyMs(event.currentTarget.valueAsNumber);
-              }}
-              step={1}
-              type="number"
-              value={Number.isNaN(interKeyMs) ? "" : interKeyMs}
-            />
-          </label>
-        </div>
-
         <div
           aria-live="polite"
           className="rounded-keycap border-y border-r border-l-[3px] border-y-cap-edge border-r-cap-edge border-l-actuate bg-panel p-4"
@@ -547,6 +536,64 @@ export function MacroEditorPage({
           )}
         </div>
       </form>
+
+      {/* Set-once metadata, not part of the insert workflow that the fixed
+          region above and the directive toolbar below both serve -- moved
+          into its own dialog (not the scrolling form) so it stops
+          permanently occupying page space for two fields most edits never
+          touch. `role="dialog"`, not `alertdialog`: this edits ordinary
+          field values with no consequential action to confirm. `form` keeps
+          both inputs associated with #macro-editor-form for submission
+          despite living outside its DOM subtree. */}
+      {advancedOpen ? (
+        <Dialog
+          aria-labelledby="macro-editor-advanced-title"
+          containerRef={advancedContainerRef}
+          heading={<h2 id="macro-editor-advanced-title">Advanced timing</h2>}
+          role="dialog"
+        >
+          <label htmlFor="macro-editor-key-press">
+            Key-press duration (ms)
+            <input
+              form="macro-editor-form"
+              id="macro-editor-key-press"
+              max={v2Limits.keyPressMaxMs}
+              min={0}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                setKeyPressMs(event.currentTarget.valueAsNumber);
+              }}
+              step={1}
+              type="number"
+              value={Number.isNaN(keyPressMs) ? "" : keyPressMs}
+            />
+          </label>
+          <label htmlFor="macro-editor-inter-key">
+            Inter-key delay (ms)
+            <input
+              form="macro-editor-form"
+              id="macro-editor-inter-key"
+              max={v2Limits.interKeyMaxMs}
+              min={0}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                setInterKeyMs(event.currentTarget.valueAsNumber);
+              }}
+              step={1}
+              type="number"
+              value={Number.isNaN(interKeyMs) ? "" : interKeyMs}
+            />
+          </label>
+          <FormActions>
+            <button
+              onClick={() => {
+                setAdvancedOpen(false);
+              }}
+              type="button"
+            >
+              Done
+            </button>
+          </FormActions>
+        </Dialog>
+      ) : null}
 
       {/* Fixed, in the thumb-reachable bottom of the screen, not the end of
           a scroll: Save is the primary action on this page, and burying it

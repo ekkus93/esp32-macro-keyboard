@@ -93,6 +93,7 @@ describe("Dialog tone variant map", () => {
         aria-labelledby="test-dialog-title"
         containerRef={containerRef}
         heading={<h2 id="test-dialog-title">Title</h2>}
+        role="alertdialog"
         tone={tone}
       >
         content

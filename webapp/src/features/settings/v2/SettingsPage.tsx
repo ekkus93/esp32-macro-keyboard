@@ -416,6 +416,7 @@ export function SettingsPage({
           aria-labelledby="confirm-restart-title"
           containerRef={restartConfirmRef}
           heading={<h2 id="confirm-restart-title">Restart the device?</h2>}
+          role="alertdialog"
         >
           <p>
             The device restarts and its Wi-Fi access point briefly drops. This

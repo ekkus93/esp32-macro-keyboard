@@ -10,6 +10,10 @@ import {
   setInputValue,
 } from "./render";
 
+async function openAdvanced(): Promise<void> {
+  await click(buttonWithText("Advanced"));
+}
+
 const packageId = "550e8400-e29b-41d4-a716-446655440000";
 const macroId = "6ba7b810-9dad-41d1-80b4-00c04fd430c8";
 const uuidPattern =
@@ -59,6 +63,7 @@ describe("MacroEditorPage — V2-100 fields and byte counts", () => {
     );
     expect(nameInput().value).toBe("Start the build");
     expect(sourceTextarea().value).toBe("make -j8{ENTER}");
+    await openAdvanced();
     expect(
       requiredElement("#macro-editor-key-press", HTMLInputElement).value,
     ).toBe("8");
