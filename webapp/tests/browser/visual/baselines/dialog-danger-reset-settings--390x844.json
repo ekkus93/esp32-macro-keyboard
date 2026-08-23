@@ -7762,15 +7762,15 @@
   },
   {
    "tag": "LABEL",
-   "cls": "",
+   "cls": "block",
    "rect": [
     35,
-    482.91,
+    480.91,
     322,
-    56
+    74
    ],
    "values": {
-    "display": "inline",
+    "display": "block",
     "position": "static",
     "top": "auto",
     "right": "auto",
@@ -7784,8 +7784,8 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "auto",
-    "height": "auto",
+    "width": "322px",
+    "height": "74px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",

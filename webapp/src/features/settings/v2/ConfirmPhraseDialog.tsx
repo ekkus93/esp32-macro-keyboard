@@ -59,8 +59,13 @@ export function ConfirmPhraseDialog({
           cannot be undone.
         </p>
       )}
+      {/* `block` on both labels below: `<label>` is inline by default and
+          Dialog's panel is a plain div, not flex/grid, so nothing else
+          blockifies it -- full rationale at MacroEditorPage.tsx's Name
+          label, found via the same overlap bug this app-wide audit turned
+          up in six places. */}
       {kind === "factory-reset" ? (
-        <label htmlFor="confirm-phrase-password">
+        <label className="block" htmlFor="confirm-phrase-password">
           Administrator password
           <input
             autoComplete="current-password"
@@ -74,7 +79,7 @@ export function ConfirmPhraseDialog({
           />
         </label>
       ) : null}
-      <label htmlFor="confirm-phrase-input">
+      <label className="block" htmlFor="confirm-phrase-input">
         Type &quot;{phrase}&quot; to confirm
         <input
           disabled={busy}

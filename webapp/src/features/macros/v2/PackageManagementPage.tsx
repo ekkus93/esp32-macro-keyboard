@@ -463,7 +463,10 @@ export function PackageManagementPage({
 
       <CreatePackageForm onCreate={createPackage} />
 
-      <label htmlFor="package-management-search">
+      {/* `block`: `<label>` is inline by default and this section carries
+          no flex/grid className, so nothing else blockifies it -- full
+          rationale at MacroEditorPage.tsx's Name label. */}
+      <label className="block" htmlFor="package-management-search">
         Search packages
         <input
           id="package-management-search"

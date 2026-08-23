@@ -95,7 +95,10 @@ export function SnapshotRow({
               {formatBytes(sizeBytes)}). This cannot be undone. Type the
               snapshot ID to confirm.
             </p>
-            <label htmlFor={`snapshot-delete-confirm-${id}`}>
+            {/* `block`: `<label>` is inline by default and DangerZone's root
+                is a plain div, not flex/grid, so nothing else blockifies it
+                -- full rationale at MacroEditorPage.tsx's Name label. */}
+            <label className="block" htmlFor={`snapshot-delete-confirm-${id}`}>
               Snapshot ID
               <input
                 id={`snapshot-delete-confirm-${id}`}
