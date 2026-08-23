@@ -882,7 +882,7 @@
   },
   {
    "tag": "DIV",
-   "cls": "app-shell mx-auto flex h-dvh flex-col overflow-hidden bg-shell w-[min(100%,48rem)] min-[60rem]:w-[min(100%,64rem)]",
+   "cls": "app-shell mx-auto flex h-dvh w-[min(100%,48rem)] flex-col overflow-hidden bg-shell min-[60rem]:w-[min(100%,64rem)]",
    "rect": [
     0,
     0,
@@ -962,12 +962,12 @@
   },
   {
    "tag": "HEADER",
-   "cls": "flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pb-[0.4rem] pt-[calc(0.4rem+env(safe-area-inset-top))] text-panel",
+   "cls": "flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pt-[calc(0.4rem+env(safe-area-inset-top))] pb-[0.4rem] text-panel",
    "rect": [
     0,
     0,
     417,
-    51.55
+    87.77
    ],
    "values": {
     "display": "flex",
@@ -985,7 +985,7 @@
     "padding-bottom": "6.4px",
     "padding-left": "13.6px",
     "width": "417px",
-    "height": "51.5469px",
+    "height": "87.7656px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -1046,7 +1046,7 @@
    "rect": [
     13.59,
     6.39,
-    165.97,
+    186.48,
     35.77
    ],
    "values": {
@@ -1064,7 +1064,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "165.969px",
+    "width": "186.484px",
     "height": "35.7656px",
     "min-width": "0px",
     "min-height": "auto",
@@ -1126,7 +1126,7 @@
    "rect": [
     13.59,
     6.39,
-    165.97,
+    186.48,
     15.61
    ],
    "values": {
@@ -1144,7 +1144,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "165.969px",
+    "width": "186.484px",
     "height": "15.6094px",
     "min-width": "0px",
     "min-height": "0px",
@@ -1202,11 +1202,11 @@
   },
   {
    "tag": "H1",
-   "cls": "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.05rem] tracking-[-0.01em]",
+   "cls": "m-0 overflow-hidden text-[1.05rem] tracking-[-0.01em] text-ellipsis whitespace-nowrap",
    "rect": [
     13.59,
     22,
-    165.97,
+    186.48,
     20.16
    ],
    "values": {
@@ -1224,7 +1224,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "165.969px",
+    "width": "186.484px",
     "height": "20.1562px",
     "min-width": "0px",
     "min-height": "0px",
@@ -1284,9 +1284,9 @@
    "tag": "DIV",
    "cls": "flex flex-wrap items-center justify-end gap-[0.4rem] [@media(width<=32rem)]:justify-start",
    "rect": [
-    224.19,
-    9.36,
-    179.22,
+    13.59,
+    48.55,
+    194.77,
     29.83
    ],
    "values": {
@@ -1304,7 +1304,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "179.219px",
+    "width": "194.766px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1364,9 +1364,9 @@
    "tag": "SPAN",
    "cls": "inline-flex items-center gap-[0.4rem] rounded-full border border-current px-[0.6rem] py-[0.3rem] text-[0.76rem] font-bold tracking-[0.02em] before:content-[''] bg-good-tint text-good before:h-[0.6rem] before:w-[0.6rem] before:rounded-full before:bg-current before:shadow-[0_0_0_3px_rgb(11_92_51_/_22%)]",
    "rect": [
-    224.19,
-    9.36,
-    101,
+    13.59,
+    48.55,
+    110.56,
     29.83
    ],
    "values": {
@@ -1384,7 +1384,7 @@
     "padding-right": "9.6px",
     "padding-bottom": "4.8px",
     "padding-left": "9.6px",
-    "width": "101px",
+    "width": "110.562px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1444,9 +1444,9 @@
    "tag": "SPAN",
    "cls": "inline-flex items-center gap-[0.4rem] rounded-full border border-current px-[0.6rem] py-[0.3rem] text-[0.76rem] font-bold tracking-[0.02em] before:content-[''] bg-neutral-tint text-legend-soft before:h-[0.45rem] before:w-[0.45rem] before:rounded-full before:border-[1.5px] before:border-current before:bg-transparent",
    "rect": [
-    331.58,
-    9.36,
-    71.83,
+    130.55,
+    48.55,
+    77.81,
     29.83
    ],
    "values": {
@@ -1464,7 +1464,7 @@
     "padding-right": "9.6px",
     "padding-bottom": "4.8px",
     "padding-left": "9.6px",
-    "width": "71.8281px",
+    "width": "77.8125px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1525,9 +1525,9 @@
    "cls": "",
    "rect": [
     0,
-    51.55,
+    87.77,
     417,
-    780.27
+    744.05
    ],
    "values": {
     "display": "block",
@@ -1545,7 +1545,7 @@
     "padding-bottom": "20px",
     "padding-left": "16px",
     "width": "417px",
-    "height": "780.266px",
+    "height": "744.047px",
     "min-width": "auto",
     "min-height": "0px",
     "max-width": "none",
@@ -1605,7 +1605,7 @@
    "cls": "",
    "rect": [
     16,
-    71.55,
+    107.77,
     385,
     546.45
    ],
@@ -1682,10 +1682,10 @@
   },
   {
    "tag": "DIV",
-   "cls": "mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-cap-edge pb-3 [&_h2]:m-0 [&_h2]:overflow-hidden [&_h2]:text-ellipsis [&_h2]:whitespace-nowrap [&_h2]:text-[1.35rem] [&_h2]:tracking-[-0.01em]",
+   "cls": "mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-cap-edge pb-3",
    "rect": [
     16,
-    71.55,
+    107.77,
     385,
     192.27
    ],
@@ -1765,7 +1765,7 @@
    "cls": "",
    "rect": [
     16,
-    71.55,
+    107.77,
     385,
     117.89
    ],
@@ -1842,10 +1842,10 @@
   },
   {
    "tag": "H2",
-   "cls": "",
+   "cls": "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.35rem] tracking-[-0.01em]",
    "rect": [
     16,
-    71.55,
+    107.77,
     385,
     25.91
    ],
@@ -1922,10 +1922,10 @@
   },
   {
    "tag": "DL",
-   "cls": "storage-summary mt-2 grid justify-start gap-x-5 gap-y-[0.15rem] text-[0.85rem] [grid-template-columns:repeat(2,auto)] min-[26rem]:[grid-template-columns:repeat(4,auto)]",
+   "cls": "storage-summary mt-2 grid [grid-template-columns:repeat(2,auto)] justify-start gap-x-5 gap-y-[0.15rem] text-[0.85rem] min-[26rem]:[grid-template-columns:repeat(4,auto)]",
    "rect": [
     16,
-    105.45,
+    141.67,
     385,
     83.98
    ],
@@ -1978,7 +1978,7 @@
     "gap": "2.4px 20px",
     "row-gap": "2.4px",
     "column-gap": "20px",
-    "grid-template-columns": "52.6719px 77.4688px 87.1094px 107.75px",
+    "grid-template-columns": "60.1562px 72.5625px 82.1875px 110.094px",
     "grid-template-rows": "33.5938px 48px",
     "place-items": "normal",
     "border-top-width": "0px",
@@ -2005,8 +2005,8 @@
    "cls": "[grid-row:1]",
    "rect": [
     16,
-    105.45,
-    52.67,
+    141.67,
+    60.16,
     33.59
    ],
    "values": {
@@ -2024,7 +2024,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "52.6719px",
+    "width": "60.1562px",
     "height": "33.5938px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2085,8 +2085,8 @@
    "cls": "[grid-row:2] text-base font-bold",
    "rect": [
     16,
-    141.44,
-    52.67,
+    177.66,
+    60.16,
     48
    ],
    "values": {
@@ -2104,7 +2104,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "52.6719px",
+    "width": "60.1562px",
     "height": "48px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2164,9 +2164,9 @@
    "tag": "DT",
    "cls": "[grid-row:1]",
    "rect": [
-    88.67,
-    105.45,
-    77.47,
+    96.16,
+    141.67,
+    72.56,
     33.59
    ],
    "values": {
@@ -2184,7 +2184,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "77.4688px",
+    "width": "72.5625px",
     "height": "33.5938px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2244,9 +2244,9 @@
    "tag": "DD",
    "cls": "[grid-row:2] text-base font-bold",
    "rect": [
-    88.67,
-    141.44,
-    77.47,
+    96.16,
+    177.66,
+    72.56,
     48
    ],
    "values": {
@@ -2264,7 +2264,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "77.4688px",
+    "width": "72.5625px",
     "height": "48px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2324,9 +2324,9 @@
    "tag": "DT",
    "cls": "[grid-row:1] max-[26rem]:[grid-row:3]",
    "rect": [
-    186.14,
-    105.45,
-    87.11,
+    188.72,
+    141.67,
+    82.19,
     33.59
    ],
    "values": {
@@ -2344,7 +2344,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "87.1094px",
+    "width": "82.1875px",
     "height": "33.5938px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2404,9 +2404,9 @@
    "tag": "DD",
    "cls": "[grid-row:2] text-base font-bold max-[26rem]:[grid-row:4]",
    "rect": [
-    186.14,
-    141.44,
-    87.11,
+    188.72,
+    177.66,
+    82.19,
     48
    ],
    "values": {
@@ -2424,7 +2424,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "87.1094px",
+    "width": "82.1875px",
     "height": "48px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2484,9 +2484,9 @@
    "tag": "DT",
    "cls": "[grid-row:1] max-[26rem]:[grid-row:3]",
    "rect": [
-    293.25,
-    105.45,
-    107.75,
+    290.91,
+    141.67,
+    110.09,
     33.59
    ],
    "values": {
@@ -2504,7 +2504,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "107.75px",
+    "width": "110.094px",
     "height": "33.5938px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2564,9 +2564,9 @@
    "tag": "DD",
    "cls": "[grid-row:2] text-base font-bold max-[26rem]:[grid-row:4]",
    "rect": [
-    293.25,
-    141.44,
-    107.75,
+    290.91,
+    177.66,
+    110.09,
     48
    ],
    "values": {
@@ -2584,7 +2584,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "107.75px",
+    "width": "110.094px",
     "height": "48px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2645,8 +2645,8 @@
    "cls": "flex flex-wrap items-center justify-end gap-[0.4rem] [@media(width<=32rem)]:justify-start",
    "rect": [
     16,
-    201.44,
-    214.16,
+    237.66,
+    239.38,
     49.38
    ],
    "values": {
@@ -2664,7 +2664,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "214.156px",
+    "width": "239.375px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2725,8 +2725,8 @@
    "cls": "primary",
    "rect": [
     16,
-    201.44,
-    214.16,
+    237.66,
+    239.38,
     49.38
    ],
    "values": {
@@ -2744,7 +2744,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "214.156px",
+    "width": "239.375px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -2805,7 +2805,7 @@
    "cls": "",
    "rect": [
     16,
-    283.81,
+    320.03,
     385,
     207.28
    ],
@@ -2885,7 +2885,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft border border-cap-edge bg-panel",
    "rect": [
     16,
-    283.81,
+    320.03,
     385,
     207.28
    ],
@@ -2965,7 +2965,7 @@
    "cls": "min-w-0",
    "rect": [
     33,
-    300.81,
+    337.03,
     351,
     52.14
    ],
@@ -3045,7 +3045,7 @@
    "cls": "",
    "rect": [
     33,
-    300.81,
+    337.03,
     351,
     20.16
    ],
@@ -3125,7 +3125,7 @@
    "cls": "",
    "rect": [
     33,
-    325.77,
+    361.98,
     351,
     24
    ],
@@ -3205,7 +3205,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    368.95,
+    405.17,
     351,
     105.14
    ],
@@ -3285,8 +3285,8 @@
    "cls": "primary",
    "rect": [
     33,
-    368.95,
-    71.39,
+    405.17,
+    76.08,
     49.38
    ],
    "values": {
@@ -3304,7 +3304,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "71.3906px",
+    "width": "76.0781px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3364,9 +3364,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    110.78,
-    368.95,
-    113.5,
+    115.47,
+    405.17,
+    122.45,
     49.38
    ],
    "values": {
@@ -3384,7 +3384,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "113.5px",
+    "width": "122.453px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3444,9 +3444,9 @@
    "tag": "BUTTON",
    "cls": "danger",
    "rect": [
-    230.67,
-    368.95,
-    85,
+    244.31,
+    405.17,
+    91.94,
     49.38
    ],
    "values": {
@@ -3464,7 +3464,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "85px",
+    "width": "91.9375px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3525,8 +3525,8 @@
    "cls": "",
    "rect": [
     33,
-    424.72,
-    111.55,
+    460.94,
+    121.53,
     49.38
    ],
    "values": {
@@ -3544,7 +3544,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "111.547px",
+    "width": "121.531px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3605,7 +3605,7 @@
    "cls": "",
    "rect": [
     16,
-    491.09,
+    527.31,
     385,
     126.91
    ],
@@ -3685,7 +3685,7 @@
    "cls": "",
    "rect": [
     16,
-    491.09,
+    527.31,
     385,
     20.16
    ],
@@ -3765,8 +3765,8 @@
    "cls": "",
    "rect": [
     16,
-    519.25,
-    199.16,
+    555.47,
+    220.42,
     49.38
    ],
    "values": {
@@ -3784,7 +3784,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "199.156px",
+    "width": "220.422px",
     "height": "49.375px",
     "min-width": "0px",
     "min-height": "48px",
@@ -3925,8 +3925,8 @@
    "cls": "",
    "rect": [
     16,
-    568.63,
-    190.75,
+    604.84,
+    210.22,
     49.38
    ],
    "values": {
@@ -3944,7 +3944,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "190.75px",
+    "width": "210.219px",
     "height": "49.375px",
     "min-width": "0px",
     "min-height": "48px",
@@ -4082,7 +4082,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]",
+   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase",
    "rect": [
     9.59,
     842.41,
@@ -4162,7 +4162,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]",
+   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase",
    "rect": [
     110.64,
     842.41,
@@ -4242,7 +4242,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em] border-actuate-edge bg-actuate text-cap shadow-[inset_0_3px_0_var(--color-lamp)]",
+   "cls": "min-w-0 border-actuate-edge bg-actuate px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] text-cap uppercase shadow-[inset_0_3px_0_var(--color-lamp)]",
    "rect": [
     211.69,
     842.41,
@@ -4322,7 +4322,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]",
+   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase",
    "rect": [
     312.73,
     842.41,

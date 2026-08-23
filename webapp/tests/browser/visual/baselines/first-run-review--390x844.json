@@ -1686,7 +1686,7 @@
    "rect": [
     16,
     317.72,
-    63.56,
+    68.16,
     49.38
    ],
    "values": {
@@ -1704,7 +1704,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "63.5625px",
+    "width": "68.1562px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -1764,9 +1764,9 @@
    "tag": "BUTTON",
    "cls": "primary",
    "rect": [
-    85.95,
+    90.55,
     317.72,
-    128.2,
+    141.41,
     49.38
    ],
    "values": {
@@ -1784,7 +1784,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "128.203px",
+    "width": "141.406px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",

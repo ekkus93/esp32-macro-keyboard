@@ -882,7 +882,7 @@
   },
   {
    "tag": "DIV",
-   "cls": "app-shell mx-auto flex h-dvh flex-col overflow-hidden bg-shell w-[min(100%,48rem)] min-[60rem]:w-[min(100%,64rem)]",
+   "cls": "app-shell mx-auto flex h-dvh w-[min(100%,48rem)] flex-col overflow-hidden bg-shell min-[60rem]:w-[min(100%,64rem)]",
    "rect": [
     0,
     0,
@@ -962,12 +962,12 @@
   },
   {
    "tag": "HEADER",
-   "cls": "flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pb-[0.4rem] pt-[calc(0.4rem+env(safe-area-inset-top))] text-panel",
+   "cls": "flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pt-[calc(0.4rem+env(safe-area-inset-top))] pb-[0.4rem] text-panel",
    "rect": [
     0,
     0,
     390,
-    51.55
+    87.77
    ],
    "values": {
     "display": "flex",
@@ -985,7 +985,7 @@
     "padding-bottom": "6.4px",
     "padding-left": "13.6px",
     "width": "390px",
-    "height": "51.5469px",
+    "height": "87.7656px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -1046,7 +1046,7 @@
    "rect": [
     13.59,
     6.39,
-    165.97,
+    186.48,
     35.77
    ],
    "values": {
@@ -1064,7 +1064,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "165.969px",
+    "width": "186.484px",
     "height": "35.7656px",
     "min-width": "0px",
     "min-height": "auto",
@@ -1126,7 +1126,7 @@
    "rect": [
     13.59,
     6.39,
-    165.97,
+    186.48,
     15.61
    ],
    "values": {
@@ -1144,7 +1144,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "165.969px",
+    "width": "186.484px",
     "height": "15.6094px",
     "min-width": "0px",
     "min-height": "0px",
@@ -1202,11 +1202,11 @@
   },
   {
    "tag": "H1",
-   "cls": "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.05rem] tracking-[-0.01em]",
+   "cls": "m-0 overflow-hidden text-[1.05rem] tracking-[-0.01em] text-ellipsis whitespace-nowrap",
    "rect": [
     13.59,
     22,
-    165.97,
+    186.48,
     20.16
    ],
    "values": {
@@ -1224,7 +1224,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "165.969px",
+    "width": "186.484px",
     "height": "20.1562px",
     "min-width": "0px",
     "min-height": "0px",
@@ -1284,9 +1284,9 @@
    "tag": "DIV",
    "cls": "flex flex-wrap items-center justify-end gap-[0.4rem] [@media(width<=32rem)]:justify-start",
    "rect": [
-    197.19,
-    9.36,
-    179.22,
+    13.59,
+    48.55,
+    194.77,
     29.83
    ],
    "values": {
@@ -1304,7 +1304,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "179.219px",
+    "width": "194.766px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1364,9 +1364,9 @@
    "tag": "SPAN",
    "cls": "inline-flex items-center gap-[0.4rem] rounded-full border border-current px-[0.6rem] py-[0.3rem] text-[0.76rem] font-bold tracking-[0.02em] before:content-[''] bg-good-tint text-good before:h-[0.6rem] before:w-[0.6rem] before:rounded-full before:bg-current before:shadow-[0_0_0_3px_rgb(11_92_51_/_22%)]",
    "rect": [
-    197.19,
-    9.36,
-    101,
+    13.59,
+    48.55,
+    110.56,
     29.83
    ],
    "values": {
@@ -1384,7 +1384,7 @@
     "padding-right": "9.6px",
     "padding-bottom": "4.8px",
     "padding-left": "9.6px",
-    "width": "101px",
+    "width": "110.562px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1444,9 +1444,9 @@
    "tag": "SPAN",
    "cls": "inline-flex items-center gap-[0.4rem] rounded-full border border-current px-[0.6rem] py-[0.3rem] text-[0.76rem] font-bold tracking-[0.02em] before:content-[''] bg-neutral-tint text-legend-soft before:h-[0.45rem] before:w-[0.45rem] before:rounded-full before:border-[1.5px] before:border-current before:bg-transparent",
    "rect": [
-    304.58,
-    9.36,
-    71.83,
+    130.55,
+    48.55,
+    77.81,
     29.83
    ],
    "values": {
@@ -1464,7 +1464,7 @@
     "padding-right": "9.6px",
     "padding-bottom": "4.8px",
     "padding-left": "9.6px",
-    "width": "71.8281px",
+    "width": "77.8125px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1525,9 +1525,9 @@
    "cls": "",
    "rect": [
     0,
-    51.55,
+    87.77,
     390,
-    724.27
+    688.05
    ],
    "values": {
     "display": "block",
@@ -1545,7 +1545,7 @@
     "padding-bottom": "20px",
     "padding-left": "16px",
     "width": "390px",
-    "height": "724.266px",
+    "height": "688.047px",
     "min-width": "auto",
     "min-height": "0px",
     "max-width": "none",
@@ -1605,7 +1605,7 @@
    "cls": "",
    "rect": [
     16,
-    71.55,
+    107.77,
     358,
     2421.39
    ],
@@ -1682,10 +1682,10 @@
   },
   {
    "tag": "DIV",
-   "cls": "mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-cap-edge pb-3 [&_h2]:m-0 [&_h2]:overflow-hidden [&_h2]:text-ellipsis [&_h2]:whitespace-nowrap [&_h2]:text-[1.35rem] [&_h2]:tracking-[-0.01em]",
+   "cls": "mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-cap-edge pb-3",
    "rect": [
     16,
-    71.55,
+    107.77,
     358,
     139.89
    ],
@@ -1765,8 +1765,8 @@
    "cls": "min-w-0 overflow-hidden",
    "rect": [
     16,
-    71.55,
-    213.56,
+    107.77,
+    239.97,
     65.52
    ],
    "values": {
@@ -1784,7 +1784,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "213.562px",
+    "width": "239.969px",
     "height": "65.5156px",
     "min-width": "0px",
     "min-height": "auto",
@@ -1845,8 +1845,8 @@
    "cls": "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[0.65rem] font-bold uppercase tracking-legend text-actuate",
    "rect": [
     16,
-    71.55,
-    213.56,
+    107.77,
+    239.97,
     15.61
    ],
    "values": {
@@ -1864,7 +1864,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "213.562px",
+    "width": "239.969px",
     "height": "15.6094px",
     "min-width": "0px",
     "min-height": "0px",
@@ -1922,11 +1922,11 @@
   },
   {
    "tag": "H2",
-   "cls": "",
+   "cls": "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.35rem] tracking-[-0.01em]",
    "rect": [
     16,
-    87.16,
-    213.56,
+    123.38,
+    239.97,
     25.91
    ],
    "values": {
@@ -1944,7 +1944,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "213.562px",
+    "width": "239.969px",
     "height": "25.9062px",
     "min-width": "0px",
     "min-height": "0px",
@@ -2005,8 +2005,8 @@
    "cls": "",
    "rect": [
     16,
-    113.06,
-    213.56,
+    149.28,
+    239.97,
     24
    ],
    "values": {
@@ -2024,7 +2024,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "213.562px",
+    "width": "239.969px",
     "height": "24px",
     "min-width": "0px",
     "min-height": "0px",
@@ -2085,8 +2085,8 @@
    "cls": "flex flex-wrap items-center justify-end gap-[0.4rem] [@media(width<=32rem)]:justify-start",
    "rect": [
     16,
-    149.06,
-    219.19,
+    185.28,
+    237.13,
     49.38
    ],
    "values": {
@@ -2104,7 +2104,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "219.188px",
+    "width": "237.125px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2165,8 +2165,8 @@
    "cls": "",
    "rect": [
     16,
-    149.06,
-    93.44,
+    185.28,
+    100.59,
     49.38
    ],
    "values": {
@@ -2184,7 +2184,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "93.4375px",
+    "width": "100.594px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -2244,9 +2244,9 @@
    "tag": "BUTTON",
    "cls": "primary",
    "rect": [
-    115.83,
-    149.06,
-    119.36,
+    122.98,
+    185.28,
+    130.14,
     49.38
    ],
    "values": {
@@ -2264,7 +2264,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "119.359px",
+    "width": "130.141px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -2325,7 +2325,7 @@
    "cls": "my-3 rounded-keycap border-l-[3px] border-actuate bg-send-tint px-4 py-[0.8rem] [&_p]:mb-2 [&_p]:font-bold",
    "rect": [
     16,
-    231.44,
+    267.66,
     358,
     57.59
    ],
@@ -2405,7 +2405,7 @@
    "cls": "",
    "rect": [
     35,
-    244.23,
+    280.45,
     323,
     24
    ],
@@ -2485,7 +2485,7 @@
    "cls": "",
    "rect": [
     16,
-    301.03,
+    337.25,
     358,
     0
    ],
@@ -2565,7 +2565,7 @@
    "cls": "",
    "rect": [
     16,
-    301.03,
+    337.25,
     358,
     2191.91
    ],
@@ -2645,7 +2645,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    301.03,
+    337.25,
     358,
     428.78
    ],
@@ -2725,7 +2725,7 @@
    "cls": "",
    "rect": [
     33,
-    318.03,
+    354.25,
     324,
     101.52
    ],
@@ -2805,7 +2805,7 @@
    "cls": "",
    "rect": [
     33,
-    318.03,
+    354.25,
     324,
     20.16
    ],
@@ -2885,7 +2885,7 @@
    "cls": "",
    "rect": [
     33,
-    342.98,
+    379.2,
     324,
     24
    ],
@@ -2965,8 +2965,8 @@
    "cls": "",
    "rect": [
     33,
-    370.17,
-    85.77,
+    406.39,
+    93.7,
     49.38
    ],
    "values": {
@@ -2984,7 +2984,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "85.7656px",
+    "width": "93.7031px",
     "height": "49.375px",
     "min-width": "0px",
     "min-height": "48px",
@@ -3045,7 +3045,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    435.55,
+    471.77,
     324,
     277.27
    ],
@@ -3125,8 +3125,8 @@
    "cls": "primary",
    "rect": [
     33,
-    435.55,
-    71.56,
+    471.77,
+    77.86,
     221.5
    ],
    "values": {
@@ -3144,7 +3144,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "71.5625px",
+    "width": "77.8594px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3204,9 +3204,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    110.95,
-    435.55,
-    63.56,
+    117.25,
+    471.77,
+    68.16,
     221.5
    ],
    "values": {
@@ -3224,7 +3224,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "63.5625px",
+    "width": "68.1562px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3284,9 +3284,9 @@
    "tag": "DIV",
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
-    180.91,
-    435.55,
-    124.77,
+    191.8,
+    471.77,
+    135.83,
     221.5
    ],
    "values": {
@@ -3304,7 +3304,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "auto",
@@ -3338,7 +3338,7 @@
     "gap": "8px",
     "row-gap": "8px",
     "column-gap": "8px",
-    "grid-template-columns": "124.766px",
+    "grid-template-columns": "135.828px",
     "grid-template-rows": "49.375px 49.375px 49.375px 49.375px",
     "place-items": "normal",
     "border-top-width": "0px",
@@ -3364,9 +3364,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    435.55,
-    124.77,
+    191.8,
+    471.77,
+    135.83,
     49.38
    ],
    "values": {
@@ -3384,7 +3384,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3444,9 +3444,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    492.92,
-    124.77,
+    191.8,
+    529.14,
+    135.83,
     49.38
    ],
    "values": {
@@ -3464,7 +3464,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3524,9 +3524,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    550.3,
-    124.77,
+    191.8,
+    586.52,
+    135.83,
     49.38
    ],
    "values": {
@@ -3544,7 +3544,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3604,9 +3604,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    607.67,
-    124.77,
+    191.8,
+    643.89,
+    135.83,
     49.38
    ],
    "values": {
@@ -3624,7 +3624,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3685,8 +3685,8 @@
    "cls": "relative",
    "rect": [
     33,
-    663.44,
-    137.56,
+    699.66,
+    150.47,
     49.38
    ],
    "values": {
@@ -3704,7 +3704,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "137.562px",
+    "width": "150.469px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "auto",
@@ -3765,8 +3765,8 @@
    "cls": "",
    "rect": [
     33,
-    663.44,
-    137.56,
+    699.66,
+    150.47,
     49.38
    ],
    "values": {
@@ -3784,7 +3784,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "137.562px",
+    "width": "150.469px",
     "height": "49.375px",
     "min-width": "0px",
     "min-height": "48px",
@@ -3845,7 +3845,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    741.81,
+    778.03,
     358,
     428.78
    ],
@@ -3925,7 +3925,7 @@
    "cls": "",
    "rect": [
     33,
-    758.81,
+    795.03,
     324,
     101.52
    ],
@@ -4005,7 +4005,7 @@
    "cls": "",
    "rect": [
     33,
-    758.81,
+    795.03,
     324,
     20.16
    ],
@@ -4085,7 +4085,7 @@
    "cls": "",
    "rect": [
     33,
-    783.77,
+    819.98,
     324,
     24
    ],
@@ -4165,8 +4165,8 @@
    "cls": "",
    "rect": [
     33,
-    810.95,
-    85.77,
+    847.17,
+    93.7,
     49.38
    ],
    "values": {
@@ -4184,7 +4184,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "85.7656px",
+    "width": "93.7031px",
     "height": "49.375px",
     "min-width": "0px",
     "min-height": "48px",
@@ -4245,7 +4245,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    876.33,
+    912.55,
     324,
     277.27
    ],
@@ -4325,8 +4325,8 @@
    "cls": "primary",
    "rect": [
     33,
-    876.33,
-    71.56,
+    912.55,
+    77.86,
     221.5
    ],
    "values": {
@@ -4344,7 +4344,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "71.5625px",
+    "width": "77.8594px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "48px",
@@ -4404,9 +4404,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    110.95,
-    876.33,
-    63.56,
+    117.25,
+    912.55,
+    68.16,
     221.5
    ],
    "values": {
@@ -4424,7 +4424,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "63.5625px",
+    "width": "68.1562px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "48px",
@@ -4484,9 +4484,9 @@
    "tag": "DIV",
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
-    180.91,
-    876.33,
-    124.77,
+    191.8,
+    912.55,
+    135.83,
     221.5
    ],
    "values": {
@@ -4504,7 +4504,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "auto",
@@ -4538,7 +4538,7 @@
     "gap": "8px",
     "row-gap": "8px",
     "column-gap": "8px",
-    "grid-template-columns": "124.766px",
+    "grid-template-columns": "135.828px",
     "grid-template-rows": "49.375px 49.375px 49.375px 49.375px",
     "place-items": "normal",
     "border-top-width": "0px",
@@ -4564,9 +4564,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    876.33,
-    124.77,
+    191.8,
+    912.55,
+    135.83,
     49.38
    ],
    "values": {
@@ -4584,7 +4584,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -4644,9 +4644,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    933.7,
-    124.77,
+    191.8,
+    969.92,
+    135.83,
     49.38
    ],
    "values": {
@@ -4664,7 +4664,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -4724,9 +4724,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    991.08,
-    124.77,
+    191.8,
+    1027.3,
+    135.83,
     49.38
    ],
    "values": {
@@ -4744,7 +4744,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -4804,9 +4804,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    1048.45,
-    124.77,
+    191.8,
+    1084.67,
+    135.83,
     49.38
    ],
    "values": {
@@ -4824,7 +4824,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -4885,8 +4885,8 @@
    "cls": "relative",
    "rect": [
     33,
-    1104.22,
-    137.56,
+    1140.44,
+    150.47,
     49.38
    ],
    "values": {
@@ -4904,7 +4904,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "137.562px",
+    "width": "150.469px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "auto",
@@ -4965,8 +4965,8 @@
    "cls": "",
    "rect": [
     33,
-    1104.22,
-    137.56,
+    1140.44,
+    150.47,
     49.38
    ],
    "values": {
@@ -4984,7 +4984,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "137.562px",
+    "width": "150.469px",
     "height": "49.375px",
     "min-width": "0px",
     "min-height": "48px",
@@ -5045,7 +5045,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    1182.59,
+    1218.81,
     358,
     428.78
    ],
@@ -5125,7 +5125,7 @@
    "cls": "",
    "rect": [
     33,
-    1199.59,
+    1235.81,
     324,
     101.52
    ],
@@ -5205,7 +5205,7 @@
    "cls": "",
    "rect": [
     33,
-    1199.59,
+    1235.81,
     324,
     20.16
    ],
@@ -5285,7 +5285,7 @@
    "cls": "",
    "rect": [
     33,
-    1224.55,
+    1260.77,
     324,
     24
    ],
@@ -5365,8 +5365,8 @@
    "cls": "",
    "rect": [
     33,
-    1251.73,
-    85.77,
+    1287.95,
+    93.7,
     49.38
    ],
    "values": {
@@ -5384,7 +5384,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "85.7656px",
+    "width": "93.7031px",
     "height": "49.375px",
     "min-width": "0px",
     "min-height": "48px",
@@ -5445,7 +5445,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    1317.11,
+    1353.33,
     324,
     277.27
    ],
@@ -5525,8 +5525,8 @@
    "cls": "primary",
    "rect": [
     33,
-    1317.11,
-    71.56,
+    1353.33,
+    77.86,
     221.5
    ],
    "values": {
@@ -5544,7 +5544,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "71.5625px",
+    "width": "77.8594px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "48px",
@@ -5604,9 +5604,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    110.95,
-    1317.11,
-    63.56,
+    117.25,
+    1353.33,
+    68.16,
     221.5
    ],
    "values": {
@@ -5624,7 +5624,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "63.5625px",
+    "width": "68.1562px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "48px",
@@ -5684,9 +5684,9 @@
    "tag": "DIV",
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
-    180.91,
-    1317.11,
-    124.77,
+    191.8,
+    1353.33,
+    135.83,
     221.5
    ],
    "values": {
@@ -5704,7 +5704,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "auto",
@@ -5738,7 +5738,7 @@
     "gap": "8px",
     "row-gap": "8px",
     "column-gap": "8px",
-    "grid-template-columns": "124.766px",
+    "grid-template-columns": "135.828px",
     "grid-template-rows": "49.375px 49.375px 49.375px 49.375px",
     "place-items": "normal",
     "border-top-width": "0px",
@@ -5764,9 +5764,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    1317.11,
-    124.77,
+    191.8,
+    1353.33,
+    135.83,
     49.38
    ],
    "values": {
@@ -5784,7 +5784,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -5844,9 +5844,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    1374.48,
-    124.77,
+    191.8,
+    1410.7,
+    135.83,
     49.38
    ],
    "values": {
@@ -5864,7 +5864,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -5924,9 +5924,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    1431.86,
-    124.77,
+    191.8,
+    1468.08,
+    135.83,
     49.38
    ],
    "values": {
@@ -5944,7 +5944,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -6004,9 +6004,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    1489.23,
-    124.77,
+    191.8,
+    1525.45,
+    135.83,
     49.38
    ],
    "values": {
@@ -6024,7 +6024,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -6085,8 +6085,8 @@
    "cls": "relative",
    "rect": [
     33,
-    1545,
-    137.56,
+    1581.22,
+    150.47,
     49.38
    ],
    "values": {
@@ -6104,7 +6104,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "137.562px",
+    "width": "150.469px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "auto",
@@ -6165,8 +6165,8 @@
    "cls": "",
    "rect": [
     33,
-    1545,
-    137.56,
+    1581.22,
+    150.47,
     49.38
    ],
    "values": {
@@ -6184,7 +6184,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "137.562px",
+    "width": "150.469px",
     "height": "49.375px",
     "min-width": "0px",
     "min-height": "48px",
@@ -6245,7 +6245,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    1623.38,
+    1659.59,
     358,
     428.78
    ],
@@ -6325,7 +6325,7 @@
    "cls": "",
    "rect": [
     33,
-    1640.38,
+    1676.59,
     324,
     101.52
    ],
@@ -6405,7 +6405,7 @@
    "cls": "",
    "rect": [
     33,
-    1640.38,
+    1676.59,
     324,
     20.16
    ],
@@ -6485,7 +6485,7 @@
    "cls": "",
    "rect": [
     33,
-    1665.33,
+    1701.55,
     324,
     24
    ],
@@ -6565,8 +6565,8 @@
    "cls": "",
    "rect": [
     33,
-    1692.52,
-    85.77,
+    1728.73,
+    93.7,
     49.38
    ],
    "values": {
@@ -6584,7 +6584,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "85.7656px",
+    "width": "93.7031px",
     "height": "49.375px",
     "min-width": "0px",
     "min-height": "48px",
@@ -6645,7 +6645,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    1757.89,
+    1794.11,
     324,
     277.27
    ],
@@ -6725,8 +6725,8 @@
    "cls": "primary",
    "rect": [
     33,
-    1757.89,
-    71.56,
+    1794.11,
+    77.86,
     221.5
    ],
    "values": {
@@ -6744,7 +6744,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "71.5625px",
+    "width": "77.8594px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "48px",
@@ -6804,9 +6804,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    110.95,
-    1757.89,
-    63.56,
+    117.25,
+    1794.11,
+    68.16,
     221.5
    ],
    "values": {
@@ -6824,7 +6824,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "63.5625px",
+    "width": "68.1562px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "48px",
@@ -6884,9 +6884,9 @@
    "tag": "DIV",
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
-    180.91,
-    1757.89,
-    124.77,
+    191.8,
+    1794.11,
+    135.83,
     221.5
    ],
    "values": {
@@ -6904,7 +6904,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "auto",
@@ -6938,7 +6938,7 @@
     "gap": "8px",
     "row-gap": "8px",
     "column-gap": "8px",
-    "grid-template-columns": "124.766px",
+    "grid-template-columns": "135.828px",
     "grid-template-rows": "49.375px 49.375px 49.375px 49.375px",
     "place-items": "normal",
     "border-top-width": "0px",
@@ -6964,9 +6964,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    1757.89,
-    124.77,
+    191.8,
+    1794.11,
+    135.83,
     49.38
    ],
    "values": {
@@ -6984,7 +6984,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -7044,9 +7044,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    1815.27,
-    124.77,
+    191.8,
+    1851.48,
+    135.83,
     49.38
    ],
    "values": {
@@ -7064,7 +7064,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -7124,9 +7124,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    1872.64,
-    124.77,
+    191.8,
+    1908.86,
+    135.83,
     49.38
    ],
    "values": {
@@ -7144,7 +7144,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -7204,9 +7204,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    1930.02,
-    124.77,
+    191.8,
+    1966.23,
+    135.83,
     49.38
    ],
    "values": {
@@ -7224,7 +7224,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -7285,8 +7285,8 @@
    "cls": "relative",
    "rect": [
     33,
-    1985.78,
-    137.56,
+    2022,
+    150.47,
     49.38
    ],
    "values": {
@@ -7304,7 +7304,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "137.562px",
+    "width": "150.469px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "auto",
@@ -7365,8 +7365,8 @@
    "cls": "",
    "rect": [
     33,
-    1985.78,
-    137.56,
+    2022,
+    150.47,
     49.38
    ],
    "values": {
@@ -7384,7 +7384,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "137.562px",
+    "width": "150.469px",
     "height": "49.375px",
     "min-width": "0px",
     "min-height": "48px",
@@ -7445,7 +7445,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    2064.16,
+    2100.38,
     358,
     428.78
    ],
@@ -7525,7 +7525,7 @@
    "cls": "",
    "rect": [
     33,
-    2081.16,
+    2117.38,
     324,
     101.52
    ],
@@ -7605,7 +7605,7 @@
    "cls": "",
    "rect": [
     33,
-    2081.16,
+    2117.38,
     324,
     20.16
    ],
@@ -7685,7 +7685,7 @@
    "cls": "",
    "rect": [
     33,
-    2106.11,
+    2142.33,
     324,
     24
    ],
@@ -7765,8 +7765,8 @@
    "cls": "",
    "rect": [
     33,
-    2133.3,
-    85.77,
+    2169.52,
+    93.7,
     49.38
    ],
    "values": {
@@ -7784,7 +7784,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "85.7656px",
+    "width": "93.7031px",
     "height": "49.375px",
     "min-width": "0px",
     "min-height": "48px",
@@ -7845,7 +7845,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    2198.67,
+    2234.89,
     324,
     277.27
    ],
@@ -7925,8 +7925,8 @@
    "cls": "primary",
    "rect": [
     33,
-    2198.67,
-    71.56,
+    2234.89,
+    77.86,
     221.5
    ],
    "values": {
@@ -7944,7 +7944,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "71.5625px",
+    "width": "77.8594px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "48px",
@@ -8004,9 +8004,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    110.95,
-    2198.67,
-    63.56,
+    117.25,
+    2234.89,
+    68.16,
     221.5
    ],
    "values": {
@@ -8024,7 +8024,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "63.5625px",
+    "width": "68.1562px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "48px",
@@ -8084,9 +8084,9 @@
    "tag": "DIV",
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
-    180.91,
-    2198.67,
-    124.77,
+    191.8,
+    2234.89,
+    135.83,
     221.5
    ],
    "values": {
@@ -8104,7 +8104,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "221.5px",
     "min-width": "auto",
     "min-height": "auto",
@@ -8138,7 +8138,7 @@
     "gap": "8px",
     "row-gap": "8px",
     "column-gap": "8px",
-    "grid-template-columns": "124.766px",
+    "grid-template-columns": "135.828px",
     "grid-template-rows": "49.375px 49.375px 49.375px 49.375px",
     "place-items": "normal",
     "border-top-width": "0px",
@@ -8164,9 +8164,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    2198.67,
-    124.77,
+    191.8,
+    2234.89,
+    135.83,
     49.38
    ],
    "values": {
@@ -8184,7 +8184,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -8244,9 +8244,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    2256.05,
-    124.77,
+    191.8,
+    2292.27,
+    135.83,
     49.38
    ],
    "values": {
@@ -8264,7 +8264,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -8324,9 +8324,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    2313.42,
-    124.77,
+    191.8,
+    2349.64,
+    135.83,
     49.38
    ],
    "values": {
@@ -8344,7 +8344,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -8404,9 +8404,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    180.91,
-    2370.8,
-    124.77,
+    191.8,
+    2407.02,
+    135.83,
     49.38
    ],
    "values": {
@@ -8424,7 +8424,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "124.766px",
+    "width": "135.828px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -8485,8 +8485,8 @@
    "cls": "relative",
    "rect": [
     33,
-    2426.56,
-    137.56,
+    2462.78,
+    150.47,
     49.38
    ],
    "values": {
@@ -8504,7 +8504,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "137.562px",
+    "width": "150.469px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "auto",
@@ -8565,8 +8565,8 @@
    "cls": "",
    "rect": [
     33,
-    2426.56,
-    137.56,
+    2462.78,
+    150.47,
     49.38
    ],
    "values": {
@@ -8584,7 +8584,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "137.562px",
+    "width": "150.469px",
     "height": "49.375px",
     "min-width": "0px",
     "min-height": "48px",
@@ -8722,7 +8722,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em] border-actuate-edge bg-actuate text-cap shadow-[inset_0_3px_0_var(--color-lamp)]",
+   "cls": "min-w-0 border-actuate-edge bg-actuate px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] text-cap uppercase shadow-[inset_0_3px_0_var(--color-lamp)]",
    "rect": [
     9.59,
     786.41,
@@ -8802,7 +8802,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]",
+   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase",
    "rect": [
     103.89,
     786.41,
@@ -8882,7 +8882,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]",
+   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase",
    "rect": [
     198.19,
     786.41,
@@ -8962,7 +8962,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]",
+   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase",
    "rect": [
     292.48,
     786.41,

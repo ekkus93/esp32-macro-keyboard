@@ -882,7 +882,7 @@
   },
   {
    "tag": "DIV",
-   "cls": "app-shell mx-auto flex h-dvh flex-col overflow-hidden bg-shell w-[min(100%,48rem)] min-[60rem]:w-[min(100%,64rem)]",
+   "cls": "app-shell mx-auto flex h-dvh w-[min(100%,48rem)] flex-col overflow-hidden bg-shell min-[60rem]:w-[min(100%,64rem)]",
    "rect": [
     0,
     0,
@@ -962,12 +962,12 @@
   },
   {
    "tag": "HEADER",
-   "cls": "flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pb-[0.4rem] pt-[calc(0.4rem+env(safe-area-inset-top))] text-panel",
+   "cls": "flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pt-[calc(0.4rem+env(safe-area-inset-top))] pb-[0.4rem] text-panel",
    "rect": [
     0,
     0,
     390,
-    51.55
+    87.77
    ],
    "values": {
     "display": "flex",
@@ -985,7 +985,7 @@
     "padding-bottom": "6.4px",
     "padding-left": "13.6px",
     "width": "390px",
-    "height": "51.5469px",
+    "height": "87.7656px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -1046,7 +1046,7 @@
    "rect": [
     13.59,
     6.39,
-    165.97,
+    186.48,
     35.77
    ],
    "values": {
@@ -1064,7 +1064,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "165.969px",
+    "width": "186.484px",
     "height": "35.7656px",
     "min-width": "0px",
     "min-height": "auto",
@@ -1126,7 +1126,7 @@
    "rect": [
     13.59,
     6.39,
-    165.97,
+    186.48,
     15.61
    ],
    "values": {
@@ -1144,7 +1144,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "165.969px",
+    "width": "186.484px",
     "height": "15.6094px",
     "min-width": "0px",
     "min-height": "0px",
@@ -1202,11 +1202,11 @@
   },
   {
    "tag": "H1",
-   "cls": "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.05rem] tracking-[-0.01em]",
+   "cls": "m-0 overflow-hidden text-[1.05rem] tracking-[-0.01em] text-ellipsis whitespace-nowrap",
    "rect": [
     13.59,
     22,
-    165.97,
+    186.48,
     20.16
    ],
    "values": {
@@ -1224,7 +1224,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "165.969px",
+    "width": "186.484px",
     "height": "20.1562px",
     "min-width": "0px",
     "min-height": "0px",
@@ -1284,9 +1284,9 @@
    "tag": "DIV",
    "cls": "flex flex-wrap items-center justify-end gap-[0.4rem] [@media(width<=32rem)]:justify-start",
    "rect": [
-    197.19,
-    9.36,
-    179.22,
+    13.59,
+    48.55,
+    194.77,
     29.83
    ],
    "values": {
@@ -1304,7 +1304,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "179.219px",
+    "width": "194.766px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1364,9 +1364,9 @@
    "tag": "SPAN",
    "cls": "inline-flex items-center gap-[0.4rem] rounded-full border border-current px-[0.6rem] py-[0.3rem] text-[0.76rem] font-bold tracking-[0.02em] before:content-[''] bg-good-tint text-good before:h-[0.6rem] before:w-[0.6rem] before:rounded-full before:bg-current before:shadow-[0_0_0_3px_rgb(11_92_51_/_22%)]",
    "rect": [
-    197.19,
-    9.36,
-    101,
+    13.59,
+    48.55,
+    110.56,
     29.83
    ],
    "values": {
@@ -1384,7 +1384,7 @@
     "padding-right": "9.6px",
     "padding-bottom": "4.8px",
     "padding-left": "9.6px",
-    "width": "101px",
+    "width": "110.562px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1444,9 +1444,9 @@
    "tag": "SPAN",
    "cls": "inline-flex items-center gap-[0.4rem] rounded-full border border-current px-[0.6rem] py-[0.3rem] text-[0.76rem] font-bold tracking-[0.02em] before:content-[''] bg-neutral-tint text-legend-soft before:h-[0.45rem] before:w-[0.45rem] before:rounded-full before:border-[1.5px] before:border-current before:bg-transparent",
    "rect": [
-    304.58,
-    9.36,
-    71.83,
+    130.55,
+    48.55,
+    77.81,
     29.83
    ],
    "values": {
@@ -1464,7 +1464,7 @@
     "padding-right": "9.6px",
     "padding-bottom": "4.8px",
     "padding-left": "9.6px",
-    "width": "71.8281px",
+    "width": "77.8125px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1525,9 +1525,9 @@
    "cls": "",
    "rect": [
     0,
-    51.55,
+    87.77,
     390,
-    724.27
+    688.05
    ],
    "values": {
     "display": "block",
@@ -1545,7 +1545,7 @@
     "padding-bottom": "20px",
     "padding-left": "16px",
     "width": "390px",
-    "height": "724.266px",
+    "height": "688.047px",
     "min-width": "auto",
     "min-height": "0px",
     "max-width": "none",
@@ -1605,7 +1605,7 @@
    "cls": "",
    "rect": [
     16,
-    -1824.45,
+    -1824.23,
     358,
     2568.06
    ],
@@ -1682,10 +1682,10 @@
   },
   {
    "tag": "DIV",
-   "cls": "mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-cap-edge pb-3 [&_h2]:m-0 [&_h2]:overflow-hidden [&_h2]:text-ellipsis [&_h2]:whitespace-nowrap [&_h2]:text-[1.35rem] [&_h2]:tracking-[-0.01em]",
+   "cls": "mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-cap-edge pb-3",
    "rect": [
     16,
-    -1824.45,
+    -1824.23,
     358,
     38.91
    ],
@@ -1762,11 +1762,11 @@
   },
   {
    "tag": "H2",
-   "cls": "",
+   "cls": "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.35rem] tracking-[-0.01em]",
    "rect": [
     16,
-    -1824.45,
-    86.86,
+    -1824.23,
+    100.2,
     25.91
    ],
    "values": {
@@ -1784,7 +1784,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "86.8594px",
+    "width": "100.203px",
     "height": "25.9062px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1845,7 +1845,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    -1765.55,
+    -1765.33,
     358,
     649.8
    ],
@@ -1925,7 +1925,7 @@
    "cls": "",
    "rect": [
     33,
-    -1748.55,
+    -1748.33,
     324,
     20.16
    ],
@@ -2005,7 +2005,7 @@
    "cls": "grid gap-[0.85rem]",
    "rect": [
     33,
-    -1707.59,
+    -1707.37,
     324,
     574.84
    ],
@@ -2085,7 +2085,7 @@
    "cls": "",
    "rect": [
     33,
-    -1707.59,
+    -1707.37,
     324,
     74
    ],
@@ -2165,7 +2165,7 @@
    "cls": "",
    "rect": [
     33,
-    -1683.59,
+    -1683.37,
     324,
     50
    ],
@@ -2245,7 +2245,7 @@
    "cls": "mt-[0.3rem] block text-[0.8rem] font-normal text-legend-soft",
    "rect": [
     33,
-    -1616.81,
+    -1616.59,
     324,
     19.19
    ],
@@ -2325,7 +2325,7 @@
    "cls": "flex min-h-[44px] items-center gap-[0.65rem]",
    "rect": [
     33,
-    -1580.84,
+    -1580.62,
     324,
     48
    ],
@@ -2405,7 +2405,7 @@
    "cls": "",
    "rect": [
     33,
-    -1567.64,
+    -1567.42,
     21.59,
     21.59
    ],
@@ -2485,7 +2485,7 @@
    "cls": "",
    "rect": [
     33,
-    -1519.25,
+    -1519.03,
     324,
     112
    ],
@@ -2565,8 +2565,8 @@
    "cls": "",
    "rect": [
     33,
-    -1519.25,
-    131.83,
+    -1519.03,
+    140.36,
     24
    ],
    "values": {
@@ -2584,7 +2584,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "131.828px",
+    "width": "140.359px",
     "height": "24px",
     "min-width": "0px",
     "min-height": "0px",
@@ -2645,7 +2645,7 @@
    "cls": "flex min-h-[44px] items-center gap-[0.65rem]",
    "rect": [
     33,
-    -1495.25,
+    -1495.03,
     324,
     44
    ],
@@ -2725,7 +2725,7 @@
    "cls": "",
    "rect": [
     33,
-    -1484.05,
+    -1483.83,
     21.59,
     21.59
    ],
@@ -2805,7 +2805,7 @@
    "cls": "flex min-h-[44px] items-center gap-[0.65rem]",
    "rect": [
     33,
-    -1451.25,
+    -1451.03,
     324,
     44
    ],
@@ -2885,7 +2885,7 @@
    "cls": "",
    "rect": [
     33,
-    -1440.05,
+    -1439.83,
     21.59,
     21.59
    ],
@@ -2965,7 +2965,7 @@
    "cls": "",
    "rect": [
     33,
-    -1393.66,
+    -1393.44,
     324,
     74
    ],
@@ -3045,7 +3045,7 @@
    "cls": "",
    "rect": [
     33,
-    -1369.66,
+    -1369.44,
     324,
     50
    ],
@@ -3125,7 +3125,7 @@
    "cls": "flex min-h-[44px] items-center gap-[0.65rem]",
    "rect": [
     33,
-    -1306.06,
+    -1305.84,
     324,
     44
    ],
@@ -3205,7 +3205,7 @@
    "cls": "",
    "rect": [
     33,
-    -1294.86,
+    -1294.64,
     21.59,
     21.59
    ],
@@ -3285,7 +3285,7 @@
    "cls": "mt-[0.3rem] block text-[0.8rem] font-normal text-legend-soft",
    "rect": [
     33,
-    -1245.28,
+    -1245.06,
     324,
     38.38
    ],
@@ -3365,7 +3365,7 @@
    "cls": "mt-2 flex flex-wrap gap-[0.4rem]",
    "rect": [
     33,
-    -1182.12,
+    -1181.91,
     324,
     49.38
    ],
@@ -3445,8 +3445,8 @@
    "cls": "primary",
    "rect": [
     33,
-    -1182.12,
-    69.69,
+    -1181.91,
+    76.25,
     49.38
    ],
    "values": {
@@ -3464,7 +3464,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "69.6875px",
+    "width": "76.25px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3525,7 +3525,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    -1103.75,
+    -1103.53,
     358,
     424.2
    ],
@@ -3605,7 +3605,7 @@
    "cls": "",
    "rect": [
     33,
-    -1086.75,
+    -1086.53,
     324,
     20.16
    ],
@@ -3685,7 +3685,7 @@
    "cls": "grid gap-[0.85rem]",
    "rect": [
     33,
-    -1045.8,
+    -1045.58,
     324,
     349.25
    ],
@@ -3765,7 +3765,7 @@
    "cls": "",
    "rect": [
     33,
-    -1045.8,
+    -1045.58,
     324,
     74
    ],
@@ -3845,7 +3845,7 @@
    "cls": "",
    "rect": [
     33,
-    -1021.8,
+    -1021.58,
     324,
     50
    ],
@@ -3925,7 +3925,7 @@
    "cls": "mt-[0.3rem] block text-[0.8rem] font-normal text-legend-soft",
    "rect": [
     33,
-    -955.02,
+    -954.8,
     324,
     19.19
    ],
@@ -4005,7 +4005,7 @@
    "cls": "",
    "rect": [
     33,
-    -919.05,
+    -918.83,
     324,
     74
    ],
@@ -4085,7 +4085,7 @@
    "cls": "",
    "rect": [
     33,
-    -895.05,
+    -894.83,
     324,
     50
    ],
@@ -4165,7 +4165,7 @@
    "cls": "mt-[0.3rem] block text-[0.8rem] font-normal text-legend-soft",
    "rect": [
     33,
-    -828.27,
+    -828.05,
     324,
     57.56
    ],
@@ -4245,7 +4245,7 @@
    "cls": "mt-2 flex flex-wrap gap-[0.4rem]",
    "rect": [
     33,
-    -745.92,
+    -745.7,
     324,
     49.38
    ],
@@ -4325,8 +4325,8 @@
    "cls": "primary",
    "rect": [
     33,
-    -745.92,
-    195.63,
+    -745.7,
+    218.02,
     49.38
    ],
    "values": {
@@ -4344,7 +4344,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "195.625px",
+    "width": "218.016px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -4405,7 +4405,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    -667.55,
+    -667.33,
     358,
     429.8
    ],
@@ -4485,7 +4485,7 @@
    "cls": "",
    "rect": [
     33,
-    -650.55,
+    -650.33,
     324,
     20.16
    ],
@@ -4565,7 +4565,7 @@
    "cls": "grid gap-[0.85rem]",
    "rect": [
     33,
-    -609.59,
+    -609.37,
     324,
     354.84
    ],
@@ -4645,7 +4645,7 @@
    "cls": "",
    "rect": [
     33,
-    -606.41,
+    -606.19,
     324,
     24
    ],
@@ -4725,7 +4725,7 @@
    "cls": "",
    "rect": [
     33,
-    -565.62,
+    -565.41,
     324,
     74
    ],
@@ -4805,7 +4805,7 @@
    "cls": "",
    "rect": [
     33,
-    -541.62,
+    -541.41,
     324,
     50
    ],
@@ -4885,7 +4885,7 @@
    "cls": "mt-[0.3rem] block text-[0.8rem] font-normal text-legend-soft",
    "rect": [
     33,
-    -474.84,
+    -474.62,
     324,
     19.19
    ],
@@ -4965,7 +4965,7 @@
    "cls": "",
    "rect": [
     33,
-    -438.87,
+    -438.66,
     324,
     74
    ],
@@ -5045,7 +5045,7 @@
    "cls": "",
    "rect": [
     33,
-    -414.87,
+    -414.66,
     324,
     50
    ],
@@ -5125,7 +5125,7 @@
    "cls": "mt-[0.3rem] block text-[0.8rem] font-normal text-legend-soft",
    "rect": [
     33,
-    -348.09,
+    -347.87,
     324,
     19.19
    ],
@@ -5205,7 +5205,7 @@
    "cls": "mt-2 flex flex-wrap gap-[0.4rem]",
    "rect": [
     33,
-    -304.12,
+    -303.91,
     324,
     49.38
    ],
@@ -5285,8 +5285,8 @@
    "cls": "primary",
    "rect": [
     33,
-    -304.12,
-    98.88,
+    -303.91,
+    106.63,
     49.38
    ],
    "values": {
@@ -5304,7 +5304,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "98.875px",
+    "width": "106.625px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -5365,7 +5365,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    -225.75,
+    -225.53,
     358,
     492.61
    ],
@@ -5445,7 +5445,7 @@
    "cls": "",
    "rect": [
     33,
-    -208.75,
+    -208.53,
     324,
     20.16
    ],
@@ -5525,7 +5525,7 @@
    "cls": "grid gap-[0.85rem]",
    "rect": [
     33,
-    -167.8,
+    -167.58,
     324,
     417.66
    ],
@@ -5605,7 +5605,7 @@
    "cls": "",
    "rect": [
     33,
-    -167.8,
+    -167.58,
     324,
     74
    ],
@@ -5685,7 +5685,7 @@
    "cls": "",
    "rect": [
     33,
-    -143.8,
+    -143.58,
     324,
     50
    ],
@@ -5765,7 +5765,7 @@
    "cls": "",
    "rect": [
     33,
-    -80.2,
+    -79.98,
     324,
     74
    ],
@@ -5845,7 +5845,7 @@
    "cls": "",
    "rect": [
     33,
-    -56.2,
+    -55.98,
     324,
     50
    ],
@@ -5925,7 +5925,7 @@
    "cls": "mt-[0.3rem] block text-[0.8rem] font-normal text-legend-soft",
    "rect": [
     33,
-    10.58,
+    10.8,
     324,
     19.19
    ],
@@ -6005,7 +6005,7 @@
    "cls": "",
    "rect": [
     33,
-    46.55,
+    46.77,
     324,
     74
    ],
@@ -6085,7 +6085,7 @@
    "cls": "",
    "rect": [
     33,
-    70.55,
+    70.77,
     324,
     50
    ],
@@ -6165,7 +6165,7 @@
    "cls": "mt-2 flex flex-wrap gap-[0.4rem]",
    "rect": [
     33,
-    142.14,
+    142.36,
     324,
     49.38
    ],
@@ -6245,8 +6245,8 @@
    "cls": "primary",
    "rect": [
     33,
-    142.14,
-    175.41,
+    142.36,
+    194.02,
     49.38
    ],
    "values": {
@@ -6264,7 +6264,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "175.406px",
+    "width": "194.016px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -6325,7 +6325,7 @@
    "cls": "mt-[0.3rem] block text-[0.8rem] font-normal text-legend-soft",
    "rect": [
     33,
-    208.3,
+    208.52,
     324,
     38.38
    ],
@@ -6405,7 +6405,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    278.86,
+    279.08,
     358,
     124.33
    ],
@@ -6485,7 +6485,7 @@
    "cls": "",
    "rect": [
     33,
-    295.86,
+    296.08,
     324,
     20.16
    ],
@@ -6565,7 +6565,7 @@
    "cls": "",
    "rect": [
     33,
-    336.81,
+    337.03,
     324,
     49.38
    ],
@@ -6645,7 +6645,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    415.19,
+    415.41,
     358,
     124.33
    ],
@@ -6725,7 +6725,7 @@
    "cls": "",
    "rect": [
     33,
-    432.19,
+    432.41,
     324,
     20.16
    ],
@@ -6805,7 +6805,7 @@
    "cls": "",
    "rect": [
     33,
-    473.14,
+    473.36,
     324,
     49.38
    ],
@@ -6885,7 +6885,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft mb-3 mt-4 border-y border-r border-l-[3px] border-alert bg-bad-tint",
    "rect": [
     16,
-    555.52,
+    555.73,
     358,
     188.09
    ],
@@ -6965,7 +6965,7 @@
    "cls": "",
    "rect": [
     35,
-    572.52,
+    572.73,
     322,
     20.16
    ],
@@ -7045,7 +7045,7 @@
    "cls": "mt-2 flex flex-wrap gap-[0.4rem]",
    "rect": [
     35,
-    621.47,
+    621.69,
     322,
     105.14
    ],
@@ -7125,8 +7125,8 @@
    "cls": "",
    "rect": [
     35,
-    621.47,
-    91.91,
+    621.69,
+    99.81,
     49.38
    ],
    "values": {
@@ -7144,7 +7144,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "91.9062px",
+    "width": "99.8125px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -7204,9 +7204,9 @@
    "tag": "BUTTON",
    "cls": "danger",
    "rect": [
-    133.3,
-    621.47,
-    147.55,
+    141.2,
+    621.69,
+    164.53,
     49.38
    ],
    "values": {
@@ -7224,7 +7224,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "147.547px",
+    "width": "164.531px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -7285,8 +7285,8 @@
    "cls": "danger",
    "rect": [
     35,
-    677.23,
-    138.89,
+    677.45,
+    153.66,
     49.38
    ],
    "values": {
@@ -7304,7 +7304,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "138.891px",
+    "width": "153.656px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -7846,7 +7846,7 @@
    "rect": [
     33,
     485.78,
-    85.89,
+    92.72,
     49.38
    ],
    "values": {
@@ -7864,7 +7864,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "85.8906px",
+    "width": "92.7188px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -7924,9 +7924,9 @@
    "tag": "BUTTON",
    "cls": "danger",
    "rect": [
-    125.28,
+    132.11,
     485.78,
-    130.5,
+    143.19,
     49.38
    ],
    "values": {
@@ -7944,7 +7944,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "130.5px",
+    "width": "143.188px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -8082,7 +8082,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]",
+   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase",
    "rect": [
     9.59,
     786.41,
@@ -8162,7 +8162,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]",
+   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase",
    "rect": [
     103.89,
     786.41,
@@ -8242,7 +8242,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]",
+   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase",
    "rect": [
     198.19,
     786.41,
@@ -8322,7 +8322,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em] border-actuate-edge bg-actuate text-cap shadow-[inset_0_3px_0_var(--color-lamp)]",
+   "cls": "min-w-0 border-actuate-edge bg-actuate px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] text-cap uppercase shadow-[inset_0_3px_0_var(--color-lamp)]",
    "rect": [
     292.48,
     786.41,

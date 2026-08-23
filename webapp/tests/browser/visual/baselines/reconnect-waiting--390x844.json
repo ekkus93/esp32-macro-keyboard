@@ -887,7 +887,7 @@
     16,
     59.08,
     358,
-    110.7
+    134.7
    ],
    "values": {
     "display": "block",
@@ -905,7 +905,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "358px",
-    "height": "110.703px",
+    "height": "134.703px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -1047,7 +1047,7 @@
     16,
     97.78,
     358,
-    72
+    96
    ],
    "values": {
     "display": "block",
@@ -1065,7 +1065,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "358px",
-    "height": "72px",
+    "height": "96px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",

@@ -882,7 +882,7 @@
   },
   {
    "tag": "DIV",
-   "cls": "app-shell mx-auto flex h-dvh flex-col overflow-hidden bg-shell w-[min(100%,48rem)] min-[60rem]:w-[min(100%,64rem)]",
+   "cls": "app-shell mx-auto flex h-dvh w-[min(100%,48rem)] flex-col overflow-hidden bg-shell min-[60rem]:w-[min(100%,64rem)]",
    "rect": [
     0,
     0,
@@ -962,12 +962,12 @@
   },
   {
    "tag": "HEADER",
-   "cls": "flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pb-[0.4rem] pt-[calc(0.4rem+env(safe-area-inset-top))] text-panel",
+   "cls": "flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pt-[calc(0.4rem+env(safe-area-inset-top))] pb-[0.4rem] text-panel",
    "rect": [
     0,
     0,
     390,
-    51.55
+    87.77
    ],
    "values": {
     "display": "flex",
@@ -985,7 +985,7 @@
     "padding-bottom": "6.4px",
     "padding-left": "13.6px",
     "width": "390px",
-    "height": "51.5469px",
+    "height": "87.7656px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -1046,7 +1046,7 @@
    "rect": [
     13.59,
     6.39,
-    165.97,
+    186.48,
     35.77
    ],
    "values": {
@@ -1064,7 +1064,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "165.969px",
+    "width": "186.484px",
     "height": "35.7656px",
     "min-width": "0px",
     "min-height": "auto",
@@ -1126,7 +1126,7 @@
    "rect": [
     13.59,
     6.39,
-    165.97,
+    186.48,
     15.61
    ],
    "values": {
@@ -1144,7 +1144,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "165.969px",
+    "width": "186.484px",
     "height": "15.6094px",
     "min-width": "0px",
     "min-height": "0px",
@@ -1202,11 +1202,11 @@
   },
   {
    "tag": "H1",
-   "cls": "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.05rem] tracking-[-0.01em]",
+   "cls": "m-0 overflow-hidden text-[1.05rem] tracking-[-0.01em] text-ellipsis whitespace-nowrap",
    "rect": [
     13.59,
     22,
-    165.97,
+    186.48,
     20.16
    ],
    "values": {
@@ -1224,7 +1224,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "165.969px",
+    "width": "186.484px",
     "height": "20.1562px",
     "min-width": "0px",
     "min-height": "0px",
@@ -1284,9 +1284,9 @@
    "tag": "DIV",
    "cls": "flex flex-wrap items-center justify-end gap-[0.4rem] [@media(width<=32rem)]:justify-start",
    "rect": [
-    197.19,
-    9.36,
-    179.22,
+    13.59,
+    48.55,
+    194.77,
     29.83
    ],
    "values": {
@@ -1304,7 +1304,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "179.219px",
+    "width": "194.766px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1364,9 +1364,9 @@
    "tag": "SPAN",
    "cls": "inline-flex items-center gap-[0.4rem] rounded-full border border-current px-[0.6rem] py-[0.3rem] text-[0.76rem] font-bold tracking-[0.02em] before:content-[''] bg-good-tint text-good before:h-[0.6rem] before:w-[0.6rem] before:rounded-full before:bg-current before:shadow-[0_0_0_3px_rgb(11_92_51_/_22%)]",
    "rect": [
-    197.19,
-    9.36,
-    101,
+    13.59,
+    48.55,
+    110.56,
     29.83
    ],
    "values": {
@@ -1384,7 +1384,7 @@
     "padding-right": "9.6px",
     "padding-bottom": "4.8px",
     "padding-left": "9.6px",
-    "width": "101px",
+    "width": "110.562px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1444,9 +1444,9 @@
    "tag": "SPAN",
    "cls": "inline-flex items-center gap-[0.4rem] rounded-full border border-current px-[0.6rem] py-[0.3rem] text-[0.76rem] font-bold tracking-[0.02em] before:content-[''] bg-neutral-tint text-legend-soft before:h-[0.45rem] before:w-[0.45rem] before:rounded-full before:border-[1.5px] before:border-current before:bg-transparent",
    "rect": [
-    304.58,
-    9.36,
-    71.83,
+    130.55,
+    48.55,
+    77.81,
     29.83
    ],
    "values": {
@@ -1464,7 +1464,7 @@
     "padding-right": "9.6px",
     "padding-bottom": "4.8px",
     "padding-left": "9.6px",
-    "width": "71.8281px",
+    "width": "77.8125px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1525,9 +1525,9 @@
    "cls": "",
    "rect": [
     0,
-    51.55,
+    87.77,
     390,
-    724.27
+    688.05
    ],
    "values": {
     "display": "block",
@@ -1545,7 +1545,7 @@
     "padding-bottom": "20px",
     "padding-left": "16px",
     "width": "390px",
-    "height": "724.266px",
+    "height": "688.047px",
     "min-width": "auto",
     "min-height": "0px",
     "max-width": "none",
@@ -1605,7 +1605,7 @@
    "cls": "",
    "rect": [
     16,
-    71.55,
+    107.77,
     358,
     324.89
    ],
@@ -1685,7 +1685,7 @@
    "cls": "",
    "rect": [
     16,
-    71.55,
+    107.77,
     358,
     24.95
    ],
@@ -1765,7 +1765,7 @@
    "cls": "",
    "rect": [
     16,
-    104.5,
+    140.72,
     358,
     242.56
    ],
@@ -1818,7 +1818,7 @@
     "gap": "6.4px 16px",
     "row-gap": "6.4px",
     "column-gap": "16px",
-    "grid-template-columns": "152.797px 189.203px",
+    "grid-template-columns": "168.547px 173.453px",
     "grid-template-rows": "24px 24px 24px 24px 24px 24px 24px 29.8281px",
     "place-items": "normal",
     "border-top-width": "0px",
@@ -1845,8 +1845,8 @@
    "cls": "",
    "rect": [
     16,
-    104.5,
-    152.8,
+    140.72,
+    168.55,
     24
    ],
    "values": {
@@ -1864,7 +1864,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "152.797px",
+    "width": "168.547px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -1924,9 +1924,9 @@
    "tag": "DD",
    "cls": "",
    "rect": [
-    184.8,
-    104.5,
-    189.2,
+    200.55,
+    140.72,
+    173.45,
     24
    ],
    "values": {
@@ -1944,7 +1944,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "189.203px",
+    "width": "173.453px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2005,8 +2005,8 @@
    "cls": "",
    "rect": [
     16,
-    134.89,
-    152.8,
+    171.11,
+    168.55,
     24
    ],
    "values": {
@@ -2024,7 +2024,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "152.797px",
+    "width": "168.547px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2084,9 +2084,9 @@
    "tag": "DD",
    "cls": "",
    "rect": [
-    184.8,
-    134.89,
-    189.2,
+    200.55,
+    171.11,
+    173.45,
     24
    ],
    "values": {
@@ -2104,7 +2104,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "189.203px",
+    "width": "173.453px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2165,8 +2165,8 @@
    "cls": "",
    "rect": [
     16,
-    165.28,
-    152.8,
+    201.5,
+    168.55,
     24
    ],
    "values": {
@@ -2184,7 +2184,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "152.797px",
+    "width": "168.547px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2244,9 +2244,9 @@
    "tag": "DD",
    "cls": "",
    "rect": [
-    184.8,
-    165.28,
-    189.2,
+    200.55,
+    201.5,
+    173.45,
     24
    ],
    "values": {
@@ -2264,7 +2264,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "189.203px",
+    "width": "173.453px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2324,8 +2324,8 @@
    "tag": "CODE",
    "cls": "",
    "rect": [
-    184.8,
-    167.28,
+    200.55,
+    203.5,
     9.64,
     19
    ],
@@ -2405,8 +2405,8 @@
    "cls": "",
    "rect": [
     16,
-    195.67,
-    152.8,
+    231.89,
+    168.55,
     24
    ],
    "values": {
@@ -2424,7 +2424,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "152.797px",
+    "width": "168.547px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2484,9 +2484,9 @@
    "tag": "DD",
    "cls": "",
    "rect": [
-    184.8,
-    195.67,
-    189.2,
+    200.55,
+    231.89,
+    173.45,
     24
    ],
    "values": {
@@ -2504,7 +2504,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "189.203px",
+    "width": "173.453px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2565,8 +2565,8 @@
    "cls": "",
    "rect": [
     16,
-    226.06,
-    152.8,
+    262.28,
+    168.55,
     24
    ],
    "values": {
@@ -2584,7 +2584,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "152.797px",
+    "width": "168.547px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2644,9 +2644,9 @@
    "tag": "DD",
    "cls": "",
    "rect": [
-    184.8,
-    226.06,
-    189.2,
+    200.55,
+    262.28,
+    173.45,
     24
    ],
    "values": {
@@ -2664,7 +2664,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "189.203px",
+    "width": "173.453px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2725,8 +2725,8 @@
    "cls": "",
    "rect": [
     16,
-    256.45,
-    152.8,
+    292.67,
+    168.55,
     24
    ],
    "values": {
@@ -2744,7 +2744,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "152.797px",
+    "width": "168.547px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2804,9 +2804,9 @@
    "tag": "DD",
    "cls": "",
    "rect": [
-    184.8,
-    256.45,
-    189.2,
+    200.55,
+    292.67,
+    173.45,
     24
    ],
    "values": {
@@ -2824,7 +2824,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "189.203px",
+    "width": "173.453px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2885,8 +2885,8 @@
    "cls": "",
    "rect": [
     16,
-    286.84,
-    152.8,
+    323.06,
+    168.55,
     24
    ],
    "values": {
@@ -2904,7 +2904,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "152.797px",
+    "width": "168.547px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -2964,9 +2964,9 @@
    "tag": "DD",
    "cls": "",
    "rect": [
-    184.8,
-    286.84,
-    189.2,
+    200.55,
+    323.06,
+    173.45,
     24
    ],
    "values": {
@@ -2984,7 +2984,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "189.203px",
+    "width": "173.453px",
     "height": "24px",
     "min-width": "auto",
     "min-height": "auto",
@@ -3045,8 +3045,8 @@
    "cls": "",
    "rect": [
     16,
-    317.23,
-    152.8,
+    353.45,
+    168.55,
     29.83
    ],
    "values": {
@@ -3064,7 +3064,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "152.797px",
+    "width": "168.547px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -3124,9 +3124,9 @@
    "tag": "DD",
    "cls": "",
    "rect": [
-    184.8,
-    317.23,
-    189.2,
+    200.55,
+    353.45,
+    173.45,
     29.83
    ],
    "values": {
@@ -3144,7 +3144,7 @@
     "padding-right": "0px",
     "padding-bottom": "0px",
     "padding-left": "0px",
-    "width": "189.203px",
+    "width": "173.453px",
     "height": "29.8281px",
     "min-width": "auto",
     "min-height": "auto",
@@ -3204,8 +3204,8 @@
    "tag": "SPAN",
    "cls": "inline-flex items-center gap-[0.4rem] rounded-full border border-current px-[0.6rem] py-[0.3rem] text-[0.76rem] font-bold tracking-[0.02em] before:content-[''] bg-good-tint text-good before:h-[0.6rem] before:w-[0.6rem] before:rounded-full before:bg-current before:shadow-[0_0_0_3px_rgb(11_92_51_/_22%)]",
    "rect": [
-    184.8,
-    317.23,
+    200.55,
+    353.45,
     105.23,
     29.83
    ],
@@ -3285,7 +3285,7 @@
    "cls": "flex flex-wrap items-center justify-end gap-[0.4rem] [@media(width<=32rem)]:justify-start",
    "rect": [
     16,
-    347.06,
+    383.28,
     358,
     49.38
    ],
@@ -3365,8 +3365,8 @@
    "cls": "primary",
    "rect": [
     16,
-    347.06,
-    110.16,
+    383.28,
+    121.23,
     49.38
    ],
    "values": {
@@ -3384,7 +3384,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "110.156px",
+    "width": "121.234px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3444,9 +3444,9 @@
    "tag": "BUTTON",
    "cls": "",
    "rect": [
-    132.55,
-    347.06,
-    85.89,
+    143.63,
+    383.28,
+    92.72,
     49.38
    ],
    "values": {
@@ -3464,7 +3464,7 @@
     "padding-right": "16px",
     "padding-bottom": "11.2px",
     "padding-left": "16px",
-    "width": "85.8906px",
+    "width": "92.7188px",
     "height": "49.375px",
     "min-width": "auto",
     "min-height": "48px",
@@ -3602,7 +3602,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em] border-actuate-edge bg-actuate text-cap shadow-[inset_0_3px_0_var(--color-lamp)]",
+   "cls": "min-w-0 border-actuate-edge bg-actuate px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] text-cap uppercase shadow-[inset_0_3px_0_var(--color-lamp)]",
    "rect": [
     9.59,
     786.41,
@@ -3682,7 +3682,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]",
+   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase",
    "rect": [
     103.89,
     786.41,
@@ -3762,7 +3762,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]",
+   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase",
    "rect": [
     198.19,
     786.41,
@@ -3842,7 +3842,7 @@
   },
   {
    "tag": "BUTTON",
-   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold uppercase tracking-[0.04em]",
+   "cls": "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase",
    "rect": [
     292.48,
     786.41,
