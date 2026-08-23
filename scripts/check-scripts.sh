@@ -42,9 +42,9 @@ python3 tests/scripts/test-h12-hardware-harness.py
 # isolation (FIX1 Phase 14.4), HMAC bootstrap-label and setup-route isolation
 # (FIX1 Phase 14.5), the reviewed npm-audit exception policy, the Phase 18.5
 # secret-sentinel scanner, the Phase 18.5 frontend persisted-state policy, the
-# Phase 21.1 release-budget gate, the SPEC §23 webfs packaging pipeline and
-# flash manifest, the first-party stack-usage ratchet, and the bounded CI status
-# issue generator.
+# Phase 21.1 release-budget gate, the SPEC §23 webfs packaging pipeline, the
+# userdata partition pre-formatting pipeline, the flash manifest, the
+# first-party stack-usage ratchet, and the bounded CI status issue generator.
 bash tests/scripts/test-check-firmware.sh
 bash tests/scripts/test-clang-tidy-include-cycle.sh
 bash tests/scripts/test-check-format-inc-coverage.sh
@@ -65,6 +65,7 @@ bash tests/scripts/test-check-frontend-persisted-state.sh
 bash tests/scripts/test-check-release-budgets.sh
 bash tests/scripts/test-native-coverage-policy.sh
 bash tests/scripts/test-build-webfs-image.sh
+bash tests/scripts/test-build-userdata-image.sh
 bash tests/scripts/test-generate-flash-manifest.sh
 python3 tests/scripts/test-flash-release-manifest.py
 python3 tests/scripts/test-h12-122-hardware.py
