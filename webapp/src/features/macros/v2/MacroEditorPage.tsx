@@ -297,6 +297,13 @@ export function MacroEditorPage({
             {macroId === null ? "Create macro" : "Edit macro"}
           </h2>
         </div>
+        {/* Save changes moved up from its own fixed bottom bar: with it gone,
+            the scrolling form below gets that space back instead of paying
+            for a second pinned strip. `form` keeps Save associated with
+            #macro-editor-form for submission despite living outside it,
+            same as Name and Macro source above. Still disabled on the same
+            `canSave` condition -- moving it didn't change when it's safe to
+            submit, only where the control sits. */}
         <HeaderActions>
           <button
             onClick={() => {
@@ -305,6 +312,14 @@ export function MacroEditorPage({
             type="button"
           >
             Advanced
+          </button>
+          <button
+            className="primary"
+            disabled={!canSave}
+            form="macro-editor-form"
+            type="submit"
+          >
+            Save changes
           </button>
           <button onClick={onBack} type="button">
             Cancel
@@ -594,27 +609,6 @@ export function MacroEditorPage({
           </FormActions>
         </Dialog>
       ) : null}
-
-      {/* Fixed, in the thumb-reachable bottom of the screen, not the end of
-          a scroll: Save is the primary action on this page, and burying it
-          behind ~30 directive buttons meant reaching it required scrolling
-          past all of them first. `form` keeps Save associated with
-          #macro-editor-form for submission despite living outside it. A
-          hairline top border marks where the scrolling content ends, the
-          same device .bottom-nav uses to mark where it begins. */}
-      <div className="flex [flex:0_0_auto] flex-wrap gap-2 border-t border-cap-edge pt-3">
-        <button
-          className="primary"
-          disabled={!canSave}
-          form="macro-editor-form"
-          type="submit"
-        >
-          Save changes
-        </button>
-        <button onClick={onBack} type="button">
-          Cancel
-        </button>
-      </div>
     </section>
   );
 }
