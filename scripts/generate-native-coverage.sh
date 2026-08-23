@@ -32,7 +32,6 @@ pure_policy_files=(
 	"firmware/components/wifi_ap/wifi_ap_state.c"
 	"firmware/components/wifi_ap/wifi_ap_station.c"
 	"firmware/components/provisioning/provisioning_bootstrap_core.c"
-	"firmware/components/provisioning/provisioning_core.c"
 	"firmware/components/app_contracts_v2/settings_contract_v2.c"
 	"firmware/components/web_server/web_settings.c"
 	"firmware/components/web_server/web_device_actions.c"
