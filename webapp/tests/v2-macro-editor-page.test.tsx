@@ -192,7 +192,6 @@ describe("MacroEditorPage — V2-100 directive insertion controls", () => {
         store={store}
       />,
     );
-    await openAdvanced();
     await setInputValue(
       requiredElement("#macro-editor-delay-ms", HTMLInputElement),
       "250",
@@ -213,7 +212,6 @@ describe("MacroEditorPage — V2-100 directive insertion controls", () => {
         store={store}
       />,
     );
-    await openAdvanced();
     const ctrlToggle = buttonWithText("CTRL");
     const shiftToggle = buttonWithText("SHIFT");
     expect(ctrlToggle.getAttribute("aria-pressed")).toBe("false");
