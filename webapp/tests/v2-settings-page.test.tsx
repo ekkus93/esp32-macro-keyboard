@@ -32,7 +32,6 @@ function settings(overrides: Partial<SettingsResponse> = {}): SettingsResponse {
     requireSerialConfirmation: false,
     sendMode: "quick",
     snapshotRetentionTarget: 5,
-    showMacroSourcePreviews: false,
     lastSelectedPackageId: null,
     apSsid: "MacroKeyboard",
     stationConfigured: false,
@@ -167,7 +166,6 @@ describe("SettingsPage (TODO_V2 V2-120)", () => {
       requireSerialConfirmation: false,
       sendMode: "quick",
       snapshotRetentionTarget: 5,
-      showMacroSourcePreviews: false,
     });
     expect(onSettingsChanged).toHaveBeenCalledWith(
       settings({ deviceName: "New name" }),

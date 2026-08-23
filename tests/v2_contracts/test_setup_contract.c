@@ -72,7 +72,6 @@ static app_v2_device_settings_t unprovisioned_with_preferences(void) {
     settings.next_blob_id = UINT64_C(77);
     settings.send_mode = APP_V2_SEND_MODE_PREVIEW;
     settings.snapshot_retention_target = 9U;
-    settings.show_macro_source_previews = true;
     set_text(settings.last_selected_package_id, sizeof(settings.last_selected_package_id),
              "550e8400-e29b-41d4-a716-446655440000");
     CHECK(app_v2_device_settings_validate(&settings) == APP_V2_SETTINGS_OK);
@@ -167,7 +166,6 @@ static void test_prepare_candidate_preserves_unrelated_settings(void) {
     CHECK(candidate.next_blob_id == current.next_blob_id);
     CHECK(candidate.send_mode == current.send_mode);
     CHECK(candidate.snapshot_retention_target == current.snapshot_retention_target);
-    CHECK(candidate.show_macro_source_previews == current.show_macro_source_previews);
     CHECK(strcmp(candidate.last_selected_package_id, current.last_selected_package_id) == 0);
     CHECK(!candidate.station_configured);
     CHECK(app_v2_device_settings_validate(&candidate) == APP_V2_SETTINGS_OK);

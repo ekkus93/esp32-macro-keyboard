@@ -16,7 +16,6 @@
     "requireSerialConfirmation": false,
     "sendMode": "quick",
     "snapshotRetentionTarget": 5,
-    "showMacroSourcePreviews": false,
     "lastSelectedPackageId": null,
     "stationConfigured": false,
     "nextBlobId": null
@@ -45,7 +44,8 @@
     { "name": "nextBlobId", "offset": 64, "length": 8, "encoding": "u64-zero-means-null" },
     { "name": "sendMode", "offset": 72, "length": 1, "encoding": "enum" },
     { "name": "snapshotRetentionTarget", "offset": 73, "length": 1, "encoding": "u8" },
-    { "name": "showMacroSourcePreviews", "offset": 74, "length": 1, "encoding": "boolean-u8" },
+    { "name": "reservedShowSourcePreviews", "offset": 74, "length": 1, "encoding": "boolean-u8",
+      "note": "Formerly showMacroSourcePreviews (removed: the Macros page always shows source now). New records write 0; an already-provisioned device may still hold 0 or 1 here, so it stays a tolerated boolean byte rather than a must-be-zero reserved byte." },
     { "name": "requireSerialConfirmation", "offset": 75, "length": 1, "encoding": "boolean-u8" },
     { "name": "provisioned", "offset": 76, "length": 1, "encoding": "boolean-u8" },
     { "name": "stationConfigured", "offset": 77, "length": 1, "encoding": "boolean-u8" },

@@ -50,7 +50,7 @@ OFFSET_NAMES = {
     "nextBlobId": "APP_V2_SETTINGS_OFFSET_NEXT_BLOB_ID",
     "sendMode": "APP_V2_SETTINGS_OFFSET_SEND_MODE",
     "snapshotRetentionTarget": "APP_V2_SETTINGS_OFFSET_RETENTION_TARGET",
-    "showMacroSourcePreviews": "APP_V2_SETTINGS_OFFSET_SHOW_SOURCE",
+    "reservedShowSourcePreviews": "APP_V2_SETTINGS_OFFSET_RESERVED_SHOW_SOURCE",
     "requireSerialConfirmation": "APP_V2_SETTINGS_OFFSET_REQUIRE_CONFIRMATION",
     "provisioned": "APP_V2_SETTINGS_OFFSET_PROVISIONED",
     "stationConfigured": "APP_V2_SETTINGS_OFFSET_STATION_CONFIGURED",

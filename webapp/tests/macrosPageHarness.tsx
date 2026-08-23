@@ -81,7 +81,6 @@ export const accepted = {
 export interface RenderOptions {
   usbState?: "ready" | "disconnected";
   initialSend?: SendStatusResponse | null;
-  showMacroSourcePreviews?: boolean;
   sendMode?: "quick" | "preview";
   onActiveSendChange?: (summary: ActiveSendSummary | null) => void;
   dependencies?: MacrosPageDependencies;
@@ -108,7 +107,6 @@ export async function renderMacrosPage(options: RenderOptions = {}) {
       onOpenPreview={callbacks.onOpenPreview}
       packageId={packageId}
       sendMode={options.sendMode ?? "quick"}
-      showMacroSourcePreviews={options.showMacroSourcePreviews ?? false}
       store={store}
       usbState={options.usbState ?? "ready"}
     />,

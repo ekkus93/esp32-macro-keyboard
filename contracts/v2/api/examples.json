@@ -117,7 +117,6 @@
     "requireSerialConfirmation": false,
     "sendMode": "quick",
     "snapshotRetentionTarget": 5,
-    "showMacroSourcePreviews": false,
     "lastSelectedPackageId": null,
     "apSsid": "MacroKeyboard",
     "stationConfigured": false,
@@ -128,7 +127,6 @@
     "requireSerialConfirmation": false,
     "sendMode": "quick",
     "snapshotRetentionTarget": 5,
-    "showMacroSourcePreviews": false,
     "lastSelectedPackageId": null,
     "accessPoint": {
       "ssid": "MacroKeyboard",
@@ -145,7 +143,6 @@
       "requireSerialConfirmation": false,
       "sendMode": "quick",
       "snapshotRetentionTarget": 5,
-      "showMacroSourcePreviews": false,
       "lastSelectedPackageId": null,
       "apSsid": "MacroKeyboard",
       "stationConfigured": true,

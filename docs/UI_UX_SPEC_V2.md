@@ -232,20 +232,15 @@ It shows:
 - repository dirty state;
 - inline send status and cancellation.
 
-### 5.2 Macro-source privacy
+### 5.2 Macro-source handling
+
+Macro source is shown plainly on the Macros page, the same as in the Macro
+Editor and the Optional Preview and Send screen.
 
 Macro source is sensitive user content and may contain passwords, tokens, or
-private commands.
-
-The Macros page hides source previews by default. A hidden row may show `Source
-hidden` or an equivalent non-revealing placeholder. The user may reveal one row
-temporarily or enable the device-wide **Show macro source previews** preference.
-
-Revealing source does not change repository data. Source is shown normally in the
-Macro Editor and Optional Preview and Send screen.
-
-Macro source must not be copied into logs, diagnostics, browser telemetry,
-notification text, or send acknowledgements.
+private commands, so while it is always visible in the UI, it must not be
+copied into logs, diagnostics, browser telemetry, notification text, or send
+acknowledgements.
 
 ### 5.3 Quick Send
 
@@ -502,7 +497,6 @@ User-visible settings include:
 - access-point and optional station-network configuration;
 - sending behavior: Quick Send or Always Preview;
 - snapshot retention target, default `5` and advisory only;
-- Show macro source previews, default off;
 - restart;
 - reset settings;
 - factory reset;
@@ -607,8 +601,6 @@ Real-browser tests cover:
 - Reordering has accessible Move first, Move up, Move down, and Move last actions
   even when drag and drop is available.
 - Reduced-motion preferences disable nonessential animation.
-- Hidden macro source is not exposed accidentally through accessible names or
-  live-region announcements.
 
 ---
 
@@ -656,18 +648,17 @@ Errors preserve the working copy whenever technically possible.
 11. A terminal completion acknowledgement identifies the macro, reveals no
     source, and returns the row to Send after a short interval.
 12. Optional Preview and send remains available.
-13. Macro source is hidden on the Macros page by default.
-14. Package and macro edits do not call firmware CRUD routes.
-15. Dirty working-copy state remains visible until a snapshot save succeeds or
+13. Package and macro edits do not call firmware CRUD routes.
+14. Dirty working-copy state remains visible until a snapshot save succeeds or
     changes are deliberately discarded.
-16. Reload, close, sign-out, import replacement, and snapshot replacement paths
+15. Reload, close, sign-out, import replacement, and snapshot replacement paths
     protect dirty work as specified.
-17. Snapshot creation and deletion are manual.
-18. Exceeding the default retention target of five produces an advisory cleanup
+16. Snapshot creation and deletion are manual.
+17. Exceeding the default retention target of five produces an advisory cleanup
     indicator and no automatic deletion.
-19. Repository data is absent from browser persistent storage.
-20. Phone landscape shows the portrait-required surface.
-21. Active-send cancellation remains accessible from that surface.
-22. Tablets and desktops remain usable in landscape.
-23. Accessibility requirements in §14 pass automated and manual checks.
-24. This document matches the implemented v2 React behavior.
+18. Repository data is absent from browser persistent storage.
+19. Phone landscape shows the portrait-required surface.
+20. Active-send cancellation remains accessible from that surface.
+21. Tablets and desktops remain usable in landscape.
+22. Accessibility requirements in §14 pass automated and manual checks.
+23. This document matches the implemented v2 React behavior.

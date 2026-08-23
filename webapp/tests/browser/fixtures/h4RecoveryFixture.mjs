@@ -60,7 +60,6 @@ export const settings = {
   requireSerialConfirmation: false,
   sendMode: "quick",
   snapshotRetentionTarget: 5,
-  showMacroSourcePreviews: false,
   lastSelectedPackageId: packageId,
   apSsid: "MacroKeyboard",
   stationConfigured: false,

@@ -41,33 +41,20 @@ export async function runBrowserWorkflows(page, serverState) {
     "Keyboard Enter on Move up did not reorder the macro list back.",
   );
 
-  // Macro source is hidden by default, with a temporary per-row reveal
-  // (V2-092).
+  // Macro source is always shown, with no reveal/hide control (V2-092).
   assert(
-    await evaluate(page, () =>
+    !(await evaluate(page, () =>
       document.body.innerText.includes("Source hidden"),
-    ),
-    "Macro source was not hidden by default.",
+    )),
+    "Macro source was hidden.",
   );
-  assert(
-    (await evaluate(page, () => document.querySelectorAll("code").length)) ===
-      0,
-    "A macro source appeared in the DOM before being revealed.",
-  );
-  await clickButtonByAriaLabel(page, "Reveal source for Open terminal");
-  const revealedSource = await evaluate(
+  const openTerminalSource = await evaluate(
     page,
     () => document.querySelector("code")?.textContent ?? null,
   );
   assert(
-    revealedSource === "a",
-    `Revealing source did not show the macro source: ${String(revealedSource)}`,
-  );
-  await clickButtonByAriaLabel(page, "Hide source for Open terminal");
-  assert(
-    (await evaluate(page, () => document.querySelectorAll("code").length)) ===
-      0,
-    "Hide source did not remove the revealed source from the DOM.",
+    openTerminalSource === "a",
+    `Macro source was not shown unconditionally: ${String(openTerminalSource)}`,
   );
 
   // Quick Send: progress, then a completion acknowledgement that clears

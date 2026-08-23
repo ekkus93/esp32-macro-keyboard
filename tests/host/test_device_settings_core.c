@@ -85,7 +85,6 @@ static app_v2_device_settings_t configured_settings(void) {
     settings.next_blob_id = UINT64_C(42);
     settings.send_mode = APP_V2_SEND_MODE_PREVIEW;
     settings.snapshot_retention_target = 9U;
-    settings.show_macro_source_previews = true;
     settings.require_serial_confirmation = true;
     settings.station_configured = true;
     TEST_CHECK(snprintf(settings.last_selected_package_id,
@@ -131,7 +130,6 @@ static void test_missing_record_uses_defaults_without_write(void) {
     TEST_CHECK(!loaded.provisioned);
     TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_QUICK, loaded.send_mode);
     TEST_CHECK_EQ_U64(5U, loaded.snapshot_retention_target);
-    TEST_CHECK(!loaded.show_macro_source_previews);
     TEST_CHECK_EQ_U64(1U, fake.read_calls);
     TEST_CHECK_EQ_U64(0U, fake.replace_calls);
 
@@ -401,7 +399,6 @@ static void test_reset_preserves_credentials_and_blob_counter(void) {
     TEST_CHECK(strcmp(original.ap_passphrase, reset.ap_passphrase) == 0);
     TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_QUICK, reset.send_mode);
     TEST_CHECK_EQ_U64(5U, reset.snapshot_retention_target);
-    TEST_CHECK(!reset.show_macro_source_previews);
     TEST_CHECK(!reset.require_serial_confirmation);
     TEST_CHECK(!reset.station_configured);
     TEST_CHECK(reset.last_selected_package_id[0] == '\0');
@@ -537,7 +534,6 @@ static void test_factory_reset_erases_everything(void) {
     TEST_CHECK(!reset.station_configured);
     TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_QUICK, reset.send_mode);
     TEST_CHECK_EQ_U64(5U, reset.snapshot_retention_target);
-    TEST_CHECK(!reset.show_macro_source_previews);
     TEST_CHECK(!reset.require_serial_confirmation);
     TEST_CHECK(reset.last_selected_package_id[0] == '\0');
     TEST_CHECK(strcmp(reset.device_name, "ESP32 Macro Keyboard") == 0);

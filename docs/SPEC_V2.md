@@ -808,7 +808,6 @@ NVS stores small device configuration only:
 - optional next-blob-ID counter;
 - `sendMode`, default `quick`;
 - `snapshotRetentionTarget`, default `5`;
-- `showMacroSourcePreviews`, default `false`;
 - `lastSelectedPackageId`, default `null`.
 
 Repository JSON and blobs MUST NOT be stored in NVS.
@@ -821,16 +820,12 @@ and do not make the repository dirty.
 ```text
 sendMode                    quick | preview
 snapshotRetentionTarget    integer 0..100
-showMacroSourcePreviews     boolean
 lastSelectedPackageId       canonical lowercase UUID v4 | null
 ```
 
 `quick` means the primary Send control starts a send from the Macros page.
 `preview` means the primary Send control first opens the optional Preview and
 Send screen.
-
-Macro source previews are hidden by default because source may contain passwords,
-tokens, or private commands.
 
 ### 11.3 Credential handling
 
@@ -860,7 +855,6 @@ deviceName                  ESP32 Macro Keyboard
 requireSerialConfirmation   false
 sendMode                    quick
 snapshotRetentionTarget     5
-showMacroSourcePreviews     false
 lastSelectedPackageId       null
 station configuration       removed
 ```
@@ -1338,7 +1332,6 @@ A successful delete returns `204 No Content`.
   "requireSerialConfirmation": false,
   "sendMode": "quick",
   "snapshotRetentionTarget": 5,
-  "showMacroSourcePreviews": false,
   "lastSelectedPackageId": null,
   "apSsid": "MacroKeyboard",
   "stationConfigured": false,
@@ -1358,7 +1351,6 @@ current values. Accepted fields are:
   "requireSerialConfirmation": false,
   "sendMode": "quick",
   "snapshotRetentionTarget": 5,
-  "showMacroSourcePreviews": false,
   "lastSelectedPackageId": null,
   "accessPoint": {
     "ssid": "MacroKeyboard",
@@ -1392,7 +1384,6 @@ Success returns `200`:
     "requireSerialConfirmation": false,
     "sendMode": "quick",
     "snapshotRetentionTarget": 5,
-    "showMacroSourcePreviews": false,
     "lastSelectedPackageId": null,
     "apSsid": "MacroKeyboard",
     "stationConfigured": true,
@@ -1712,14 +1703,14 @@ mode.
 The application sends source and timing, not package ID, macro ID, revision, or
 blob ID. The next macro MUST NOT execute automatically.
 
-### 14.6 Macro-source privacy
+### 14.6 Macro-source handling
 
-Macro source is hidden on the Macros page by default. The user may reveal one row
-temporarily or enable the device-wide preview preference.
+Macro source is shown plainly on the Macros page, the editor, and the optional
+preview screen alike.
 
-Macro source is shown in the editor and optional preview screen but MUST NOT be
-included in logs, diagnostics, send acknowledgements, notification text, or
-hidden accessible names.
+Macro source is sensitive user content and MUST NOT be included in logs,
+diagnostics, send acknowledgements, or notification text, regardless of where
+in the UI it is shown.
 
 ### 14.7 Portrait phones
 

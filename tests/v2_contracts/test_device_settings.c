@@ -34,7 +34,6 @@ static void make_provisioned(app_v2_device_settings_t *settings) {
     settings->next_blob_id = UINT64_C(42);
     settings->send_mode = APP_V2_SEND_MODE_PREVIEW;
     settings->snapshot_retention_target = 9U;
-    settings->show_macro_source_previews = true;
     settings->require_serial_confirmation = true;
     settings->station_configured = true;
     copy_text(settings->last_selected_package_id, sizeof(settings->last_selected_package_id),
@@ -58,7 +57,6 @@ static bool settings_equal(const app_v2_device_settings_t *left,
                   sizeof(left->password_verifier)) == 0 &&
            left->next_blob_id == right->next_blob_id && left->send_mode == right->send_mode &&
            left->snapshot_retention_target == right->snapshot_retention_target &&
-           left->show_macro_source_previews == right->show_macro_source_previews &&
            left->require_serial_confirmation == right->require_serial_confirmation &&
            left->station_configured == right->station_configured &&
            strcmp(left->last_selected_package_id, right->last_selected_package_id) == 0 &&
@@ -153,7 +151,7 @@ static void test_enum_boolean_reserved_and_string_rejection(void) {
           APP_V2_SETTINGS_CORRUPT);
 
     static const size_t boolean_offsets[] = {
-        APP_V2_SETTINGS_OFFSET_SHOW_SOURCE,
+        APP_V2_SETTINGS_OFFSET_RESERVED_SHOW_SOURCE,
         APP_V2_SETTINGS_OFFSET_REQUIRE_CONFIRMATION,
         APP_V2_SETTINGS_OFFSET_PROVISIONED,
         APP_V2_SETTINGS_OFFSET_STATION_CONFIGURED,
@@ -243,7 +241,6 @@ static void test_reset_settings_preserves_credentials_and_counter(void) {
     CHECK(!settings.require_serial_confirmation);
     CHECK(settings.send_mode == APP_V2_SEND_MODE_QUICK);
     CHECK(settings.snapshot_retention_target == 5U);
-    CHECK(!settings.show_macro_source_previews);
     CHECK(settings.last_selected_package_id[0] == '\0');
     CHECK(!settings.station_configured);
     CHECK(settings.station_ssid[0] == '\0');

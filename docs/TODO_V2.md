@@ -1322,14 +1322,24 @@ Macros | Packages | Snapshots | Settings
 - [x] Disable Send unless USB is `ready` and no other send is active.
 - [x] Keep the user on the Macros page for ordinary sends.
 
-## V2-092 — Macro-source privacy
+## V2-092 — Macro-source privacy (REMOVED 2026-08-23)
 
-- [x] Hide source previews by default.
-- [x] Show a non-revealing placeholder.
-- [x] Support temporary per-row reveal.
-- [x] Honor the device-wide source-preview preference.
-- [x] Prevent hidden source from entering acknowledgements, accessible names,
-      live regions, logs, diagnostics, notifications, or telemetry.
+- [x] ~~Hide source previews by default.~~
+- [x] ~~Show a non-revealing placeholder.~~
+- [x] ~~Support temporary per-row reveal.~~
+- [x] ~~Honor the device-wide source-preview preference.~~
+- [x] Prevent macro source from entering acknowledgements, logs, diagnostics,
+      notifications, or telemetry (this one rule survives the removal below
+      unchanged — it was never conditional on hide/reveal state).
+
+Removed 2026-08-23: product decision to always show macro source
+unconditionally on the Macros page (SPEC_V2 §11.1/§14.6, UI_UX_SPEC_V2 §5.2).
+The device-wide `showMacroSourcePreviews` preference, the per-row Reveal/Hide
+toggle, and the `Source hidden` placeholder are gone. The firmware settings
+record's byte at offset 74 (formerly `show_macro_source_previews`) is kept
+reserved rather than reused or shrunk out of the record, so an
+already-provisioned device's stored settings still decode — see
+`device_settings_v2.h`'s doc comment on `APP_V2_SETTINGS_OFFSET_RESERVED_SHOW_SOURCE`.
 
 ## V2-093 — Quick Send
 

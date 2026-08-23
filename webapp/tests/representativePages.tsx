@@ -76,7 +76,6 @@ export async function renderSettings(): Promise<RenderResult> {
     requireSerialConfirmation: false,
     sendMode: "quick",
     snapshotRetentionTarget: 5,
-    showMacroSourcePreviews: false,
     lastSelectedPackageId: null,
     apSsid: "MacroKeyboard",
     stationConfigured: false,

@@ -83,10 +83,6 @@ export async function startApplicationServer() {
               state.settings.snapshotRetentionTarget =
                 body.snapshotRetentionTarget;
             }
-            if (typeof body.showMacroSourcePreviews === "boolean") {
-              state.settings.showMacroSourcePreviews =
-                body.showMacroSourcePreviews;
-            }
             if (Object.hasOwn(body, "lastSelectedPackageId")) {
               state.settings.lastSelectedPackageId = body.lastSelectedPackageId;
             }

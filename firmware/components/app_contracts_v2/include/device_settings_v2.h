@@ -33,7 +33,15 @@ extern "C" {
 #define APP_V2_SETTINGS_OFFSET_NEXT_BLOB_ID UINT16_C(64)
 #define APP_V2_SETTINGS_OFFSET_SEND_MODE UINT16_C(72)
 #define APP_V2_SETTINGS_OFFSET_RETENTION_TARGET UINT16_C(73)
-#define APP_V2_SETTINGS_OFFSET_SHOW_SOURCE UINT16_C(74)
+/* Formerly show_macro_source_previews (the "Show macro source previews"
+ * device preference, removed: the Macros page now always shows source).
+ * Left reserved rather than reclaimed or shrunk out of the record so an
+ * already-provisioned device's stored byte here -- 0 or 1, whichever it last
+ * wrote -- keeps decoding instead of tripping APP_V2_SETTINGS_CORRUPT; there
+ * is no migration path in this decoder (record_length/version/every other
+ * byte must match exactly), so removing the slot outright would strand
+ * existing settings records. New encodes always write 0 here. */
+#define APP_V2_SETTINGS_OFFSET_RESERVED_SHOW_SOURCE UINT16_C(74)
 #define APP_V2_SETTINGS_OFFSET_REQUIRE_CONFIRMATION UINT16_C(75)
 #define APP_V2_SETTINGS_OFFSET_PROVISIONED UINT16_C(76)
 #define APP_V2_SETTINGS_OFFSET_STATION_CONFIGURED UINT16_C(77)
@@ -68,7 +76,6 @@ typedef struct {
     uint64_t next_blob_id;
     app_v2_send_mode_t send_mode;
     uint8_t snapshot_retention_target;
-    bool show_macro_source_previews;
     bool require_serial_confirmation;
     bool station_configured;
     char last_selected_package_id[APP_V2_UUID_BUFFER_BYTES];

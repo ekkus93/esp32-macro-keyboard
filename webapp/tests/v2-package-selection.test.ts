@@ -22,7 +22,6 @@ const settingsResponse = {
   requireSerialConfirmation: false,
   sendMode: "quick",
   snapshotRetentionTarget: 5,
-  showMacroSourcePreviews: false,
   lastSelectedPackageId: canonicalPackageId,
   apSsid: "MacroKeyboard",
   stationConfigured: false,

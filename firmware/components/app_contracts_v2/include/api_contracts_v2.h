@@ -174,7 +174,6 @@ typedef struct {
     bool require_serial_confirmation;
     app_v2_send_mode_t send_mode;
     uint8_t snapshot_retention_target;
-    bool show_macro_source_previews;
     app_v2_optional_string_view_t last_selected_package_id;
     app_v2_string_view_t ap_ssid;
     bool station_configured;
@@ -195,8 +194,6 @@ typedef struct {
     app_v2_send_mode_t send_mode;
     bool has_snapshot_retention_target;
     uint8_t snapshot_retention_target;
-    bool has_show_macro_source_previews;
-    bool show_macro_source_previews;
     bool has_last_selected_package_id;
     app_v2_optional_string_view_t last_selected_package_id;
     bool has_access_point;

@@ -72,7 +72,6 @@ export interface MacrosPageProps {
   packageId: string;
   usbState: UsbState;
   sendMode: SendMode;
-  showMacroSourcePreviews: boolean;
   /** The send recovered during startup (UI_UX_SPEC_V2 §3.4 step 8), if any. */
   initialSend: SendStatusResponse | null;
   /**
@@ -96,7 +95,6 @@ export function MacrosPage({
   packageId,
   usbState,
   sendMode,
-  showMacroSourcePreviews,
   initialSend,
   onActiveSendChange,
   onChangePackage,
@@ -112,9 +110,6 @@ export function MacrosPage({
   const [snapshot, setSnapshot] = useState(() => store.getSnapshot());
   useEffect(() => store.subscribe(setSnapshot), [store]);
 
-  const [revealedIds, setRevealedIds] = useState<ReadonlySet<string>>(
-    new Set(),
-  );
   const [lifecycle, setLifecycle] = useState<SendLifecycle>({ kind: "idle" });
   const [releaseError, setReleaseError] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
@@ -397,18 +392,6 @@ export function MacrosPage({
   const repository = snapshot.repository;
   const activePackage = repository.packages.find((pkg) => pkg.id === packageId);
 
-  const toggleReveal = (macroId: string): void => {
-    setRevealedIds((current) => {
-      const next = new Set(current);
-      if (next.has(macroId)) {
-        next.delete(macroId);
-      } else {
-        next.add(macroId);
-      }
-      return next;
-    });
-  };
-
   // TODO_V2 V2-133/UI_UX_SPEC_V2 §14: "Move first"/"Move last" alongside
   // "Move up"/"Move down" — a keyboard-operable alternative that does not
   // require repeatedly activating an adjacent-swap control to reach either
@@ -614,10 +597,6 @@ export function MacrosPage({
                 }
                 void startSend(macro);
               }}
-              onToggleReveal={() => {
-                toggleReveal(macro.id);
-              }}
-              revealed={showMacroSourcePreviews || revealedIds.has(macro.id)}
               sendDisabled={sendDisabled}
               sending={
                 lifecycle.kind !== "idle" &&

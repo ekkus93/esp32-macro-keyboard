@@ -19,7 +19,6 @@ const settingsUpdateKeys = [
   "lastSelectedPackageId",
   "requireSerialConfirmation",
   "sendMode",
-  "showMacroSourcePreviews",
   "snapshotRetentionTarget",
   "station",
 ] as const;
@@ -193,11 +192,6 @@ function isOptionalPresentationSettings(
   value: Record<string, unknown>,
 ): boolean {
   return all([
-    optionalField(
-      value,
-      "showMacroSourcePreviews",
-      (candidate) => typeof candidate === "boolean",
-    ),
     optionalField(
       value,
       "lastSelectedPackageId",

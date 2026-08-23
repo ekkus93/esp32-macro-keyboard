@@ -419,36 +419,6 @@ static void test_put_snapshot_retention_fractional_rejected(void) {
     TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
 }
 
-static void test_put_show_macro_source_previews_wrong_type_rejected(void) {
-    fake_t fake = {.current = provisioned_settings()};
-    const web_settings_ops_t ops = operations(&fake);
-    char body[TEST_BODY_CAPACITY];
-    build_body(body, sizeof(body), "{\"showMacroSourcePreviews\":\"yes\"}");
-    char *json = NULL;
-
-    const web_settings_put_outcome_t outcome =
-        web_settings_put_handle(body, sizeof(body), &ops, &json);
-
-    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
-}
-
-static void test_put_show_macro_source_previews_success(void) {
-    fake_t fake = {.current = provisioned_settings()};
-    fake.current.show_macro_source_previews = false;
-    const web_settings_ops_t ops = operations(&fake);
-    char body[TEST_BODY_CAPACITY];
-    build_body(body, sizeof(body), "{\"showMacroSourcePreviews\":true}");
-    char *json = NULL;
-
-    const web_settings_put_outcome_t outcome =
-        web_settings_put_handle(body, sizeof(body), &ops, &json);
-
-    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_OK, outcome.result);
-    TEST_CHECK(fake.committed_candidate.show_macro_source_previews);
-    TEST_CHECK(json_contains(json, "\"showMacroSourcePreviews\":true"));
-    free(json);
-}
-
 static void test_put_last_selected_package_id_wrong_type_rejected(void) {
     fake_t fake = {.current = provisioned_settings()};
     const web_settings_ops_t ops = operations(&fake);

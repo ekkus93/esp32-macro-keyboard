@@ -333,7 +333,6 @@ export function AuthenticatedShell({
             }}
             packageId={packageId}
             sendMode={settings.sendMode}
-            showMacroSourcePreviews={settings.showMacroSourcePreviews}
             store={store}
             usbState={trustedUsbState}
           />

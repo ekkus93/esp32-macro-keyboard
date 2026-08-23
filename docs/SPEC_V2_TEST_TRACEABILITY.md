@@ -30,8 +30,8 @@ normative requirement lines.
 
 | Source | Git blob SHA | Normative requirements | Status | Explicit section citations |
 | --- | --- | --- | --- | --- |
-| docs/SPEC_V2.md | `f6296246a234f52a40ca6954a4cf4d7881c3f891` | present | referenced, not proven | §5.3, §5.4, §7.3, §7.4, §7.11, §7.12, §8.6, §8.7, §9, §9.6, §10.2, §10.3, §10.5, §10.6, §11.1, §13.13, §14.4, §17 |
-| docs/UI_UX_SPEC_V2.md | `929e50afa8ea86dcbb98ab48d9236d7b5da7eab2` | present | referenced, not proven | §3.3, §3.4, §3.6, §4, §5.5, §5.6, §8, §9.5, §12, §12.2, §12.3, §12.4, §14 |
+| docs/SPEC_V2.md | `3fae0e5c6b2bed93547479716aa0ffbd44359323` | present | referenced, not proven | §5.3, §5.4, §7.3, §7.4, §7.11, §7.12, §8.6, §8.7, §9, §9.6, §10.2, §10.3, §10.5, §10.6, §11.1, §13.13, §14.4, §17 |
+| docs/UI_UX_SPEC_V2.md | `6a74fa2b81e00dcb13ca4f0cc75b1c0a0b4dca42` | present | referenced, not proven | §3.3, §3.4, §3.6, §4, §5.5, §5.6, §8, §9.5, §12, §12.2, §12.3, §12.4, §14 |
 
 ## Next refinement
 

@@ -227,14 +227,15 @@ describe("MacrosPage — V2-093 Quick Send", () => {
   test("never includes macro source in the acknowledgement", async () => {
     vi.useFakeTimers();
     try {
-      const { container, unmount } = await renderMacrosPage();
+      const { unmount } = await renderMacrosPage();
       planJsonResponse(accepted, 202);
       await click(buttonWithText("Send"));
       await tick(0);
       planJsonResponse(statusAt("completed", 2));
       await tick(1000);
-      expect(container.textContent).toContain("Sent Start the build.");
-      expect(container.textContent).not.toContain("make -j8{ENTER}");
+      const acknowledgement = requiredElement('[role="status"]', HTMLElement);
+      expect(acknowledgement.textContent).toContain("Sent Start the build.");
+      expect(acknowledgement.textContent).not.toContain("make -j8{ENTER}");
       await unmount();
     } finally {
       vi.useRealTimers();
@@ -269,7 +270,6 @@ describe("MacrosPage — V2-132 landscape active-send summary", () => {
         onOpenPreview={vi.fn()}
         packageId={packageId}
         sendMode="quick"
-        showMacroSourcePreviews={false}
         store={store}
         usbState="ready"
       />,

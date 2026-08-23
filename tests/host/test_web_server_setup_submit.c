@@ -99,7 +99,6 @@ static app_v2_device_settings_t baseline_settings(void) {
     settings.next_blob_id = 42U;
     settings.send_mode = APP_V2_SEND_MODE_PREVIEW;
     settings.snapshot_retention_target = 7U;
-    settings.show_macro_source_previews = true;
     return settings;
 }
 
@@ -171,7 +170,6 @@ static void test_success_commits_and_consumes_code(void) {
     TEST_CHECK_EQ_U64(42U, fake.committed_candidate.next_blob_id);
     TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_PREVIEW, fake.committed_candidate.send_mode);
     TEST_CHECK_EQ_U64(7U, fake.committed_candidate.snapshot_retention_target);
-    TEST_CHECK(fake.committed_candidate.show_macro_source_previews);
 
     TEST_CHECK(session.consumed);
     TEST_CHECK(buffer_all_zero(body, sizeof(body)));

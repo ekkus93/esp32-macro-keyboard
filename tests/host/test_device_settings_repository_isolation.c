@@ -208,10 +208,6 @@ static void test_preference_changes_never_touch_repository(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_replace(&core, &settings, &changed));
     TEST_CHECK(changed);
 
-    settings.show_macro_source_previews = true;
-    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_replace(&core, &settings, &changed));
-    TEST_CHECK(changed);
-
     TEST_CHECK(snprintf(settings.last_selected_package_id,
                         sizeof(settings.last_selected_package_id), "%s",
                         "11111111-1111-4111-8111-111111111111") > 0);

@@ -7,10 +7,8 @@ interface MacroRowProps {
   macro: RepositoryMacro;
   index: number;
   macroCount: number;
-  revealed: boolean;
   sendDisabled: boolean;
   sending: boolean;
-  onToggleReveal: () => void;
   onSend: () => void;
   onEdit: () => void;
   onPreview: () => void;
@@ -23,10 +21,8 @@ export function MacroRow({
   macro,
   index,
   macroCount,
-  revealed,
   sendDisabled,
   sending,
-  onToggleReveal,
   onSend,
   onEdit,
   onPreview,
@@ -38,24 +34,9 @@ export function MacroRow({
     <Card>
       <div>
         <h3>{macro.name}</h3>
-        {revealed ? (
-          <p>
-            <code>{macro.source}</code>
-          </p>
-        ) : (
-          <p>Source hidden</p>
-        )}
-        <button
-          aria-label={
-            revealed
-              ? `Hide source for ${macro.name}`
-              : `Reveal source for ${macro.name}`
-          }
-          onClick={onToggleReveal}
-          type="button"
-        >
-          {revealed ? "Hide source" : "Reveal"}
-        </button>
+        <p>
+          <code>{macro.source}</code>
+        </p>
       </div>
       <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full">
         <button

@@ -152,8 +152,6 @@ static bool settings_response_populate(cJSON *root, const app_v2_settings_respon
                NULL &&
            cJSON_AddNumberToObject(root, "snapshotRetentionTarget",
                                    (double)response->snapshot_retention_target) != NULL &&
-           cJSON_AddBoolToObject(root, "showMacroSourcePreviews",
-                                 response->show_macro_source_previews) != NULL &&
            add_optional_string(root, "lastSelectedPackageId", response->last_selected_package_id) &&
            add_view_string(root, "apSsid", response->ap_ssid) &&
            cJSON_AddBoolToObject(root, "stationConfigured", response->station_configured) != NULL &&
@@ -212,14 +210,13 @@ web_settings_get_outcome_t web_settings_get_handle(const web_settings_ops_t *ops
  * PUT /api/v1/settings
  * ---------------------------------------------------------------------- */
 
-#define SETTINGS_PUT_FIELD_COUNT 8U
+#define SETTINGS_PUT_FIELD_COUNT 7U
 
 static const char *const SETTINGS_PUT_FIELDS[SETTINGS_PUT_FIELD_COUNT] = {
     "deviceName",
     "requireSerialConfirmation",
     "sendMode",
     "snapshotRetentionTarget",
-    "showMacroSourcePreviews",
     "lastSelectedPackageId",
     "accessPoint",
     "station",
@@ -352,20 +349,6 @@ static bool populate_snapshot_retention_target(const cJSON *root,
     return true;
 }
 
-static bool populate_show_previews(const cJSON *root,
-                                   app_v2_settings_update_request_t *out_request) {
-    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "showMacroSourcePreviews");
-    if (item == NULL) {
-        return true;
-    }
-    if (!cJSON_IsBool(item)) {
-        return false;
-    }
-    out_request->has_show_macro_source_previews = true;
-    out_request->show_macro_source_previews = cJSON_IsTrue(item);
-    return true;
-}
-
 static bool populate_last_selected_package_id(const cJSON *root,
                                               app_v2_settings_update_request_t *out_request) {
     const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "lastSelectedPackageId");
@@ -431,7 +414,6 @@ static bool populate_settings_update_request(const cJSON *root,
            populate_require_confirmation(root, out_request) &&
            populate_send_mode(root, out_request, out_invalid_send_mode) &&
            populate_snapshot_retention_target(root, out_request) &&
-           populate_show_previews(root, out_request) &&
            populate_last_selected_package_id(root, out_request) &&
            populate_access_point(root, out_request) && populate_station(root, out_request);
 }

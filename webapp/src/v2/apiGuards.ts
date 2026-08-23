@@ -539,7 +539,6 @@ function isSettingsIdentity(value: Record<string, unknown>): boolean {
     isNonNegativeInteger(value.snapshotRetentionTarget),
     typeof value.snapshotRetentionTarget === "number" &&
       value.snapshotRetentionTarget <= v2Limits.snapshotRetentionTargetMax,
-    typeof value.showMacroSourcePreviews === "boolean",
   ]);
 }
 
@@ -575,7 +574,6 @@ export function isSettingsResponse(value: unknown): value is SettingsResponse {
       "lastSelectedPackageId",
       "requireSerialConfirmation",
       "sendMode",
-      "showMacroSourcePreviews",
       "snapshotRetentionTarget",
       "stationConfigured",
       "stationSsid",

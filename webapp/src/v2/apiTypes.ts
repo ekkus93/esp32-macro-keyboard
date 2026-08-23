@@ -138,7 +138,6 @@ export interface SettingsResponse {
   requireSerialConfirmation: boolean;
   sendMode: SendMode;
   snapshotRetentionTarget: number;
-  showMacroSourcePreviews: boolean;
   lastSelectedPackageId: string | null;
   apSsid: string;
   stationConfigured: boolean;
@@ -155,7 +154,6 @@ export interface SettingsUpdateRequest {
   requireSerialConfirmation?: boolean;
   sendMode?: SendMode;
   snapshotRetentionTarget?: number;
-  showMacroSourcePreviews?: boolean;
   lastSelectedPackageId?: string | null;
   accessPoint?: NetworkCredentialsRequest;
   station?: NetworkCredentialsRequest | null;

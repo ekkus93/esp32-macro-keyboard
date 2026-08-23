@@ -54,8 +54,6 @@ int main(void) {
     test_put_send_mode_quick_success();
     test_put_snapshot_retention_negative_rejected();
     test_put_snapshot_retention_fractional_rejected();
-    test_put_show_macro_source_previews_wrong_type_rejected();
-    test_put_show_macro_source_previews_success();
     test_put_last_selected_package_id_wrong_type_rejected();
     test_put_last_selected_package_id_valid_string_success();
     test_put_station_valid_object_success();

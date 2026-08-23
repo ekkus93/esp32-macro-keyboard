@@ -1607,7 +1607,7 @@
     16,
     71.55,
     511,
-    1716.67
+    1469.8
    ],
    "values": {
     "display": "block",
@@ -1625,7 +1625,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "511px",
-    "height": "1716.67px",
+    "height": "1469.8px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -2407,7 +2407,7 @@
     16,
     170.06,
     511,
-    1618.16
+    1371.28
    ],
    "values": {
     "display": "block",
@@ -2425,7 +2425,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "511px",
-    "height": "1618.16px",
+    "height": "1371.28px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -2487,7 +2487,7 @@
     16,
     170.06,
     511,
-    314.03
+    264.66
    ],
    "values": {
     "display": "grid",
@@ -2505,7 +2505,7 @@
     "padding-bottom": "16px",
     "padding-left": "16px",
     "width": "511px",
-    "height": "314.031px",
+    "height": "264.656px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -2539,7 +2539,7 @@
     "row-gap": "16px",
     "column-gap": "16px",
     "grid-template-columns": "477px",
-    "grid-template-rows": "101.516px 162.516px",
+    "grid-template-rows": "52.1406px 162.516px",
     "place-items": "normal",
     "border-top-width": "1px",
     "border-right-width": "1px",
@@ -2567,7 +2567,7 @@
     33,
     187.06,
     477,
-    101.52
+    52.14
    ],
    "values": {
     "display": "block",
@@ -2585,7 +2585,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "477px",
-    "height": "101.516px",
+    "height": "52.1406px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -2801,16 +2801,16 @@
    }
   },
   {
-   "tag": "BUTTON",
+   "tag": "CODE",
    "cls": "",
    "rect": [
     33,
-    239.2,
-    93.7,
-    49.38
+    214.02,
+    9.64,
+    19
    ],
    "values": {
-    "display": "inline-block",
+    "display": "inline",
     "position": "static",
     "top": "auto",
     "right": "auto",
@@ -2820,28 +2820,28 @@
     "margin-right": "0px",
     "margin-bottom": "0px",
     "margin-left": "0px",
-    "padding-top": "11.2px",
-    "padding-right": "16px",
-    "padding-bottom": "11.2px",
-    "padding-left": "16px",
-    "width": "93.7031px",
-    "height": "49.375px",
+    "padding-top": "0px",
+    "padding-right": "0px",
+    "padding-bottom": "0px",
+    "padding-left": "0px",
+    "width": "auto",
+    "height": "auto",
     "min-width": "0px",
-    "min-height": "48px",
+    "min-height": "0px",
     "max-width": "none",
     "max-height": "none",
-    "color": "rgb(33, 30, 26)",
-    "background-color": "rgb(255, 253, 249)",
+    "color": "rgb(95, 89, 79)",
+    "background-color": "rgba(0, 0, 0, 0)",
     "background-image": "none",
     "opacity": "1",
     "visibility": "visible",
     "font-size": "16px",
-    "font-weight": "700",
-    "font-family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", roboto, sans-serif",
+    "font-weight": "400",
+    "font-family": "ui-monospace, \"SF Mono\", menlo, consolas, monospace",
     "font-style": "normal",
     "line-height": "24px",
-    "letter-spacing": "0.16px",
-    "text-align": "center",
+    "letter-spacing": "normal",
+    "text-align": "start",
     "text-transform": "none",
     "text-decoration-line": "none",
     "white-space": "normal",
@@ -2863,20 +2863,20 @@
     "place-items": "normal",
     "border-top-width": "0px",
     "border-right-width": "0px",
-    "border-bottom-width": "3px",
+    "border-bottom-width": "0px",
     "border-left-width": "0px",
-    "border-top-color": "rgb(192, 185, 172)",
-    "border-right-color": "rgb(192, 185, 172)",
-    "border-bottom-color": "rgb(192, 185, 172)",
-    "border-left-color": "rgb(192, 185, 172)",
-    "border-top-left-radius": "8px",
-    "border-bottom-right-radius": "8px",
+    "border-top-color": "rgb(95, 89, 79)",
+    "border-right-color": "rgb(95, 89, 79)",
+    "border-bottom-color": "rgb(95, 89, 79)",
+    "border-left-color": "rgb(95, 89, 79)",
+    "border-top-left-radius": "0px",
+    "border-bottom-right-radius": "0px",
     "box-shadow": "none",
-    "outline-color": "rgb(33, 30, 26)",
+    "outline-color": "rgb(95, 89, 79)",
     "outline-width": "3px",
     "z-index": "auto",
     "transform": "none",
-    "transition-property": "translate, border-bottom-width",
+    "transition-property": "all",
     "list-style-type": "disc"
    }
   },
@@ -2885,7 +2885,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    304.58,
+    255.2,
     477,
     162.52
    ],
@@ -2965,7 +2965,7 @@
    "cls": "primary",
    "rect": [
     33,
-    304.58,
+    255.2,
     77.86,
     106.75
    ],
@@ -3045,7 +3045,7 @@
    "cls": "",
    "rect": [
     117.25,
-    304.58,
+    255.2,
     68.16,
     106.75
    ],
@@ -3125,7 +3125,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     191.8,
-    304.58,
+    255.2,
     279.66,
     106.75
    ],
@@ -3205,7 +3205,7 @@
    "cls": "",
    "rect": [
     191.8,
-    304.58,
+    255.2,
     135.83,
     49.38
    ],
@@ -3285,7 +3285,7 @@
    "cls": "",
    "rect": [
     335.63,
-    304.58,
+    255.2,
     135.83,
     49.38
    ],
@@ -3365,7 +3365,7 @@
    "cls": "",
    "rect": [
     191.8,
-    361.95,
+    312.58,
     135.83,
     49.38
    ],
@@ -3445,7 +3445,7 @@
    "cls": "",
    "rect": [
     335.63,
-    361.95,
+    312.58,
     135.83,
     49.38
    ],
@@ -3525,7 +3525,7 @@
    "cls": "relative",
    "rect": [
     33,
-    417.72,
+    368.34,
     150.47,
     49.38
    ],
@@ -3605,7 +3605,7 @@
    "cls": "",
    "rect": [
     33,
-    417.72,
+    368.34,
     150.47,
     49.38
    ],
@@ -3685,9 +3685,9 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    496.09,
+    446.72,
     511,
-    314.03
+    264.66
    ],
    "values": {
     "display": "grid",
@@ -3705,7 +3705,7 @@
     "padding-bottom": "16px",
     "padding-left": "16px",
     "width": "511px",
-    "height": "314.031px",
+    "height": "264.656px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -3739,7 +3739,7 @@
     "row-gap": "16px",
     "column-gap": "16px",
     "grid-template-columns": "477px",
-    "grid-template-rows": "101.516px 162.516px",
+    "grid-template-rows": "52.1406px 162.516px",
     "place-items": "normal",
     "border-top-width": "1px",
     "border-right-width": "1px",
@@ -3765,9 +3765,9 @@
    "cls": "",
    "rect": [
     33,
-    513.09,
+    463.72,
     477,
-    101.52
+    52.14
    ],
    "values": {
     "display": "block",
@@ -3785,7 +3785,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "477px",
-    "height": "101.516px",
+    "height": "52.1406px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -3845,7 +3845,7 @@
    "cls": "",
    "rect": [
     33,
-    513.09,
+    463.72,
     477,
     20.16
    ],
@@ -3925,7 +3925,7 @@
    "cls": "",
    "rect": [
     33,
-    538.05,
+    488.67,
     477,
     24
    ],
@@ -4001,16 +4001,16 @@
    }
   },
   {
-   "tag": "BUTTON",
+   "tag": "CODE",
    "cls": "",
    "rect": [
     33,
-    565.23,
-    93.7,
-    49.38
+    490.67,
+    125.23,
+    19
    ],
    "values": {
-    "display": "inline-block",
+    "display": "inline",
     "position": "static",
     "top": "auto",
     "right": "auto",
@@ -4020,28 +4020,28 @@
     "margin-right": "0px",
     "margin-bottom": "0px",
     "margin-left": "0px",
-    "padding-top": "11.2px",
-    "padding-right": "16px",
-    "padding-bottom": "11.2px",
-    "padding-left": "16px",
-    "width": "93.7031px",
-    "height": "49.375px",
+    "padding-top": "0px",
+    "padding-right": "0px",
+    "padding-bottom": "0px",
+    "padding-left": "0px",
+    "width": "auto",
+    "height": "auto",
     "min-width": "0px",
-    "min-height": "48px",
+    "min-height": "0px",
     "max-width": "none",
     "max-height": "none",
-    "color": "rgb(33, 30, 26)",
-    "background-color": "rgb(255, 253, 249)",
+    "color": "rgb(95, 89, 79)",
+    "background-color": "rgba(0, 0, 0, 0)",
     "background-image": "none",
     "opacity": "1",
     "visibility": "visible",
     "font-size": "16px",
-    "font-weight": "700",
-    "font-family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", roboto, sans-serif",
+    "font-weight": "400",
+    "font-family": "ui-monospace, \"SF Mono\", menlo, consolas, monospace",
     "font-style": "normal",
     "line-height": "24px",
-    "letter-spacing": "0.16px",
-    "text-align": "center",
+    "letter-spacing": "normal",
+    "text-align": "start",
     "text-transform": "none",
     "text-decoration-line": "none",
     "white-space": "normal",
@@ -4063,20 +4063,20 @@
     "place-items": "normal",
     "border-top-width": "0px",
     "border-right-width": "0px",
-    "border-bottom-width": "3px",
+    "border-bottom-width": "0px",
     "border-left-width": "0px",
-    "border-top-color": "rgb(192, 185, 172)",
-    "border-right-color": "rgb(192, 185, 172)",
-    "border-bottom-color": "rgb(192, 185, 172)",
-    "border-left-color": "rgb(192, 185, 172)",
-    "border-top-left-radius": "8px",
-    "border-bottom-right-radius": "8px",
+    "border-top-color": "rgb(95, 89, 79)",
+    "border-right-color": "rgb(95, 89, 79)",
+    "border-bottom-color": "rgb(95, 89, 79)",
+    "border-left-color": "rgb(95, 89, 79)",
+    "border-top-left-radius": "0px",
+    "border-bottom-right-radius": "0px",
     "box-shadow": "none",
-    "outline-color": "rgb(33, 30, 26)",
+    "outline-color": "rgb(95, 89, 79)",
     "outline-width": "3px",
     "z-index": "auto",
     "transform": "none",
-    "transition-property": "translate, border-bottom-width",
+    "transition-property": "all",
     "list-style-type": "disc"
    }
   },
@@ -4085,7 +4085,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    630.61,
+    531.86,
     477,
     162.52
    ],
@@ -4165,7 +4165,7 @@
    "cls": "primary",
    "rect": [
     33,
-    630.61,
+    531.86,
     77.86,
     106.75
    ],
@@ -4245,7 +4245,7 @@
    "cls": "",
    "rect": [
     117.25,
-    630.61,
+    531.86,
     68.16,
     106.75
    ],
@@ -4325,7 +4325,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     191.8,
-    630.61,
+    531.86,
     279.66,
     106.75
    ],
@@ -4405,7 +4405,7 @@
    "cls": "",
    "rect": [
     191.8,
-    630.61,
+    531.86,
     135.83,
     49.38
    ],
@@ -4485,7 +4485,7 @@
    "cls": "",
    "rect": [
     335.63,
-    630.61,
+    531.86,
     135.83,
     49.38
    ],
@@ -4565,7 +4565,7 @@
    "cls": "",
    "rect": [
     191.8,
-    687.98,
+    589.23,
     135.83,
     49.38
    ],
@@ -4645,7 +4645,7 @@
    "cls": "",
    "rect": [
     335.63,
-    687.98,
+    589.23,
     135.83,
     49.38
    ],
@@ -4725,7 +4725,7 @@
    "cls": "relative",
    "rect": [
     33,
-    743.75,
+    645,
     150.47,
     49.38
    ],
@@ -4805,7 +4805,7 @@
    "cls": "",
    "rect": [
     33,
-    743.75,
+    645,
     150.47,
     49.38
    ],
@@ -4885,9 +4885,9 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    822.13,
+    723.38,
     511,
-    314.03
+    264.66
    ],
    "values": {
     "display": "grid",
@@ -4905,7 +4905,7 @@
     "padding-bottom": "16px",
     "padding-left": "16px",
     "width": "511px",
-    "height": "314.031px",
+    "height": "264.656px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -4939,7 +4939,7 @@
     "row-gap": "16px",
     "column-gap": "16px",
     "grid-template-columns": "477px",
-    "grid-template-rows": "101.516px 162.516px",
+    "grid-template-rows": "52.1406px 162.516px",
     "place-items": "normal",
     "border-top-width": "1px",
     "border-right-width": "1px",
@@ -4965,9 +4965,9 @@
    "cls": "",
    "rect": [
     33,
-    839.13,
+    740.38,
     477,
-    101.52
+    52.14
    ],
    "values": {
     "display": "block",
@@ -4985,7 +4985,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "477px",
-    "height": "101.516px",
+    "height": "52.1406px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -5045,7 +5045,7 @@
    "cls": "",
    "rect": [
     33,
-    839.13,
+    740.38,
     477,
     20.16
    ],
@@ -5125,7 +5125,7 @@
    "cls": "",
    "rect": [
     33,
-    864.08,
+    765.33,
     477,
     24
    ],
@@ -5201,16 +5201,16 @@
    }
   },
   {
-   "tag": "BUTTON",
+   "tag": "CODE",
    "cls": "",
    "rect": [
     33,
-    891.27,
-    93.7,
-    49.38
+    767.33,
+    38.53,
+    19
    ],
    "values": {
-    "display": "inline-block",
+    "display": "inline",
     "position": "static",
     "top": "auto",
     "right": "auto",
@@ -5220,28 +5220,28 @@
     "margin-right": "0px",
     "margin-bottom": "0px",
     "margin-left": "0px",
-    "padding-top": "11.2px",
-    "padding-right": "16px",
-    "padding-bottom": "11.2px",
-    "padding-left": "16px",
-    "width": "93.7031px",
-    "height": "49.375px",
+    "padding-top": "0px",
+    "padding-right": "0px",
+    "padding-bottom": "0px",
+    "padding-left": "0px",
+    "width": "auto",
+    "height": "auto",
     "min-width": "0px",
-    "min-height": "48px",
+    "min-height": "0px",
     "max-width": "none",
     "max-height": "none",
-    "color": "rgb(33, 30, 26)",
-    "background-color": "rgb(255, 253, 249)",
+    "color": "rgb(95, 89, 79)",
+    "background-color": "rgba(0, 0, 0, 0)",
     "background-image": "none",
     "opacity": "1",
     "visibility": "visible",
     "font-size": "16px",
-    "font-weight": "700",
-    "font-family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", roboto, sans-serif",
+    "font-weight": "400",
+    "font-family": "ui-monospace, \"SF Mono\", menlo, consolas, monospace",
     "font-style": "normal",
     "line-height": "24px",
-    "letter-spacing": "0.16px",
-    "text-align": "center",
+    "letter-spacing": "normal",
+    "text-align": "start",
     "text-transform": "none",
     "text-decoration-line": "none",
     "white-space": "normal",
@@ -5263,20 +5263,20 @@
     "place-items": "normal",
     "border-top-width": "0px",
     "border-right-width": "0px",
-    "border-bottom-width": "3px",
+    "border-bottom-width": "0px",
     "border-left-width": "0px",
-    "border-top-color": "rgb(192, 185, 172)",
-    "border-right-color": "rgb(192, 185, 172)",
-    "border-bottom-color": "rgb(192, 185, 172)",
-    "border-left-color": "rgb(192, 185, 172)",
-    "border-top-left-radius": "8px",
-    "border-bottom-right-radius": "8px",
+    "border-top-color": "rgb(95, 89, 79)",
+    "border-right-color": "rgb(95, 89, 79)",
+    "border-bottom-color": "rgb(95, 89, 79)",
+    "border-left-color": "rgb(95, 89, 79)",
+    "border-top-left-radius": "0px",
+    "border-bottom-right-radius": "0px",
     "box-shadow": "none",
-    "outline-color": "rgb(33, 30, 26)",
+    "outline-color": "rgb(95, 89, 79)",
     "outline-width": "3px",
     "z-index": "auto",
     "transform": "none",
-    "transition-property": "translate, border-bottom-width",
+    "transition-property": "all",
     "list-style-type": "disc"
    }
   },
@@ -5285,7 +5285,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    956.64,
+    808.52,
     477,
     162.52
    ],
@@ -5365,7 +5365,7 @@
    "cls": "primary",
    "rect": [
     33,
-    956.64,
+    808.52,
     77.86,
     106.75
    ],
@@ -5445,7 +5445,7 @@
    "cls": "",
    "rect": [
     117.25,
-    956.64,
+    808.52,
     68.16,
     106.75
    ],
@@ -5525,7 +5525,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     191.8,
-    956.64,
+    808.52,
     279.66,
     106.75
    ],
@@ -5605,7 +5605,7 @@
    "cls": "",
    "rect": [
     191.8,
-    956.64,
+    808.52,
     135.83,
     49.38
    ],
@@ -5685,7 +5685,7 @@
    "cls": "",
    "rect": [
     335.63,
-    956.64,
+    808.52,
     135.83,
     49.38
    ],
@@ -5765,7 +5765,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1014.02,
+    865.89,
     135.83,
     49.38
    ],
@@ -5845,7 +5845,7 @@
    "cls": "",
    "rect": [
     335.63,
-    1014.02,
+    865.89,
     135.83,
     49.38
    ],
@@ -5925,7 +5925,7 @@
    "cls": "relative",
    "rect": [
     33,
-    1069.78,
+    921.66,
     150.47,
     49.38
    ],
@@ -6005,7 +6005,7 @@
    "cls": "",
    "rect": [
     33,
-    1069.78,
+    921.66,
     150.47,
     49.38
    ],
@@ -6085,9 +6085,9 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    1148.16,
+    1000.03,
     511,
-    314.03
+    264.66
    ],
    "values": {
     "display": "grid",
@@ -6105,7 +6105,7 @@
     "padding-bottom": "16px",
     "padding-left": "16px",
     "width": "511px",
-    "height": "314.031px",
+    "height": "264.656px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -6139,7 +6139,7 @@
     "row-gap": "16px",
     "column-gap": "16px",
     "grid-template-columns": "477px",
-    "grid-template-rows": "101.516px 162.516px",
+    "grid-template-rows": "52.1406px 162.516px",
     "place-items": "normal",
     "border-top-width": "1px",
     "border-right-width": "1px",
@@ -6165,9 +6165,9 @@
    "cls": "",
    "rect": [
     33,
-    1165.16,
+    1017.03,
     477,
-    101.52
+    52.14
    ],
    "values": {
     "display": "block",
@@ -6185,7 +6185,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "477px",
-    "height": "101.516px",
+    "height": "52.1406px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -6245,7 +6245,7 @@
    "cls": "",
    "rect": [
     33,
-    1165.16,
+    1017.03,
     477,
     20.16
    ],
@@ -6325,7 +6325,7 @@
    "cls": "",
    "rect": [
     33,
-    1190.11,
+    1041.98,
     477,
     24
    ],
@@ -6401,16 +6401,16 @@
    }
   },
   {
-   "tag": "BUTTON",
+   "tag": "CODE",
    "cls": "",
    "rect": [
     33,
-    1217.3,
-    93.7,
-    49.38
+    1043.98,
+    67.44,
+    19
    ],
    "values": {
-    "display": "inline-block",
+    "display": "inline",
     "position": "static",
     "top": "auto",
     "right": "auto",
@@ -6420,28 +6420,28 @@
     "margin-right": "0px",
     "margin-bottom": "0px",
     "margin-left": "0px",
-    "padding-top": "11.2px",
-    "padding-right": "16px",
-    "padding-bottom": "11.2px",
-    "padding-left": "16px",
-    "width": "93.7031px",
-    "height": "49.375px",
+    "padding-top": "0px",
+    "padding-right": "0px",
+    "padding-bottom": "0px",
+    "padding-left": "0px",
+    "width": "auto",
+    "height": "auto",
     "min-width": "0px",
-    "min-height": "48px",
+    "min-height": "0px",
     "max-width": "none",
     "max-height": "none",
-    "color": "rgb(33, 30, 26)",
-    "background-color": "rgb(255, 253, 249)",
+    "color": "rgb(95, 89, 79)",
+    "background-color": "rgba(0, 0, 0, 0)",
     "background-image": "none",
     "opacity": "1",
     "visibility": "visible",
     "font-size": "16px",
-    "font-weight": "700",
-    "font-family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", roboto, sans-serif",
+    "font-weight": "400",
+    "font-family": "ui-monospace, \"SF Mono\", menlo, consolas, monospace",
     "font-style": "normal",
     "line-height": "24px",
-    "letter-spacing": "0.16px",
-    "text-align": "center",
+    "letter-spacing": "normal",
+    "text-align": "start",
     "text-transform": "none",
     "text-decoration-line": "none",
     "white-space": "normal",
@@ -6463,20 +6463,20 @@
     "place-items": "normal",
     "border-top-width": "0px",
     "border-right-width": "0px",
-    "border-bottom-width": "3px",
+    "border-bottom-width": "0px",
     "border-left-width": "0px",
-    "border-top-color": "rgb(192, 185, 172)",
-    "border-right-color": "rgb(192, 185, 172)",
-    "border-bottom-color": "rgb(192, 185, 172)",
-    "border-left-color": "rgb(192, 185, 172)",
-    "border-top-left-radius": "8px",
-    "border-bottom-right-radius": "8px",
+    "border-top-color": "rgb(95, 89, 79)",
+    "border-right-color": "rgb(95, 89, 79)",
+    "border-bottom-color": "rgb(95, 89, 79)",
+    "border-left-color": "rgb(95, 89, 79)",
+    "border-top-left-radius": "0px",
+    "border-bottom-right-radius": "0px",
     "box-shadow": "none",
-    "outline-color": "rgb(33, 30, 26)",
+    "outline-color": "rgb(95, 89, 79)",
     "outline-width": "3px",
     "z-index": "auto",
     "transform": "none",
-    "transition-property": "translate, border-bottom-width",
+    "transition-property": "all",
     "list-style-type": "disc"
    }
   },
@@ -6485,7 +6485,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    1282.67,
+    1085.17,
     477,
     162.52
    ],
@@ -6565,7 +6565,7 @@
    "cls": "primary",
    "rect": [
     33,
-    1282.67,
+    1085.17,
     77.86,
     106.75
    ],
@@ -6645,7 +6645,7 @@
    "cls": "",
    "rect": [
     117.25,
-    1282.67,
+    1085.17,
     68.16,
     106.75
    ],
@@ -6725,7 +6725,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     191.8,
-    1282.67,
+    1085.17,
     279.66,
     106.75
    ],
@@ -6805,7 +6805,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1282.67,
+    1085.17,
     135.83,
     49.38
    ],
@@ -6885,7 +6885,7 @@
    "cls": "",
    "rect": [
     335.63,
-    1282.67,
+    1085.17,
     135.83,
     49.38
    ],
@@ -6965,7 +6965,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1340.05,
+    1142.55,
     135.83,
     49.38
    ],
@@ -7045,7 +7045,7 @@
    "cls": "",
    "rect": [
     335.63,
-    1340.05,
+    1142.55,
     135.83,
     49.38
    ],
@@ -7125,7 +7125,7 @@
    "cls": "relative",
    "rect": [
     33,
-    1395.81,
+    1198.31,
     150.47,
     49.38
    ],
@@ -7205,7 +7205,7 @@
    "cls": "",
    "rect": [
     33,
-    1395.81,
+    1198.31,
     150.47,
     49.38
    ],
@@ -7285,9 +7285,9 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    1474.19,
+    1276.69,
     511,
-    314.03
+    264.66
    ],
    "values": {
     "display": "grid",
@@ -7305,7 +7305,7 @@
     "padding-bottom": "16px",
     "padding-left": "16px",
     "width": "511px",
-    "height": "314.031px",
+    "height": "264.656px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -7339,7 +7339,7 @@
     "row-gap": "16px",
     "column-gap": "16px",
     "grid-template-columns": "477px",
-    "grid-template-rows": "101.516px 162.516px",
+    "grid-template-rows": "52.1406px 162.516px",
     "place-items": "normal",
     "border-top-width": "1px",
     "border-right-width": "1px",
@@ -7365,9 +7365,9 @@
    "cls": "",
    "rect": [
     33,
-    1491.19,
+    1293.69,
     477,
-    101.52
+    52.14
    ],
    "values": {
     "display": "block",
@@ -7385,7 +7385,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "477px",
-    "height": "101.516px",
+    "height": "52.1406px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -7445,7 +7445,7 @@
    "cls": "",
    "rect": [
     33,
-    1491.19,
+    1293.69,
     477,
     20.16
    ],
@@ -7525,7 +7525,7 @@
    "cls": "",
    "rect": [
     33,
-    1516.14,
+    1318.64,
     477,
     24
    ],
@@ -7601,16 +7601,16 @@
    }
   },
   {
-   "tag": "BUTTON",
+   "tag": "CODE",
    "cls": "",
    "rect": [
     33,
-    1543.33,
-    93.7,
-    49.38
+    1320.64,
+    125.23,
+    19
    ],
    "values": {
-    "display": "inline-block",
+    "display": "inline",
     "position": "static",
     "top": "auto",
     "right": "auto",
@@ -7620,28 +7620,28 @@
     "margin-right": "0px",
     "margin-bottom": "0px",
     "margin-left": "0px",
-    "padding-top": "11.2px",
-    "padding-right": "16px",
-    "padding-bottom": "11.2px",
-    "padding-left": "16px",
-    "width": "93.7031px",
-    "height": "49.375px",
+    "padding-top": "0px",
+    "padding-right": "0px",
+    "padding-bottom": "0px",
+    "padding-left": "0px",
+    "width": "auto",
+    "height": "auto",
     "min-width": "0px",
-    "min-height": "48px",
+    "min-height": "0px",
     "max-width": "none",
     "max-height": "none",
-    "color": "rgb(33, 30, 26)",
-    "background-color": "rgb(255, 253, 249)",
+    "color": "rgb(95, 89, 79)",
+    "background-color": "rgba(0, 0, 0, 0)",
     "background-image": "none",
     "opacity": "1",
     "visibility": "visible",
     "font-size": "16px",
-    "font-weight": "700",
-    "font-family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", roboto, sans-serif",
+    "font-weight": "400",
+    "font-family": "ui-monospace, \"SF Mono\", menlo, consolas, monospace",
     "font-style": "normal",
     "line-height": "24px",
-    "letter-spacing": "0.16px",
-    "text-align": "center",
+    "letter-spacing": "normal",
+    "text-align": "start",
     "text-transform": "none",
     "text-decoration-line": "none",
     "white-space": "normal",
@@ -7663,20 +7663,20 @@
     "place-items": "normal",
     "border-top-width": "0px",
     "border-right-width": "0px",
-    "border-bottom-width": "3px",
+    "border-bottom-width": "0px",
     "border-left-width": "0px",
-    "border-top-color": "rgb(192, 185, 172)",
-    "border-right-color": "rgb(192, 185, 172)",
-    "border-bottom-color": "rgb(192, 185, 172)",
-    "border-left-color": "rgb(192, 185, 172)",
-    "border-top-left-radius": "8px",
-    "border-bottom-right-radius": "8px",
+    "border-top-color": "rgb(95, 89, 79)",
+    "border-right-color": "rgb(95, 89, 79)",
+    "border-bottom-color": "rgb(95, 89, 79)",
+    "border-left-color": "rgb(95, 89, 79)",
+    "border-top-left-radius": "0px",
+    "border-bottom-right-radius": "0px",
     "box-shadow": "none",
-    "outline-color": "rgb(33, 30, 26)",
+    "outline-color": "rgb(95, 89, 79)",
     "outline-width": "3px",
     "z-index": "auto",
     "transform": "none",
-    "transition-property": "translate, border-bottom-width",
+    "transition-property": "all",
     "list-style-type": "disc"
    }
   },
@@ -7685,7 +7685,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    1608.7,
+    1361.83,
     477,
     162.52
    ],
@@ -7765,7 +7765,7 @@
    "cls": "primary",
    "rect": [
     33,
-    1608.7,
+    1361.83,
     77.86,
     106.75
    ],
@@ -7845,7 +7845,7 @@
    "cls": "",
    "rect": [
     117.25,
-    1608.7,
+    1361.83,
     68.16,
     106.75
    ],
@@ -7925,7 +7925,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     191.8,
-    1608.7,
+    1361.83,
     279.66,
     106.75
    ],
@@ -8005,7 +8005,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1608.7,
+    1361.83,
     135.83,
     49.38
    ],
@@ -8085,7 +8085,7 @@
    "cls": "",
    "rect": [
     335.63,
-    1608.7,
+    1361.83,
     135.83,
     49.38
    ],
@@ -8165,7 +8165,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1666.08,
+    1419.2,
     135.83,
     49.38
    ],
@@ -8245,7 +8245,7 @@
    "cls": "",
    "rect": [
     335.63,
-    1666.08,
+    1419.2,
     135.83,
     49.38
    ],
@@ -8325,7 +8325,7 @@
    "cls": "relative",
    "rect": [
     33,
-    1721.84,
+    1474.97,
     150.47,
     49.38
    ],
@@ -8405,7 +8405,7 @@
    "cls": "",
    "rect": [
     33,
-    1721.84,
+    1474.97,
     150.47,
     49.38
    ],

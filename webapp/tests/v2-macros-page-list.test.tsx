@@ -242,38 +242,17 @@ describe("MacrosPage — V2-133 overflow menu dismissal", () => {
   });
 });
 
-describe("MacrosPage — V2-092 macro-source privacy", () => {
-  test("hides source by default behind a non-revealing placeholder", async () => {
+describe("MacrosPage — V2-092 macro-source handling", () => {
+  test("always shows every macro's source, with no reveal/hide control", async () => {
     const { container } = await renderMacrosPage();
-    expect(container.textContent).not.toContain("make -j8{ENTER}");
-    expect(container.textContent).toContain("Source hidden");
-  });
-
-  test("a temporary per-row reveal shows only that row's source", async () => {
-    const { container } = await renderMacrosPage();
-    await click(
-      requiredElement(
-        '[aria-label="Reveal source for Start the build"]',
-        HTMLButtonElement,
-      ),
-    );
-    expect(container.textContent).toContain("make -j8{ENTER}");
-    expect(container.textContent).not.toContain("[{CTRL}{ALT}t]");
-
-    await click(
-      requiredElement(
-        '[aria-label="Hide source for Start the build"]',
-        HTMLButtonElement,
-      ),
-    );
-    expect(container.textContent).not.toContain("make -j8{ENTER}");
-  });
-
-  test("honors the device-wide show-source-previews preference", async () => {
-    const { container } = await renderMacrosPage({
-      showMacroSourcePreviews: true,
-    });
     expect(container.textContent).toContain("make -j8{ENTER}");
     expect(container.textContent).toContain("[{CTRL}{ALT}t]");
+    expect(container.textContent).not.toContain("Source hidden");
+    expect(
+      container.querySelector('[aria-label^="Reveal source for"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[aria-label^="Hide source for"]'),
+    ).toBeNull();
   });
 });

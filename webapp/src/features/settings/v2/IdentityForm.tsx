@@ -29,22 +29,17 @@ export function IdentityForm({
   const [snapshotRetentionTarget, setSnapshotRetentionTarget] = useState(
     String(settings.snapshotRetentionTarget),
   );
-  const [showMacroSourcePreviews, setShowMacroSourcePreviews] = useState(
-    settings.showMacroSourcePreviews,
-  );
 
   useEffect(() => {
     setDeviceName(settings.deviceName);
     setRequireSerialConfirmation(settings.requireSerialConfirmation);
     setSendMode(settings.sendMode);
     setSnapshotRetentionTarget(String(settings.snapshotRetentionTarget));
-    setShowMacroSourcePreviews(settings.showMacroSourcePreviews);
   }, [
     settings.deviceName,
     settings.requireSerialConfirmation,
     settings.sendMode,
     settings.snapshotRetentionTarget,
-    settings.showMacroSourcePreviews,
   ]);
 
   const retentionTargetNumber = Number(snapshotRetentionTarget);
@@ -53,7 +48,6 @@ export function IdentityForm({
     requireSerialConfirmation,
     sendMode,
     snapshotRetentionTarget: retentionTargetNumber,
-    showMacroSourcePreviews,
   };
   const valid = isSettingsUpdateRequest(request);
 
@@ -138,22 +132,6 @@ export function IdentityForm({
           value={snapshotRetentionTarget}
         />
       </label>
-
-      <CheckboxRow htmlFor="settings-source-previews">
-        <input
-          checked={showMacroSourcePreviews}
-          disabled={busy}
-          id="settings-source-previews"
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-            setShowMacroSourcePreviews(event.currentTarget.checked);
-          }}
-          type="checkbox"
-        />
-        Show macro source previews
-      </CheckboxRow>
-      <FieldHelp as="p">
-        Off by default — macro source can contain passwords or private commands.
-      </FieldHelp>
 
       <FormActions>
         <button className="primary" disabled={busy || !valid} type="submit">
