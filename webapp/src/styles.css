@@ -229,7 +229,7 @@
   }
 
   textarea {
-    @apply min-h-[12rem] font-mono tabular-nums;
+    @apply min-h-[6rem] font-mono tabular-nums;
   }
 
   /* [tabindex="-1"] covers the destructive-confirmation panels, which are
