@@ -290,16 +290,35 @@ export function MacroEditorPage({
       </PageHeading>
 
       {/* Fixed, not merely pinned via scroll tracking: everything below
-          inserts at this textarea's cursor and needs to stay visible while
-          that happens. Name moved back into the scrolling form below --
-          measured on the real device that keeping both Name and Macro
-          source fixed left as little as 24px for the entire directive
-          toolbar in the ordinary "unsaved changes" state (the 3-line app
-          header when dirty makes this worse than the clean state this was
-          first tested against), nowhere near enough to fit a single 44px
-          button. Naming before building was a nice-to-have; it isn't worth
-          that cost. `form` keeps this associated with #macro-editor-form
-          for submission despite living outside its DOM subtree. */}
+          inserts at Macro source's cursor and needs to stay visible while
+          that happens. Name lives here too, above Macro source -- it was
+          moved out to the scrolling form once before, when the textarea's
+          min-height was 12rem and measuring on a real device found that
+          combination left as little as 24px for the entire directive
+          toolbar in the ordinary "unsaved changes" state, nowhere near
+          enough to fit a single 44px button. The textarea is 6rem now, and
+          re-measuring the same way (a real Chrome instance, the "unsaved
+          changes" dirty header, a representative portrait phone height)
+          confirms Name fits back above it with real room left for the
+          toolbar. `form` keeps Name and the textarea associated with
+          #macro-editor-form for submission despite living outside its DOM
+          subtree. */}
+      <label htmlFor="macro-editor-name">
+        Name
+        <input
+          form="macro-editor-form"
+          id="macro-editor-name"
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+            setName(event.currentTarget.value);
+          }}
+          value={name}
+        />
+        <FieldHelp exceeded={nameBytes > v2Limits.macroNameMaxBytes}>
+          {String(nameBytes)} / {String(v2Limits.macroNameMaxBytes)} UTF-8
+          bytes
+        </FieldHelp>
+      </label>
+
       <label
         className="[flex:0_0_auto] rounded-keycap border border-cap-edge bg-panel p-3"
         htmlFor="macro-editor-source"
@@ -329,21 +348,6 @@ export function MacroEditorPage({
           save();
         }}
       >
-        <label htmlFor="macro-editor-name">
-          Name
-          <input
-            id="macro-editor-name"
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-              setName(event.currentTarget.value);
-            }}
-            value={name}
-          />
-          <FieldHelp exceeded={nameBytes > v2Limits.macroNameMaxBytes}>
-            {String(nameBytes)} / {String(v2Limits.macroNameMaxBytes)} UTF-8
-            bytes
-          </FieldHelp>
-        </label>
-
         <div>
           <span className="font-bold">Insert directive</span>
           {/* Named-key directives are a keyboard's own row of keys, so they
