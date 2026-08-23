@@ -20,7 +20,7 @@ static void assert_compile_failure(const char *source) {
 }
 
 TEST_CASE("macro compiler builds a complete immutable plan", "[device][macro_parser]") {
-    static const char source[] = "Hello{{world}}{ENTER}{CTRL+ALT+T}{DELAY:25}";
+    static const char source[] = "Hello{{world}}{ENTER}[{CTRL}{ALT}t]{DELAY:25}";
     const macro_compile_options_t options = {
         .key_press_ms = 8U,
         .inter_key_ms = 15U,

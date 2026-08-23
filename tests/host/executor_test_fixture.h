@@ -52,6 +52,11 @@ typedef struct {
     uint32_t extra_advance_on_wait_ms;
     macro_executor_engine_t *engine;
     app_error_code_t press_result;
+    /* Captures the modifiers/usages passed to the most recent usb_press call,
+     * so a test can assert the engine forwarded a [...] group's full
+     * simultaneous key set -- not just its first key -- in one report. */
+    uint8_t last_press_usages[MACRO_ACTION_USAGES_MAX];
+    uint8_t last_press_usage_count;
     app_error_code_t release_results[16U];
     size_t release_result_count;
     size_t release_index;

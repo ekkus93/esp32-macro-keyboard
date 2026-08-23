@@ -168,8 +168,8 @@ static void test_delay_boundaries(void) {
     expect_failure("{DELAY:-1}", APP_ERROR_MACRO_SYNTAX);
 }
 
-/* SPEC 24.1 item: every allowed modifier combination
- * SPEC 24.1 item: malformed chords */
+/* SPEC 24.1 item: every named key
+ * SPEC 24.1 item: standalone modifier directives */
 static void test_named_keys_and_modifiers(void) {
     static const char *const named_keys[] = {
         "ENTER",    "TAB", "ESC",  "BACKSPACE", "DELETE", "INSERT", "HOME", "END", "PAGEUP",
@@ -183,16 +183,16 @@ static void test_named_keys_and_modifiers(void) {
         expect_success(source, 1U);
     }
 
+    /* CTRL/ALT/SHIFT/GUI are standalone directives: outside a group they tap
+     * and release that modifier alone -- a real action with no usage byte. */
     static const struct {
         const char *source;
         uint8_t modifiers;
     } modifier_cases[] = {
-        {"{CTRL+A}", 0x01U},
-        {"{SHIFT+A}", 0x02U},
-        {"{ALT+A}", 0x04U},
-        {"{GUI+A}", 0x08U},
-        {"{CTRL+SHIFT+ALT+GUI+A}", 0x0fU},
-        {"{GUI+ALT+SHIFT+CTRL+F1}", 0x0fU},
+        {"{CTRL}", 0x01U},
+        {"{SHIFT}", 0x02U},
+        {"{ALT}", 0x04U},
+        {"{GUI}", 0x08U},
     };
     for (size_t index = 0U; index < (sizeof(modifier_cases) / sizeof(modifier_cases[0])); ++index) {
         macro_plan_t plan = {0};
@@ -200,16 +200,77 @@ static void test_named_keys_and_modifiers(void) {
                                                               strlen(modifier_cases[index].source),
                                                               NULL, &plan, NULL));
         TEST_CHECK_EQ_U64(1U, plan.action_count);
-        TEST_CHECK_EQ_U64(MACRO_ACTION_CHORD, plan.actions[0].type);
+        TEST_CHECK_EQ_U64(MACRO_ACTION_KEY, plan.actions[0].type);
         TEST_CHECK_EQ_U64(modifier_cases[index].modifiers, plan.actions[0].modifiers);
+        TEST_CHECK_EQ_U64(0U, plan.actions[0].usage_count);
         macro_plan_v2_free(&plan);
     }
 
-    expect_failure("{CTRL+CTRL+A}", APP_ERROR_MACRO_SYNTAX);
-    expect_failure("{A+CTRL}", APP_ERROR_MACRO_SYNTAX);
-    expect_failure("{CTRL+SHIFT}", APP_ERROR_MACRO_SYNTAX);
-    expect_failure("{CTRL+A+B}", APP_ERROR_MACRO_SYNTAX);
+    /* The retired {MOD+KEY} chord syntax no longer parses at all: '+' has no
+     * special meaning inside a directive body, so these are unknown
+     * directives, not chords. */
+    expect_failure("{CTRL+A}", APP_ERROR_MACRO_SYNTAX);
+    expect_failure("{CTRL+SHIFT+T}", APP_ERROR_MACRO_SYNTAX);
     expect_failure("{CTRL+}", APP_ERROR_MACRO_SYNTAX);
+}
+
+/* SPEC 24.1 item: simultaneous-key groups */
+static void test_simultaneous_key_groups(void) {
+    static const struct {
+        const char *source;
+        uint8_t modifiers;
+        uint8_t usages[MACRO_ACTION_USAGES_MAX];
+        uint8_t usage_count;
+    } cases[] = {
+        {"[{CTRL}l]", 0x01U, {0x0fU}, 1U},
+        {"[{CTRL}{SHIFT}t]", 0x03U, {0x17U}, 1U},
+        {"[{CTRL}{SHIFT}t{F2}]", 0x03U, {0x17U, 0x3bU}, 2U},
+        {"[{CTRL}{ALT}{SHIFT}{GUI}a]", 0x0fU, {0x04U}, 1U},
+    };
+    for (size_t index = 0U; index < (sizeof(cases) / sizeof(cases[0])); ++index) {
+        macro_plan_t plan = {0};
+        TEST_CHECK_APP_ERROR(
+            APP_ERROR_NONE,
+            compile_explicit(cases[index].source, strlen(cases[index].source), NULL, &plan, NULL));
+        TEST_CHECK_EQ_U64(1U, plan.action_count);
+        TEST_CHECK_EQ_U64(MACRO_ACTION_CHORD, plan.actions[0].type);
+        TEST_CHECK_EQ_U64(cases[index].modifiers, plan.actions[0].modifiers);
+        TEST_CHECK_EQ_U64(cases[index].usage_count, plan.actions[0].usage_count);
+        for (uint8_t usage_index = 0U; usage_index < cases[index].usage_count; ++usage_index) {
+            TEST_CHECK_EQ_U64(cases[index].usages[usage_index],
+                              plan.actions[0].usages[usage_index]);
+        }
+        macro_plan_v2_free(&plan);
+    }
+
+    /* Exactly MACRO_ACTION_USAGES_MAX distinct ordinary keys succeeds; one
+     * more fails with the specific limit, not a generic syntax error. */
+    expect_success("[abcdef]", 1U);
+    const macro_parse_error_t over_limit =
+        expect_failure_length("[abcdefg]", strlen("[abcdefg]"), NULL, APP_ERROR_MACRO_LIMIT);
+    TEST_CHECK_EQ_STRING("simultaneous-key group exceeds the 6-key limit", over_limit.message);
+
+    expect_failure("[]", APP_ERROR_MACRO_SYNTAX);
+    expect_failure("[", APP_ERROR_MACRO_SYNTAX);
+    expect_failure("]", APP_ERROR_MACRO_SYNTAX);
+    expect_failure("[a", APP_ERROR_MACRO_SYNTAX);
+    expect_failure("a]", APP_ERROR_MACRO_SYNTAX);
+    expect_failure("[{CTRL}{CTRL}a]", APP_ERROR_MACRO_SYNTAX);
+    expect_failure("[aa]", APP_ERROR_MACRO_SYNTAX);
+    expect_failure("[a[a]]", APP_ERROR_MACRO_SYNTAX);
+    const macro_parse_error_t with_delay = expect_failure_length(
+        "[{CTRL}{DELAY:5}]", strlen("[{CTRL}{DELAY:5}]"), NULL, APP_ERROR_MACRO_SYNTAX);
+    TEST_CHECK_EQ_STRING("a delay is not permitted inside a simultaneous-key group",
+                         with_delay.message);
+
+    /* [[ and ]] escape to the literal bracket character, both at the top
+     * level and as ordinary group members. */
+    expect_success("[[literal brackets]]", 18U);
+    macro_plan_t escaped = {0};
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, compile_explicit("[a[[]", 5U, NULL, &escaped, NULL));
+    TEST_CHECK_EQ_U64(1U, escaped.action_count);
+    TEST_CHECK_EQ_U64(2U, escaped.actions[0].usage_count);
+    macro_plan_v2_free(&escaped);
 }
 
 /* SPEC 24.1 item: newline and tab normalization */
@@ -222,17 +283,17 @@ static void test_case_whitespace_and_line_endings(void) {
     macro_plan_t plan = {0};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, compile_explicit("A\r\nB", 4U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(3U, plan.action_count);
-    TEST_CHECK_EQ_U64(0x28U, plan.actions[1].usage);
+    TEST_CHECK_EQ_U64(0x28U, plan.actions[1].usages[0]);
     macro_plan_v2_free(&plan);
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, compile_explicit("A\nB", 3U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(3U, plan.action_count);
-    TEST_CHECK_EQ_U64(0x28U, plan.actions[1].usage);
+    TEST_CHECK_EQ_U64(0x28U, plan.actions[1].usages[0]);
     macro_plan_v2_free(&plan);
 
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, compile_explicit("\t", 1U, NULL, &plan, NULL));
     TEST_CHECK_EQ_U64(1U, plan.action_count);
-    TEST_CHECK_EQ_U64(0x2bU, plan.actions[0].usage);
+    TEST_CHECK_EQ_U64(0x2bU, plan.actions[0].usages[0]);
     macro_plan_v2_free(&plan);
 
     const macro_parse_error_t error =
@@ -340,10 +401,12 @@ static void test_printable_ascii(void) {
     /* Every printable ASCII character compiles to one key action carrying a real
      * HID usage. Asserted through the compiler rather than the keymap table, so
      * this pins the shipped behaviour instead of an internal lookup. `{` and `}`
-     * are directive delimiters and are covered by
-     * test_braces_and_character_policy instead. */
+     * are directive delimiters, and `[` and `]` are group delimiters -- all four
+     * are covered by test_braces_and_character_policy and
+     * test_simultaneous_key_groups instead, since a single bare one of them is
+     * an unmatched-delimiter error, not a literal character. */
     for (int value = 0x20; value <= 0x7e; ++value) {
-        if (value == '{' || value == '}') {
+        if (value == '{' || value == '}' || value == '[' || value == ']') {
             continue;
         }
         const char source[2] = {(char)value, '\0'};
@@ -353,7 +416,7 @@ static void test_printable_ascii(void) {
         TEST_CHECK_EQ_U64(1U, plan.action_count);
         TEST_CHECK(plan.actions != NULL);
         TEST_CHECK_EQ_INT(MACRO_ACTION_KEY, (int)plan.actions[0].type);
-        TEST_CHECK(plan.actions[0].usage != 0U);
+        TEST_CHECK(plan.actions[0].usage_count == 1U && plan.actions[0].usages[0] != 0U);
         macro_plan_v2_free(&plan);
     }
 }
@@ -385,7 +448,7 @@ static void test_named_key_usages(void) {
             compile_explicit(cases[index].source, strlen(cases[index].source), NULL, &plan, NULL));
         TEST_CHECK_EQ_U64(1U, plan.action_count);
         TEST_CHECK_EQ_U64(MACRO_ACTION_KEY, plan.actions[0].type);
-        TEST_CHECK_EQ_U64(cases[index].usage, plan.actions[0].usage);
+        TEST_CHECK_EQ_U64(cases[index].usage, plan.actions[0].usages[0]);
         TEST_CHECK_EQ_U64(0U, plan.actions[0].modifiers);
         macro_plan_v2_free(&plan);
     }
@@ -399,6 +462,7 @@ int main(void) {
     test_timing_boundaries();
     test_delay_boundaries();
     test_named_keys_and_modifiers();
+    test_simultaneous_key_groups();
     test_case_whitespace_and_line_endings();
     test_error_locations_and_directive_boundaries();
     test_braces_and_character_policy();
@@ -406,8 +470,8 @@ int main(void) {
     test_printable_ascii();
     test_fuzz_corpus();
     expect_success("Hello, world!{ENTER}", 14U);
-    expect_success_length("{CTRL+ALT+T}{DELAY:500}cd /tmp{ENTER}",
-                          strlen("{CTRL+ALT+T}{DELAY:500}cd /tmp{ENTER}"), NULL, 10U, 707U);
+    expect_success_length("[{CTRL}{ALT}t]{DELAY:500}cd /tmp{ENTER}",
+                          strlen("[{CTRL}{ALT}t]{DELAY:500}cd /tmp{ENTER}"), NULL, 10U, 707U);
     puts("macro parser tests passed");
     return EXIT_SUCCESS;
 }

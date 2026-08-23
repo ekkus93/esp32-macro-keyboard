@@ -1,9 +1,18 @@
 import { v2Limits } from "./limits";
 
+/* usage 0 on a "key" action means a standalone modifier tap (e.g. {CTRL}
+ * alone): a real usage byte is never 0, so this reuses the same field rather
+ * than adding an optional one. A "chord" action is a [...] simultaneous-key
+ * group: usages holds every non-modifier key pressed together (0 to
+ * MACRO_ACTION_USAGES_MAX of them; modifiers do not count against that). */
 export type MacroAction =
   | { kind: "key"; usage: number; modifiers: number }
-  | { kind: "chord"; usage: number; modifiers: number }
+  | { kind: "chord"; usages: number[]; modifiers: number }
   | { kind: "delay"; durationMs: number };
+
+/* Matches firmware's MACRO_ACTION_USAGES_MAX (macro_parser.h): a HID boot
+ * keyboard report carries at most this many simultaneous non-modifier keys. */
+const MACRO_ACTION_USAGES_MAX = 6;
 
 export interface MacroCompileError {
   code: "invalid_argument" | "macro_syntax" | "macro_limit";
@@ -180,22 +189,18 @@ function printableKey(character: string): KeyStroke | null {
   return punctuation[character] ?? null;
 }
 
-function chordKey(token: string): number | null {
-  if (Object.hasOwn(namedKeys, token)) {
-    return namedKeys[token] ?? null;
+/* CTRL/ALT/SHIFT/GUI are standalone directives too (checked before the
+ * named-key table since they are not in it): outside a [...] group they tap
+ * and release that modifier alone; inside one they contribute their bit with
+ * no usage byte. */
+function namedDirectiveKey(directive: string): KeyStroke | null {
+  const modifier = modifierBits[directive];
+  if (modifier !== undefined) {
+    return { usage: 0, modifiers: modifier };
   }
-  if (token.length !== 1) {
-    return null;
-  }
-  const code = token.charCodeAt(0);
-  if (code >= 0x41 && code <= 0x5a) {
-    return 0x04 + code - 0x41;
-  }
-  if (code >= 0x31 && code <= 0x39) {
-    return 0x1e + code - 0x31;
-  }
-  if (code === 0x30) {
-    return 0x27;
+  const usage = namedKeys[directive];
+  if (usage !== undefined) {
+    return { usage, modifiers: 0 };
   }
   return null;
 }
@@ -242,50 +247,15 @@ function parseDirective(
     return { kind: "delay", durationMs };
   }
 
-  if (Object.hasOwn(namedKeys, directive)) {
-    const usage = namedKeys[directive];
-    if (usage === undefined) {
-      return errorAt(start, "macro_syntax", "unknown key directive");
-    }
-    return { kind: "key", usage, modifiers: 0 };
-  }
-
-  if (directive.includes("+")) {
-    const tokens = directive.split("+");
-    if (tokens.length < 2 || tokens.some((token) => token.length === 0)) {
-      return errorAt(start, "macro_syntax", "invalid chord");
-    }
-    const ordinary = tokens[tokens.length - 1];
-    if (ordinary === undefined || Object.hasOwn(modifierBits, ordinary)) {
-      return errorAt(start, "macro_syntax", "invalid chord");
-    }
-    const usage = chordKey(ordinary);
-    if (usage === null) {
-      return errorAt(start, "macro_syntax", "invalid chord");
-    }
-
-    let modifiers = 0;
-    const seen = new Set<string>();
-    for (const token of tokens.slice(0, -1)) {
-      const bit = modifierBits[token];
-      if (bit === undefined || seen.has(token)) {
-        return errorAt(start, "macro_syntax", "invalid chord");
-      }
-      seen.add(token);
-      modifiers |= bit;
-    }
-    if (modifiers === 0) {
-      return errorAt(start, "macro_syntax", "invalid chord");
-    }
-    return { kind: "chord", usage, modifiers };
+  const named = namedDirectiveKey(directive);
+  if (named !== null) {
+    return { kind: "key", usage: named.usage, modifiers: named.modifiers };
   }
 
   return errorAt(start, "macro_syntax", "unknown key directive");
 }
 
-function isCompileFailure(
-  value: MacroAction | MacroCompileFailure | ParsedToken,
-): value is MacroCompileFailure {
+function isCompileFailure(value: object): value is MacroCompileFailure {
   return "ok" in value;
 }
 
@@ -366,6 +336,159 @@ function parseCloseBrace(
   };
 }
 
+interface GroupAccumulator {
+  modifiers: number;
+  usages: number[];
+}
+
+function actionUsages(
+  action: Exclude<MacroAction, { kind: "delay" }>,
+): number[] {
+  if (action.kind === "chord") {
+    return action.usages;
+  }
+  return action.usage === 0 ? [] : [action.usage];
+}
+
+/* Merges one already-parsed single action into a [...] group's accumulated
+ * modifiers/usages. Rejects a repeated modifier or ordinary key, and enforces
+ * the MACRO_ACTION_USAGES_MAX (HID report) ceiling on ordinary keys; modifiers
+ * do not count against that ceiling. */
+function mergeGroupMember(
+  accumulator: GroupAccumulator,
+  member: { modifiers: number; usages: number[] },
+  position: Position,
+): MacroCompileFailure | null {
+  if ((accumulator.modifiers & member.modifiers) !== 0) {
+    return errorAt(
+      position,
+      "macro_syntax",
+      "duplicate modifier in a simultaneous-key group",
+    );
+  }
+  accumulator.modifiers |= member.modifiers;
+  for (const usage of member.usages) {
+    if (accumulator.usages.includes(usage)) {
+      return errorAt(
+        position,
+        "macro_syntax",
+        "duplicate key in a simultaneous-key group",
+      );
+    }
+    if (accumulator.usages.length >= MACRO_ACTION_USAGES_MAX) {
+      return errorAt(
+        position,
+        "macro_limit",
+        "simultaneous-key group exceeds the 6-key limit",
+      );
+    }
+    accumulator.usages.push(usage);
+  }
+  return null;
+}
+
+/* Scans a [...] group's content starting just past the opening '[' (`start`),
+ * accumulating modifiers/usages via mergeGroupMember. A bare ']' (not
+ * doubled) ends the group; a bare '[' (not doubled) is a nesting attempt and
+ * is rejected. Every other character -- literals, {directives} including
+ * standalone modifiers, and the [[ / ]] escapes -- is delegated to
+ * parseNextToken exactly as it would be at the top level, so a [...] group's
+ * content follows the same rules as macro source in general. `groupStart` is
+ * the '[' itself, used to report an unmatched or empty group at the position
+ * a reader would look for the mistake. */
+function scanGroupContent(
+  source: string,
+  start: Position,
+  groupStart: Position,
+): { accumulator: GroupAccumulator; next: Position } | MacroCompileFailure {
+  const accumulator: GroupAccumulator = { modifiers: 0, usages: [] };
+  let position = start;
+  for (;;) {
+    const character = source[position.index];
+    if (character === undefined) {
+      return errorAt(groupStart, "macro_syntax", "unmatched opening bracket");
+    }
+    const doubled = source[position.index + 1] === character;
+    if (character === "]" && !doubled) {
+      if (accumulator.usages.length === 0 && accumulator.modifiers === 0) {
+        return errorAt(
+          groupStart,
+          "macro_syntax",
+          "empty simultaneous-key group",
+        );
+      }
+      return { accumulator, next: nextAscii(position, "]") };
+    }
+    if (character === "[" && !doubled) {
+      return errorAt(
+        position,
+        "macro_syntax",
+        "simultaneous-key groups do not nest",
+      );
+    }
+
+    const parsed = parseNextToken(source, position);
+    if (isCompileFailure(parsed)) {
+      return parsed;
+    }
+    const action = parsed.action;
+    if (action.kind === "delay") {
+      return errorAt(
+        position,
+        "macro_syntax",
+        "a delay is not permitted inside a simultaneous-key group",
+      );
+    }
+    const mergeFailure = mergeGroupMember(
+      accumulator,
+      { modifiers: action.modifiers, usages: actionUsages(action) },
+      position,
+    );
+    if (mergeFailure !== null) {
+      return mergeFailure;
+    }
+    position = parsed.next;
+  }
+}
+
+function parseOpenBracket(
+  source: string,
+  position: Position,
+): ParsedToken | MacroCompileFailure {
+  if (source[position.index + 1] === "[") {
+    return {
+      action: { kind: "key", usage: 0x2f, modifiers: 0 },
+      next: nextAscii(position, "[["),
+    };
+  }
+
+  const scanned = scanGroupContent(source, nextAscii(position, "["), position);
+  if (isCompileFailure(scanned)) {
+    return scanned;
+  }
+  return {
+    action: {
+      kind: "chord",
+      modifiers: scanned.accumulator.modifiers,
+      usages: scanned.accumulator.usages,
+    },
+    next: scanned.next,
+  };
+}
+
+function parseCloseBracket(
+  source: string,
+  position: Position,
+): ParsedToken | MacroCompileFailure {
+  if (source[position.index + 1] === "]") {
+    return {
+      action: { kind: "key", usage: 0x30, modifiers: 0 },
+      next: nextAscii(position, "]]"),
+    };
+  }
+  return errorAt(position, "macro_syntax", "unmatched closing bracket");
+}
+
 function parsePrintable(
   character: string,
   position: Position,
@@ -416,6 +539,10 @@ function parseNextToken(
       return parseOpenBrace(source, position);
     case "}":
       return parseCloseBrace(source, position);
+    case "[":
+      return parseOpenBracket(source, position);
+    case "]":
+      return parseCloseBracket(source, position);
     default:
       return parsePrintable(character, position);
   }

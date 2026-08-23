@@ -128,10 +128,17 @@ static bool fake_usb_ready(void *context) {
     return fake->usb_is_ready;
 }
 
-static app_error_code_t fake_press(void *context, uint8_t modifiers, uint8_t usage) {
+static app_error_code_t fake_press(void *context, uint8_t modifiers, const uint8_t *usages,
+                                   uint8_t usage_count) {
     executor_fake_t *fake = context;
     TEST_CHECK(fake != NULL);
-    (void)fake_call_log_record(&fake->calls, "press", modifiers, usage);
+    TEST_CHECK(usage_count == 0U || usages != NULL);
+    (void)fake_call_log_record(&fake->calls, "press", modifiers, usage_count);
+    memset(fake->last_press_usages, 0, sizeof(fake->last_press_usages));
+    for (uint8_t index = 0U; index < usage_count && index < MACRO_ACTION_USAGES_MAX; ++index) {
+        fake->last_press_usages[index] = usages[index];
+    }
+    fake->last_press_usage_count = usage_count;
     return fake->press_result;
 }
 
@@ -232,7 +239,8 @@ app_error_code_t executor_execute_queued(macro_executor_engine_t *engine, execut
 void executor_submit_single_key(macro_executor_engine_t *engine, executor_fake_t *fake,
                                 uint8_t usage) {
     macro_execution_request_t request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = usage};
+    request.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {usage}, .usage_count = 1U};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(engine, &request));
     TEST_CHECK(request.plan.actions == NULL);
     TEST_CHECK(fake->has_queued);

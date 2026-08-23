@@ -258,7 +258,7 @@ describe("MacrosPage — V2-092 macro-source privacy", () => {
       ),
     );
     expect(container.textContent).toContain("make -j8{ENTER}");
-    expect(container.textContent).not.toContain("{CTRL+ALT+T}");
+    expect(container.textContent).not.toContain("[{CTRL}{ALT}t]");
 
     await click(
       requiredElement(
@@ -274,6 +274,6 @@ describe("MacrosPage — V2-092 macro-source privacy", () => {
       showMacroSourcePreviews: true,
     });
     expect(container.textContent).toContain("make -j8{ENTER}");
-    expect(container.textContent).toContain("{CTRL+ALT+T}");
+    expect(container.textContent).toContain("[{CTRL}{ALT}t]");
   });
 });

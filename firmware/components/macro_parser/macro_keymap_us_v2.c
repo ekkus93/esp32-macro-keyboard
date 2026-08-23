@@ -1,6 +1,7 @@
 #include "macro_keymap_us_v2.h"
 
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "macro_keymap_us.h"
@@ -20,25 +21,20 @@ static bool is_uppercase_decimal_token(const char *name, size_t length) {
     return true;
 }
 
+/* CTRL/ALT/SHIFT/GUI are standalone directives too (SPEC_V2 7.7): outside a
+ * [...] group they tap and release that modifier alone; inside one they
+ * contribute their bit with no usage byte. Checked before the named-key table
+ * since they are not in it. */
 bool macro_keymap_us_v2_named_directive(const char *name, macro_hid_key_t *out_key) {
     if (name == NULL || out_key == NULL) {
         return false;
     }
+    uint8_t modifier = 0U;
+    if (macro_keymap_us_modifier(name, &modifier)) {
+        *out_key = (macro_hid_key_t){.modifiers = modifier, .usage = 0U};
+        return true;
+    }
     const size_t length = strlen(name);
     return length > 1U && is_uppercase_decimal_token(name, length) &&
            macro_keymap_us_named(name, out_key);
-}
-
-bool macro_keymap_us_v2_chord_key(const char *name, macro_hid_key_t *out_key) {
-    if (name == NULL || out_key == NULL) {
-        return false;
-    }
-    const size_t length = strlen(name);
-    if (!is_uppercase_decimal_token(name, length)) {
-        return false;
-    }
-    if (length == 1U) {
-        return macro_keymap_us_named(name, out_key);
-    }
-    return macro_keymap_us_v2_named_directive(name, out_key);
 }

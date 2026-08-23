@@ -47,6 +47,9 @@ def source_array(index: int, source: str) -> list[str]:
     return [f"static const uint8_t v2_source_{index}[] = {{{values}}};"]
 
 
+MACRO_ACTION_USAGES_MAX = 6
+
+
 def action_array(index: int, actions: list[Any]) -> list[str]:
     if not actions:
         return []
@@ -57,29 +60,50 @@ def action_array(index: int, actions: list[Any]) -> list[str]:
         kind = require_string(raw_action.get("kind"), "action kind")
         if kind not in ACTION_KINDS:
             raise ValueError(f"case {index} has unsupported action kind {kind}")
-        expected_keys = (
-            {"kind", "durationMs"}
-            if kind == "delay"
-            else {"kind", "usage", "modifiers"}
-        )
+        # "key" (a literal character, named directive, or standalone modifier
+        # tap) carries at most one usage, kept as a scalar for readability;
+        # "chord" (a [...] simultaneous-key group) carries a usages array,
+        # since that is the whole point of the group.
+        expected_keys = {
+            "delay": {"kind", "durationMs"},
+            "key": {"kind", "usage", "modifiers"},
+            "chord": {"kind", "usages", "modifiers"},
+        }[kind]
         if set(raw_action) != expected_keys:
             raise ValueError(f"case {index} action {action_index} has wrong fields")
         if kind == "delay":
             delay = require_int(raw_action["durationMs"], "delay duration")
-            usage = 0
+            usages: list[int] = []
             modifiers = 0
-        else:
+        elif kind == "key":
             delay = 0
             usage = require_int(raw_action["usage"], "HID usage")
+            usages = [] if usage == 0 else [usage]
             modifiers = require_int(raw_action["modifiers"], "HID modifiers")
-            if usage > 0xFF or modifiers > 0xFF:
-                raise ValueError("HID usage and modifiers must fit uint8_t")
+        else:
+            delay = 0
+            raw_usages = raw_action["usages"]
+            if not isinstance(raw_usages, list):
+                raise ValueError(f"case {index} action {action_index} usages must be an array")
+            usages = [require_int(value, "HID usage") for value in raw_usages]
+            if len(usages) != len(set(usages)):
+                raise ValueError(f"case {index} action {action_index} has a duplicate usage")
+            modifiers = require_int(raw_action["modifiers"], "HID modifiers")
+        if len(usages) > MACRO_ACTION_USAGES_MAX:
+            raise ValueError(
+                f"case {index} action {action_index} exceeds "
+                f"MACRO_ACTION_USAGES_MAX ({MACRO_ACTION_USAGES_MAX})"
+            )
+        if any(usage > 0xFF for usage in usages) or modifiers > 0xFF:
+            raise ValueError("HID usage and modifiers must fit uint8_t")
+        usages_initializer = ", ".join(f"UINT8_C({usage})" for usage in usages) or "0"
         lines.extend(
             [
                 "    {",
                 f"        .type = {ACTION_KINDS[kind]},",
                 f"        .modifiers = UINT8_C({modifiers}),",
-                f"        .usage = UINT8_C({usage}),",
+                f"        .usages = {{{usages_initializer}}},",
+                f"        .usage_count = UINT8_C({len(usages)}),",
                 f"        .delay_ms = UINT32_C({delay}),",
                 "    },",
             ]

@@ -9,10 +9,13 @@
 
 #define USB_KEYBOARD_READY_TIMEOUT_MS 100U
 
-/* A single HID keystroke: modifier bitmap plus the key usage code. */
+/* One HID report's worth of keys: a modifier bitmap plus up to
+ * USB_KEYBOARD_KEYCODE_COUNT simultaneous non-modifier key usages.
+ * usage_count is 0 for a modifier-only press. */
 typedef struct {
     uint8_t modifiers;
-    uint8_t usage;
+    uint8_t usages[USB_KEYBOARD_KEYCODE_COUNT];
+    uint8_t usage_count;
 } usb_keyboard_key_t;
 
 bool usb_keyboard_ops_is_valid(const usb_keyboard_ops_t *operations);

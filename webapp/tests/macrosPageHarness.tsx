@@ -43,7 +43,7 @@ export function makeRepository(): Repository {
           {
             id: macroBId,
             name: "Open terminal",
-            source: "{CTRL+ALT+T}",
+            source: "[{CTRL}{ALT}t]",
             keyPressMs: 8,
             interKeyMs: 15,
           },

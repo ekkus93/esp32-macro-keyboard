@@ -77,14 +77,21 @@ const namedKeyTokens = [
   "F10",
   "F11",
   "F12",
+  // CTRL/SHIFT/ALT/GUI are standalone directives too (SPEC_V2 §7.7): outside
+  // a [...] group each taps and releases that modifier alone, so they insert
+  // the same way as any other named key. To press several keys at once, type
+  // '[' and ']' directly around the sequence, e.g. [{CTRL}{SHIFT}t] -- that
+  // needs no dedicated button, since '[' and ']' are ordinary characters
+  // already typeable in Macro source like any other text.
+  "CTRL",
+  "SHIFT",
+  "ALT",
+  "GUI",
 ] as const;
 
 const namedDirectives: readonly NamedDirective[] = namedKeyTokens.map(
   (token) => ({ label: token, token: `{${token}}` }),
 );
-
-const modifiers = ["CTRL", "SHIFT", "ALT", "GUI"] as const;
-type Modifier = (typeof modifiers)[number];
 
 /**
  * Converts a UTF-8 byte offset (as `compileMacro` errors report, per SPEC_V2
@@ -141,10 +148,6 @@ export function MacroEditorPage({
 
   const sourceRef = useRef<HTMLTextAreaElement>(null);
   const pendingSelection = useRef<number | null>(null);
-  const [chordKey, setChordKey] = useState("");
-  const [chordModifiers, setChordModifiers] = useState<ReadonlySet<Modifier>>(
-    new Set(),
-  );
   const [delayMs, setDelayMs] = useState(500);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const advancedContainerRef = useRef<HTMLDivElement>(null);
@@ -189,17 +192,6 @@ export function MacroEditorPage({
     const next = `${source.slice(0, start)}${text}${source.slice(end)}`;
     pendingSelection.current = start + text.length;
     setSource(next);
-  };
-
-  const insertChord = (): void => {
-    const key = chordKey.trim().toUpperCase();
-    if (key.length === 0 || chordModifiers.size === 0) {
-      return;
-    }
-    const ordered = modifiers.filter((modifier) =>
-      chordModifiers.has(modifier),
-    );
-    insertAtCursor(`{${[...ordered, key].join("+")}}`);
   };
 
   const insertDelay = (): void => {
@@ -434,84 +426,35 @@ export function MacroEditorPage({
             </button>
           </div>
 
-          {/* Insert delay and Insert chord both insert at Macro source's
-              cursor, same as the directive grid above, so they stay in view
-              here rather than behind Advanced -- moving them there once
-              hid the insertion from view while it happened, which wasn't
-              worth the space saved. Two independent tool groups, not a
-              sequence, so on tablet/desktop widths (UI_UX_SPEC_V2 13:
-              "tablets and desktops may use wider... layouts") they sit side
-              by side instead of stacking under the full shell width for no
-              reason. Phones keep the single-column stack. */}
-          <div className="min-[42rem]:grid min-[42rem]:grid-cols-2 min-[42rem]:items-start min-[42rem]:gap-4">
-            <div
-              aria-label="Insert delay"
-              className="mt-2 flex flex-wrap gap-[0.4rem]"
-            >
-              <label htmlFor="macro-editor-delay-ms">
-                Delay (ms)
-                <input
-                  id="macro-editor-delay-ms"
-                  max={v2Limits.delayDirectiveMaxMs}
-                  min={1}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                    setDelayMs(event.currentTarget.valueAsNumber);
-                  }}
-                  type="number"
-                  value={Number.isNaN(delayMs) ? "" : delayMs}
-                />
-              </label>
-              <button onClick={insertDelay} type="button">
-                Insert delay
-              </button>
-            </div>
-
-            <div
-              aria-label="Insert chord"
-              className="mt-2 flex flex-wrap gap-[0.4rem]"
-            >
-              {modifiers.map((modifier) => {
-                const pressed = chordModifiers.has(modifier);
-                return (
-                  <button
-                    aria-pressed={pressed}
-                    className={
-                      pressed
-                        ? "min-w-[3.5rem] border-actuate-edge bg-actuate px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem] text-cap shadow-[inset_0_2px_0_var(--color-lamp)]"
-                        : "min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem]"
-                    }
-                    key={modifier}
-                    onClick={() => {
-                      setChordModifiers((current) => {
-                        const next = new Set(current);
-                        if (next.has(modifier)) {
-                          next.delete(modifier);
-                        } else {
-                          next.add(modifier);
-                        }
-                        return next;
-                      });
-                    }}
-                    type="button"
-                  >
-                    {modifier}
-                  </button>
-                );
-              })}
-              <label htmlFor="macro-editor-chord-key">
-                Key
-                <input
-                  id="macro-editor-chord-key"
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                    setChordKey(event.currentTarget.value);
-                  }}
-                  value={chordKey}
-                />
-              </label>
-              <button onClick={insertChord} type="button">
-                Insert chord
-              </button>
-            </div>
+          {/* Insert delay inserts at Macro source's cursor, same as the
+              directive grid above, so it stays in view here rather than
+              behind Advanced -- moving it there once hid the insertion from
+              view while it happened, which wasn't worth the space saved.
+              There is no dedicated group builder: CTRL/SHIFT/ALT/GUI are
+              ordinary buttons in the grid above, and the square brackets that
+              mark a simultaneous-key group are ordinary characters -- typing
+              them directly around a sequence of directive clicks needs no
+              extra UI. */}
+          <div
+            aria-label="Insert delay"
+            className="mt-2 flex flex-wrap gap-[0.4rem]"
+          >
+            <label htmlFor="macro-editor-delay-ms">
+              Delay (ms)
+              <input
+                id="macro-editor-delay-ms"
+                max={v2Limits.delayDirectiveMaxMs}
+                min={1}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                  setDelayMs(event.currentTarget.valueAsNumber);
+                }}
+                type="number"
+                value={Number.isNaN(delayMs) ? "" : delayMs}
+              />
+            </label>
+            <button onClick={insertDelay} type="button">
+              Insert delay
+            </button>
           </div>
         </div>
 
@@ -602,75 +545,6 @@ export function MacroEditorPage({
               value={Number.isNaN(interKeyMs) ? "" : interKeyMs}
             />
           </label>
-
-          <div
-            aria-label="Insert delay"
-            className="mt-3 flex flex-wrap gap-[0.4rem]"
-          >
-            <label className="block" htmlFor="macro-editor-delay-ms">
-              Delay (ms)
-              <input
-                id="macro-editor-delay-ms"
-                max={v2Limits.delayDirectiveMaxMs}
-                min={1}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                  setDelayMs(event.currentTarget.valueAsNumber);
-                }}
-                type="number"
-                value={Number.isNaN(delayMs) ? "" : delayMs}
-              />
-            </label>
-            <button onClick={insertDelay} type="button">
-              Insert delay
-            </button>
-          </div>
-
-          <div
-            aria-label="Insert chord"
-            className="mt-3 flex flex-wrap gap-[0.4rem]"
-          >
-            {modifiers.map((modifier) => {
-              const pressed = chordModifiers.has(modifier);
-              return (
-                <button
-                  aria-pressed={pressed}
-                  className={
-                    pressed
-                      ? "min-w-[3.5rem] border-actuate-edge bg-actuate px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem] text-cap shadow-[inset_0_2px_0_var(--color-lamp)]"
-                      : "min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem]"
-                  }
-                  key={modifier}
-                  onClick={() => {
-                    setChordModifiers((current) => {
-                      const next = new Set(current);
-                      if (next.has(modifier)) {
-                        next.delete(modifier);
-                      } else {
-                        next.add(modifier);
-                      }
-                      return next;
-                    });
-                  }}
-                  type="button"
-                >
-                  {modifier}
-                </button>
-              );
-            })}
-            <label className="block" htmlFor="macro-editor-chord-key">
-              Key
-              <input
-                id="macro-editor-chord-key"
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                  setChordKey(event.currentTarget.value);
-                }}
-                value={chordKey}
-              />
-            </label>
-            <button onClick={insertChord} type="button">
-              Insert chord
-            </button>
-          </div>
 
           <FormActions>
             <button

@@ -448,8 +448,8 @@ static app_error_code_t execute_action(macro_executor_engine_t *engine,
     if (action.type != MACRO_ACTION_KEY && action.type != MACRO_ACTION_CHORD) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
-    app_error_code_t result =
-        engine->ops.usb_press(engine->ops.context, action.modifiers, action.usage);
+    app_error_code_t result = engine->ops.usb_press(engine->ops.context, action.modifiers,
+                                                    action.usages, action.usage_count);
     if (result == APP_ERROR_NONE) {
         result = cancellable_delay(engine, key_press_ms);
     }

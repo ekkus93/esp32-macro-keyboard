@@ -338,9 +338,11 @@ position.
 ```text
 {{  ->  {
 }}  ->  }
+[[  ->  [
+]]  ->  ]
 ```
 
-An unmatched brace is an error.
+An unmatched brace or bracket is an error.
 
 ### 7.7 Key directives
 
@@ -350,22 +352,33 @@ An unmatched brace is an error.
 {UP} {DOWN} {LEFT} {RIGHT}
 {SPACE}
 {F1} through {F12}
+{CTRL} {ALT} {SHIFT} {GUI}
 ```
 
-### 7.8 Chords
+A modifier directive used outside a simultaneous-key group (7.8) taps and
+releases that modifier alone, the same as any other named key.
 
-Modifiers are `CTRL`, `ALT`, `SHIFT`, and `GUI`.
+### 7.8 Simultaneous key groups
 
 ```text
-{CTRL+L}
-{CTRL+SHIFT+T}
-{ALT+F4}
-{GUI+R}
+[{CTRL}l]
+[{CTRL}{SHIFT}t]
+[{CTRL}{SHIFT}t{F2}]
 ```
 
-A chord contains one non-modifier key plus one or more unique modifiers.
-Duplicate modifiers, modifier-only chords, multiple ordinary keys, and unknown
-names are errors.
+`[` and `]` wrap a sequence of otherwise-valid single actions -- literal
+characters and/or directives, including modifiers -- and compile them into one
+atomic simultaneous press, followed by one atomic release, instead of a
+sequence.
+
+Within a group:
+
+- `{DELAY:...}` is an error; delay is a sequencing primitive and has no
+  meaning inside simultaneity.
+- a duplicate modifier or a duplicate ordinary key is an error;
+- groups do not nest;
+- at most 6 distinct non-modifier keys are permitted, matching USB HID report
+  capacity; modifiers do not count against this limit.
 
 ### 7.9 Delay
 

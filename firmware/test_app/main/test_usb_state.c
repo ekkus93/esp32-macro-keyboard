@@ -1,3 +1,6 @@
+#include <stddef.h>
+#include <stdint.h>
+
 #include "unity.h"
 
 #include "app_error.h"
@@ -10,9 +13,10 @@ TEST_CASE("USB keyboard initializes without emitting a key", "[device][usb]") {
     const usb_keyboard_state_t state = usb_keyboard_get_state();
     TEST_ASSERT_TRUE(state == USB_KEYBOARD_DISCONNECTED || state == USB_KEYBOARD_ENUMERATING ||
                      state == USB_KEYBOARD_READY || state == USB_KEYBOARD_SUSPENDED);
-    TEST_ASSERT_EQUAL(APP_ERROR_INVALID_ARGUMENT, usb_keyboard_press(0U, 0U));
+    TEST_ASSERT_EQUAL(APP_ERROR_INVALID_ARGUMENT, usb_keyboard_press(0U, NULL, 0U));
 
     if (state != USB_KEYBOARD_READY) {
-        TEST_ASSERT_EQUAL(APP_ERROR_USB_NOT_READY, usb_keyboard_press(0U, 0x04U));
+        static const uint8_t usages[] = {0x04U};
+        TEST_ASSERT_EQUAL(APP_ERROR_USB_NOT_READY, usb_keyboard_press(0U, usages, 1U));
     }
 }

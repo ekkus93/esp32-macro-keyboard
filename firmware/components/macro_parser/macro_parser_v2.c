@@ -110,6 +110,26 @@ static bool v2_directive_has_invalid_character(const char *text, size_t length) 
     return false;
 }
 
+/* key.usage == 0 means a standalone modifier tap (e.g. {CTRL} alone): the
+ * action carries the modifier bit and no usage byte. Every other caller
+ * passes a real key usage, giving usage_count 1. Takes the whole
+ * macro_hid_key_t rather than separate modifiers/usage parameters -- every
+ * call site already has one, and clang-tidy's bugprone-easily-swappable-
+ * parameters correctly flags two bare adjacent uint8_t as a mistake risk. */
+static macro_action_t v2_key_action(macro_hid_key_t key) {
+    macro_action_t action = {
+        .type = MACRO_ACTION_KEY,
+        .modifiers = key.modifiers,
+        .usage_count = 0U,
+        .delay_ms = 0U,
+    };
+    if (key.usage != 0U) {
+        action.usages[0] = key.usage;
+        action.usage_count = 1U;
+    }
+    return action;
+}
+
 static app_error_code_t v2_parse_delay(const char *directive, size_t length,
                                        macro_action_t *out_action) {
     static const char prefix[] = "DELAY:";
@@ -137,54 +157,8 @@ static app_error_code_t v2_parse_delay(const char *directive, size_t length,
     *out_action = (macro_action_t){
         .type = MACRO_ACTION_DELAY,
         .modifiers = 0U,
-        .usage = 0U,
+        .usage_count = 0U,
         .delay_ms = value,
-    };
-    return APP_ERROR_NONE;
-}
-
-static app_error_code_t v2_parse_chord(char *directive, macro_action_t *out_action) {
-    uint8_t modifiers = 0U;
-    macro_hid_key_t key = {0U, 0U};
-    bool have_key = false;
-    char *cursor = directive;
-
-    while (true) {
-        char *separator = strchr(cursor, '+');
-        if (separator != NULL) {
-            *separator = '\0';
-        }
-        if (*cursor == '\0') {
-            return APP_ERROR_MACRO_SYNTAX;
-        }
-
-        uint8_t modifier = 0U;
-        if (macro_keymap_us_modifier(cursor, &modifier)) {
-            if (have_key || (modifiers & modifier) != 0U) {
-                return APP_ERROR_MACRO_SYNTAX;
-            }
-            modifiers = (uint8_t)(modifiers | modifier);
-        } else {
-            if (have_key || !macro_keymap_us_v2_chord_key(cursor, &key)) {
-                return APP_ERROR_MACRO_SYNTAX;
-            }
-            have_key = true;
-        }
-
-        if (separator == NULL) {
-            break;
-        }
-        cursor = separator + 1;
-    }
-
-    if (!have_key || modifiers == 0U) {
-        return APP_ERROR_MACRO_SYNTAX;
-    }
-    *out_action = (macro_action_t){
-        .type = MACRO_ACTION_CHORD,
-        .modifiers = modifiers,
-        .usage = key.usage,
-        .delay_ms = 0U,
     };
     return APP_ERROR_NONE;
 }
@@ -212,33 +186,66 @@ static app_error_code_t v2_parse_directive(const char *source, size_t offset, co
         return APP_ERROR_NONE;
     }
 
-    if (strchr(buffer, '+') != NULL) {
-        if (v2_parse_chord(buffer, out_action) != APP_ERROR_NONE) {
-            return v2_fail(source, offset, "invalid chord", APP_ERROR_MACRO_SYNTAX, error);
-        }
-        return APP_ERROR_NONE;
-    }
-
     macro_hid_key_t key = {0U, 0U};
     if (!macro_keymap_us_v2_named_directive(buffer, &key)) {
         return v2_fail(source, offset, "unknown key directive", APP_ERROR_MACRO_SYNTAX, error);
     }
-    *out_action = (macro_action_t){
-        .type = MACRO_ACTION_KEY,
-        .modifiers = key.modifiers,
-        .usage = key.usage,
-        .delay_ms = 0U,
-    };
+    *out_action = v2_key_action(key);
     return APP_ERROR_NONE;
 }
 
-static macro_action_t v2_key_action(uint8_t modifiers, uint8_t usage) {
-    return (macro_action_t){
-        .type = MACRO_ACTION_KEY,
-        .modifiers = modifiers,
-        .usage = usage,
-        .delay_ms = 0U,
-    };
+typedef struct {
+    uint8_t modifiers;
+    uint8_t usages[MACRO_ACTION_USAGES_MAX];
+    uint8_t usage_count;
+} v2_group_accumulator_t;
+
+/* Merges one already-parsed single action into a [...] group's accumulated
+ * modifiers/usages. Rejects a repeated modifier or ordinary key, and enforces
+ * the MACRO_ACTION_USAGES_MAX (HID report) ceiling on ordinary keys; modifiers
+ * do not count against that ceiling. `offset` is the position of the member
+ * just parsed, for error locality. */
+static app_error_code_t v2_merge_group_member(v2_group_accumulator_t *accumulator,
+                                              uint8_t member_modifiers,
+                                              const uint8_t *member_usages,
+                                              uint8_t member_usage_count, const char *source,
+                                              size_t offset, macro_parse_error_t *out_error) {
+    if ((accumulator->modifiers & member_modifiers) != 0U) {
+        return v2_fail(source, offset, "duplicate modifier in a simultaneous-key group",
+                       APP_ERROR_MACRO_SYNTAX, out_error);
+    }
+    accumulator->modifiers = (uint8_t)(accumulator->modifiers | member_modifiers);
+    for (uint8_t index = 0U; index < member_usage_count; ++index) {
+        for (uint8_t existing = 0U; existing < accumulator->usage_count; ++existing) {
+            if (accumulator->usages[existing] == member_usages[index]) {
+                return v2_fail(source, offset, "duplicate key in a simultaneous-key group",
+                               APP_ERROR_MACRO_SYNTAX, out_error);
+            }
+        }
+        if (accumulator->usage_count >= MACRO_ACTION_USAGES_MAX) {
+            return v2_fail(source, offset, "simultaneous-key group exceeds the 6-key limit",
+                           APP_ERROR_MACRO_LIMIT, out_error);
+        }
+        accumulator->usages[accumulator->usage_count] = member_usages[index];
+        ++accumulator->usage_count;
+    }
+    return APP_ERROR_NONE;
+}
+
+/* The [[ / ]] escape as a group member: merges one literal bracket character
+ * the same way any other single-usage member merges. `bracket` is '[' or
+ * ']'. */
+static app_error_code_t v2_merge_literal_bracket(char bracket, v2_group_accumulator_t *accumulator,
+                                                 const char *source, size_t offset,
+                                                 macro_parse_error_t *out_error) {
+    macro_hid_key_t key = {0U, 0U};
+    if (!macro_keymap_us_printable(bracket, &key)) {
+        return v2_fail(source, offset, "source contains unsupported character",
+                       APP_ERROR_MACRO_SYNTAX, out_error);
+    }
+    const macro_action_t literal = v2_key_action(key);
+    return v2_merge_group_member(accumulator, literal.modifiers, literal.usages,
+                                 literal.usage_count, source, offset, out_error);
 }
 
 static app_error_code_t v2_parse_open_brace(const char *source, size_t source_length, size_t offset,
@@ -250,7 +257,7 @@ static app_error_code_t v2_parse_open_brace(const char *source, size_t source_le
             return v2_fail(source, offset, "source contains unsupported character",
                            APP_ERROR_MACRO_SYNTAX, out_error);
         }
-        *out_action = v2_key_action(key.modifiers, key.usage);
+        *out_action = v2_key_action(key);
         *out_consumed = 2U;
         return APP_ERROR_NONE;
     }
@@ -276,7 +283,7 @@ static app_error_code_t v2_parse_close_brace(const char *source, size_t source_l
             return v2_fail(source, offset, "source contains unsupported character",
                            APP_ERROR_MACRO_SYNTAX, out_error);
         }
-        *out_action = v2_key_action(key.modifiers, key.usage);
+        *out_action = v2_key_action(key);
         *out_consumed = 2U;
         return APP_ERROR_NONE;
     }
@@ -291,14 +298,22 @@ static app_error_code_t v2_parse_printable(const char *source, size_t offset,
         return v2_fail(source, offset, "source contains unsupported character",
                        APP_ERROR_MACRO_SYNTAX, out_error);
     }
-    *out_action = v2_key_action(key.modifiers, key.usage);
+    *out_action = v2_key_action(key);
     *out_consumed = 1U;
     return APP_ERROR_NONE;
 }
 
-static app_error_code_t v2_parse_next_token(const char *source, size_t source_length, size_t offset,
-                                            macro_action_t *out_action, size_t *out_consumed,
-                                            macro_parse_error_t *out_error) {
+/* Every token EXCEPT '[' and ']': carriage return/newline/tab, {directives},
+ * and printable literals. Kept separate from v2_parse_next_token (which adds
+ * the two bracket cases) so that v2_scan_group_content -- itself reachable
+ * from a bracket case -- can delegate here without closing a call cycle back
+ * through the bracket parsers (clang-tidy's misc-no-recursion forbids that
+ * cycle regardless of it being runtime-bounded to one level, since groups
+ * cannot nest). */
+static app_error_code_t v2_parse_non_bracket_token(const char *source, size_t source_length,
+                                                   size_t offset, macro_action_t *out_action,
+                                                   size_t *out_consumed,
+                                                   macro_parse_error_t *out_error) {
     const uint8_t byte = (uint8_t)source[offset];
     if (byte >= UINT8_C(0x80) || byte == 0U) {
         return v2_fail(source, offset, "source contains unsupported character",
@@ -311,17 +326,19 @@ static app_error_code_t v2_parse_next_token(const char *source, size_t source_le
             return v2_fail(source, offset, "carriage return must be followed by line feed",
                            APP_ERROR_MACRO_SYNTAX, out_error);
         }
-        *out_action = v2_key_action(0U, V2_HID_USAGE_ENTER);
+        *out_action =
+            v2_key_action((macro_hid_key_t){.modifiers = 0U, .usage = V2_HID_USAGE_ENTER});
         *out_consumed = 2U;
         return APP_ERROR_NONE;
     }
     if (character == '\n') {
-        *out_action = v2_key_action(0U, V2_HID_USAGE_ENTER);
+        *out_action =
+            v2_key_action((macro_hid_key_t){.modifiers = 0U, .usage = V2_HID_USAGE_ENTER});
         *out_consumed = 1U;
         return APP_ERROR_NONE;
     }
     if (character == '\t') {
-        *out_action = v2_key_action(0U, V2_HID_USAGE_TAB);
+        *out_action = v2_key_action((macro_hid_key_t){.modifiers = 0U, .usage = V2_HID_USAGE_TAB});
         *out_consumed = 1U;
         return APP_ERROR_NONE;
     }
@@ -338,6 +355,190 @@ static app_error_code_t v2_parse_next_token(const char *source, size_t source_le
                        APP_ERROR_MACRO_SYNTAX, out_error);
     }
     return v2_parse_printable(source, offset, out_action, out_consumed, out_error);
+}
+
+/* Bundles a group scan's fixed inputs into one struct: mainly so
+ * v2_scan_group_content takes one pointer instead of source/source_length/
+ * bracket_offset as three separate parameters -- clang-tidy's
+ * bugprone-easily-swappable-parameters flags size_t source_length next to
+ * size_t bracket_offset (they are never combined in one expression the way
+ * e.g. v2_parse_open_brace's source_length/offset are, so nothing else
+ * signals they play different roles), and a single context pointer removes
+ * the ambiguity outright rather than fighting the heuristic. */
+typedef struct {
+    const char *source;
+    size_t source_length;
+    size_t bracket_offset;
+} v2_group_scan_context_t;
+
+typedef enum { V2_GROUP_STEP_CONTINUE, V2_GROUP_STEP_DONE } v2_group_step_result_t;
+
+/* Handles exactly one position within a [...] group's content: a doubled
+ * bracket is a literal-character member, a bare ']' ends the group (or is
+ * "empty simultaneous-key group" with nothing accumulated yet), a bare '['
+ * is a nesting attempt, and anything else is one ordinary member delegated to
+ * v2_parse_non_bracket_token and merged in. Split out of
+ * v2_scan_group_content to keep that function's own cognitive complexity
+ * (nesting × branches) below the enforced threshold. */
+static app_error_code_t v2_scan_group_step(const v2_group_scan_context_t *context, size_t offset,
+                                           v2_group_accumulator_t *out, size_t *out_consumed,
+                                           v2_group_step_result_t *out_step,
+                                           macro_parse_error_t *out_error) {
+    const char *source = context->source;
+    const bool doubled =
+        offset + 1U < context->source_length && source[offset + 1U] == source[offset];
+
+    if (source[offset] == ']') {
+        if (doubled) {
+            const app_error_code_t merge_result =
+                v2_merge_literal_bracket(']', out, source, offset, out_error);
+            if (merge_result == APP_ERROR_NONE) {
+                *out_consumed = 2U;
+                *out_step = V2_GROUP_STEP_CONTINUE;
+            }
+            return merge_result;
+        }
+        if (out->usage_count == 0U && out->modifiers == 0U) {
+            return v2_fail(source, context->bracket_offset, "empty simultaneous-key group",
+                           APP_ERROR_MACRO_SYNTAX, out_error);
+        }
+        *out_step = V2_GROUP_STEP_DONE;
+        return APP_ERROR_NONE;
+    }
+    if (source[offset] == '[') {
+        if (!doubled) {
+            return v2_fail(source, offset, "simultaneous-key groups do not nest",
+                           APP_ERROR_MACRO_SYNTAX, out_error);
+        }
+        const app_error_code_t merge_result =
+            v2_merge_literal_bracket('[', out, source, offset, out_error);
+        if (merge_result == APP_ERROR_NONE) {
+            *out_consumed = 2U;
+            *out_step = V2_GROUP_STEP_CONTINUE;
+        }
+        return merge_result;
+    }
+
+    macro_action_t member = {0};
+    size_t consumed = 0U;
+    const app_error_code_t result = v2_parse_non_bracket_token(
+        source, context->source_length, offset, &member, &consumed, out_error);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    if (member.type == MACRO_ACTION_DELAY) {
+        return v2_fail(source, offset, "a delay is not permitted inside a simultaneous-key group",
+                       APP_ERROR_MACRO_SYNTAX, out_error);
+    }
+    const app_error_code_t merge_result = v2_merge_group_member(
+        out, member.modifiers, member.usages, member.usage_count, source, offset, out_error);
+    if (merge_result == APP_ERROR_NONE) {
+        *out_consumed = consumed;
+        *out_step = V2_GROUP_STEP_CONTINUE;
+    }
+    return merge_result;
+}
+
+/* Scans a [...] group's content, starting from the '[' itself
+ * (`context->bracket_offset`) so the position math matches every other
+ * delimiter parser in this file. Per-position logic lives in
+ * v2_scan_group_step; this loop just drives it until the group ends or an
+ * error surfaces. An unmatched opening bracket reports at bracket_offset,
+ * the position a reader would look for the mistake. */
+static app_error_code_t v2_scan_group_content(const v2_group_scan_context_t *context,
+                                              v2_group_accumulator_t *out, size_t *out_group_end,
+                                              macro_parse_error_t *out_error) {
+    *out = (v2_group_accumulator_t){0};
+    size_t offset = context->bracket_offset + 1U;
+    while (true) {
+        if (offset >= context->source_length) {
+            return v2_fail(context->source, context->bracket_offset, "unmatched opening bracket",
+                           APP_ERROR_MACRO_SYNTAX, out_error);
+        }
+        size_t consumed = 0U;
+        v2_group_step_result_t step = V2_GROUP_STEP_CONTINUE;
+        const app_error_code_t result =
+            v2_scan_group_step(context, offset, out, &consumed, &step, out_error);
+        if (result != APP_ERROR_NONE) {
+            return result;
+        }
+        if (step == V2_GROUP_STEP_DONE) {
+            *out_group_end = offset + 1U;
+            return APP_ERROR_NONE;
+        }
+        offset += consumed;
+    }
+}
+
+static app_error_code_t v2_parse_open_bracket(const char *source, size_t source_length,
+                                              size_t offset, macro_action_t *out_action,
+                                              size_t *out_consumed,
+                                              macro_parse_error_t *out_error) {
+    if (offset + 1U < source_length && source[offset + 1U] == '[') {
+        macro_hid_key_t key = {0U, 0U};
+        if (!macro_keymap_us_printable('[', &key)) {
+            return v2_fail(source, offset, "source contains unsupported character",
+                           APP_ERROR_MACRO_SYNTAX, out_error);
+        }
+        *out_action = v2_key_action(key);
+        *out_consumed = 2U;
+        return APP_ERROR_NONE;
+    }
+
+    v2_group_accumulator_t accumulator = {0};
+    size_t group_end = 0U;
+    const v2_group_scan_context_t context = {
+        .source = source,
+        .source_length = source_length,
+        .bracket_offset = offset,
+    };
+    const app_error_code_t result =
+        v2_scan_group_content(&context, &accumulator, &group_end, out_error);
+    if (result != APP_ERROR_NONE) {
+        return result;
+    }
+    macro_action_t action = {
+        .type = MACRO_ACTION_CHORD,
+        .modifiers = accumulator.modifiers,
+        .usage_count = accumulator.usage_count,
+        .delay_ms = 0U,
+    };
+    memcpy(action.usages, accumulator.usages, sizeof(action.usages));
+    *out_action = action;
+    *out_consumed = group_end - offset;
+    return APP_ERROR_NONE;
+}
+
+static app_error_code_t v2_parse_close_bracket(const char *source, size_t source_length,
+                                               size_t offset, macro_action_t *out_action,
+                                               size_t *out_consumed,
+                                               macro_parse_error_t *out_error) {
+    if (offset + 1U < source_length && source[offset + 1U] == ']') {
+        macro_hid_key_t key = {0U, 0U};
+        if (!macro_keymap_us_printable(']', &key)) {
+            return v2_fail(source, offset, "source contains unsupported character",
+                           APP_ERROR_MACRO_SYNTAX, out_error);
+        }
+        *out_action = v2_key_action(key);
+        *out_consumed = 2U;
+        return APP_ERROR_NONE;
+    }
+    return v2_fail(source, offset, "unmatched closing bracket", APP_ERROR_MACRO_SYNTAX, out_error);
+}
+
+static app_error_code_t v2_parse_next_token(const char *source, size_t source_length, size_t offset,
+                                            macro_action_t *out_action, size_t *out_consumed,
+                                            macro_parse_error_t *out_error) {
+    if (source[offset] == '[') {
+        return v2_parse_open_bracket(source, source_length, offset, out_action, out_consumed,
+                                     out_error);
+    }
+    if (source[offset] == ']') {
+        return v2_parse_close_bracket(source, source_length, offset, out_action, out_consumed,
+                                      out_error);
+    }
+    return v2_parse_non_bracket_token(source, source_length, offset, out_action, out_consumed,
+                                      out_error);
 }
 
 app_error_code_t macro_compile_v2(const char *source, size_t source_length,

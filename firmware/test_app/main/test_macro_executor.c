@@ -30,7 +30,8 @@ TEST_CASE("executor initializes idle and rejects unavailable USB", "[device][exe
     TEST_ASSERT_NOT_NULL(request.plan.actions);
     request.plan.actions[0] = (macro_action_t){
         .type = MACRO_ACTION_KEY,
-        .usage = 4U,
+        .usages = {4U},
+        .usage_count = 1U,
     };
     request.plan.action_count = 1U;
     request.plan.estimated_duration_ms = TEST_ESTIMATED_DURATION_MS;

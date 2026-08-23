@@ -75,7 +75,8 @@ app_error_code_t usb_keyboard_state_deinit(const usb_keyboard_ops_t *operations)
 
 app_error_code_t usb_keyboard_state_press(const usb_keyboard_ops_t *operations,
                                           usb_keyboard_key_t key) {
-    if (!usb_keyboard_ops_is_valid(operations) || key.usage == 0U) {
+    if (!usb_keyboard_ops_is_valid(operations) || (key.modifiers == 0U && key.usage_count == 0U) ||
+        key.usage_count > USB_KEYBOARD_KEYCODE_COUNT) {
         return APP_ERROR_INVALID_ARGUMENT;
     }
     if (operations->state_get(operations->context) != USB_KEYBOARD_READY ||
@@ -87,7 +88,10 @@ app_error_code_t usb_keyboard_state_press(const usb_keyboard_ops_t *operations,
     if (ready != APP_ERROR_NONE) {
         return ready;
     }
-    const uint8_t keycodes[6] = {key.usage, 0U, 0U, 0U, 0U, 0U};
+    uint8_t keycodes[USB_KEYBOARD_KEYCODE_COUNT] = {0U, 0U, 0U, 0U, 0U, 0U};
+    for (uint8_t index = 0U; index < key.usage_count; ++index) {
+        keycodes[index] = key.usages[index];
+    }
     return operations->send_keyboard_report(operations->context, 0U, key.modifiers, keycodes)
                ? APP_ERROR_NONE
                : APP_ERROR_IO;

@@ -256,14 +256,21 @@ describe("v2 snapshot client", () => {
   function randomSource(length: number): string {
     // High-entropy filler: gzip cannot meaningfully compress this, unlike a
     // repeated character, so the compressed upload genuinely exceeds
-    // v2Limits.blobMaxBytes. `{` and `}` are excluded — they are the macro
-    // language's directive delimiters (§7), and this fixture must stay
-    // grammar-valid now that `saveWorkingCopyAsSnapshot` validates the whole
-    // repository before ever reaching the size check (V2-110).
+    // v2Limits.blobMaxBytes. `[`, `]`, `{`, and `}` are excluded — they are
+    // the macro language's group and directive delimiters (§7), and this
+    // fixture must stay grammar-valid now that `saveWorkingCopyAsSnapshot`
+    // validates the whole repository before ever reaching the size check
+    // (V2-110).
     const bytes = new Uint8Array(length);
     crypto.getRandomValues(bytes);
     return Array.from(bytes, (byte) => {
-      let codePoint = 33 + (byte % 92);
+      let codePoint = 33 + (byte % 90);
+      if (codePoint >= 91) {
+        codePoint += 1; // skip '[' (91)
+      }
+      if (codePoint >= 93) {
+        codePoint += 1; // skip ']' (93)
+      }
       if (codePoint >= 123) {
         codePoint += 1; // skip '{' (123)
       }

@@ -81,7 +81,8 @@ static void test_engine_and_request_validation(void) {
     executor_free_unowned_request(&request);
 
     request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    request.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {4U}, .usage_count = 1U};
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_submit(NULL, &request));
     executor_free_unowned_request(&request);
 
@@ -90,13 +91,15 @@ static void test_engine_and_request_validation(void) {
      * queued/owned state is touched, so the caller keeps ownership of the
      * plan on both paths. */
     request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    request.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {4U}, .usage_count = 1U};
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, macro_executor_engine_execute(NULL, &request));
     TEST_CHECK(request.plan.actions != NULL);
     executor_free_unowned_request(&request);
 
     request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    request.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {4U}, .usage_count = 1U};
     request.macro_revision = 0U;
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT,
                          macro_executor_engine_execute(&engine, &request));
@@ -168,7 +171,8 @@ static void test_submission_ownership_and_recovery(void) {
     executor_init_engine(&engine, &fake);
 
     macro_execution_request_t request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    request.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {4U}, .usage_count = 1U};
     fake_call_log_fail_on(&fake.calls, "lock", 1U);
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_submit(&engine, &request));
     TEST_CHECK(request.plan.actions != NULL);
@@ -202,7 +206,8 @@ static void test_submission_ownership_and_recovery(void) {
     TEST_CHECK(engine.busy);
 
     macro_execution_request_t second = executor_make_request(1U);
-    second.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 5U};
+    second.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {5U}, .usage_count = 1U};
     macro_action_t *const second_actions = second.plan.actions;
     TEST_CHECK_APP_ERROR(APP_ERROR_EXECUTOR_BUSY, macro_executor_engine_submit(&engine, &second));
     TEST_CHECK(second.plan.actions == second_actions);
@@ -227,7 +232,8 @@ static void test_submission_cleanup_release_errors_are_published(void) {
     executor_init_engine(&engine, &fake);
 
     macro_execution_request_t request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    request.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {4U}, .usage_count = 1U};
     fake.release_results[0] = APP_ERROR_USB_NOT_READY;
     fake.release_result_count = 1U;
     fake_call_log_fail_on(&fake.calls, "unlock", 1U);
@@ -248,7 +254,8 @@ static void test_submission_cleanup_release_errors_are_published(void) {
     /* H7-071/H7-073: once defensive release cannot prove a safe HID state, a
      * subsequent send is rejected before its plan ownership can transfer. */
     macro_execution_request_t rejected = executor_make_request(1U);
-    rejected.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 6U};
+    rejected.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {6U}, .usage_count = 1U};
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_submit(&engine, &rejected));
     TEST_CHECK(rejected.plan.actions != NULL);
     executor_free_unowned_request(&rejected);
@@ -257,7 +264,8 @@ static void test_submission_cleanup_release_errors_are_published(void) {
     executor_fake_reset(&fake);
     executor_init_engine(&engine, &fake);
     request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 5U};
+    request.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {5U}, .usage_count = 1U};
     fake.queue_result = false;
     fake.release_results[0] = APP_ERROR_USB_NOT_READY;
     fake.release_result_count = 1U;
@@ -288,7 +296,8 @@ static void test_zero_key_press_ms_is_accepted(void) {
     executor_init_engine(&engine, &fake);
 
     macro_execution_request_t request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    request.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {4U}, .usage_count = 1U};
     request.key_press_ms = 0U;
     request.inter_key_ms = 0U;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));

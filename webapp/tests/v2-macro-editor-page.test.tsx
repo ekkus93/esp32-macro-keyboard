@@ -201,7 +201,7 @@ describe("MacroEditorPage — V2-100 directive insertion controls", () => {
     await unmount();
   });
 
-  test("builds a chord directive from modifiers and a key", async () => {
+  test("inserts a standalone modifier directive", async () => {
     const store = createRepositoryWorkingCopyStore(repository());
     const { unmount } = await render(
       <MacroEditorPage
@@ -212,19 +212,27 @@ describe("MacroEditorPage — V2-100 directive insertion controls", () => {
         store={store}
       />,
     );
-    const ctrlToggle = buttonWithText("CTRL");
-    const shiftToggle = buttonWithText("SHIFT");
-    expect(ctrlToggle.getAttribute("aria-pressed")).toBe("false");
-    await click(ctrlToggle);
-    await click(shiftToggle);
-    expect(ctrlToggle.getAttribute("aria-pressed")).toBe("true");
-    expect(shiftToggle.getAttribute("aria-pressed")).toBe("true");
-    await setInputValue(
-      requiredElement("#macro-editor-chord-key", HTMLInputElement),
-      "t",
+    // CTRL/SHIFT/ALT/GUI are ordinary directive-grid buttons, same as ENTER
+    // or F2 -- there is no separate chord/group builder (V2-100 revision:
+    // the user types '[' and ']' directly around a sequence of these).
+    await click(buttonWithText("CTRL"));
+    expect(sourceTextarea().value).toBe("{CTRL}");
+    await unmount();
+  });
+
+  test("a hand-typed simultaneous-key group compiles and validates", async () => {
+    const store = createRepositoryWorkingCopyStore(repository());
+    const { container, unmount } = await render(
+      <MacroEditorPage
+        macroId={null}
+        onBack={vi.fn()}
+        onSaved={vi.fn()}
+        packageId={packageId}
+        store={store}
+      />,
     );
-    await click(buttonWithText("Insert chord"));
-    expect(sourceTextarea().value).toBe("{CTRL+SHIFT+T}");
+    await setInputValue(sourceTextarea(), "[{CTRL}{SHIFT}t]");
+    expect(container.textContent).toContain("Macro is valid");
     await unmount();
   });
 

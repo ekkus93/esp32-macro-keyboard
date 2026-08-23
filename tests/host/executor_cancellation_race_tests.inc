@@ -54,7 +54,8 @@ static void test_network_and_serial_cancellation_converge_during_confirmation_wa
     executor_init_engine(&engine, &fake);
 
     macro_execution_request_t request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    request.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {4U}, .usage_count = 1U};
     request.require_confirmation = true;
     fake.race_cancel_on_wait = 1U;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
@@ -81,7 +82,8 @@ static void test_cancellation_during_typing_is_bounded_to_one_slice(void) {
     executor_init_engine(&engine, &fake);
 
     macro_execution_request_t request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    request.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {4U}, .usage_count = 1U};
     request.key_press_ms = APP_DELAY_MAX_MS;
     request.inter_key_ms = 0U;
     fake.cancel_on_wait = 1U;

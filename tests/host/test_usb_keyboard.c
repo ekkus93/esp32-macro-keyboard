@@ -224,8 +224,9 @@ static void test_press_rejects_invalid_states(void) {
         usb_keyboard_ops_t operations = make_operations(&fixture);
         TEST_CHECK_EQ_INT(
             APP_ERROR_USB_NOT_READY,
-            usb_keyboard_state_press(&operations,
-                                     (usb_keyboard_key_t){.modifiers = 0x02U, .usage = 0x04U}));
+            usb_keyboard_state_press(
+                &operations,
+                (usb_keyboard_key_t){.modifiers = 0x02U, .usages = {0x04U}, .usage_count = 1U}));
         TEST_CHECK_EQ_U64(0U, fixture.report_calls);
     }
 
@@ -233,18 +234,20 @@ static void test_press_rejects_invalid_states(void) {
     reset_fixture(&fixture);
     ready_fixture(&fixture);
     usb_keyboard_ops_t operations = make_operations(&fixture);
-    TEST_CHECK_EQ_INT(
-        APP_ERROR_INVALID_ARGUMENT,
-        usb_keyboard_state_press(&operations, (usb_keyboard_key_t){.modifiers = 0U, .usage = 0U}));
+    TEST_CHECK_EQ_INT(APP_ERROR_INVALID_ARGUMENT,
+                      usb_keyboard_state_press(
+                          &operations, (usb_keyboard_key_t){.modifiers = 0U, .usage_count = 0U}));
     fixture.mounted = false;
     TEST_CHECK_EQ_INT(APP_ERROR_USB_NOT_READY,
                       usb_keyboard_state_press(
-                          &operations, (usb_keyboard_key_t){.modifiers = 0U, .usage = 0x04U}));
+                          &operations, (usb_keyboard_key_t){
+                                           .modifiers = 0U, .usages = {0x04U}, .usage_count = 1U}));
     fixture.mounted = true;
     fixture.suspended = true;
     TEST_CHECK_EQ_INT(APP_ERROR_USB_NOT_READY,
                       usb_keyboard_state_press(
-                          &operations, (usb_keyboard_key_t){.modifiers = 0U, .usage = 0x04U}));
+                          &operations, (usb_keyboard_key_t){
+                                           .modifiers = 0U, .usages = {0x04U}, .usage_count = 1U}));
 }
 
 static void test_press_reports_and_waits(void) {
@@ -253,9 +256,10 @@ static void test_press_reports_and_waits(void) {
     ready_fixture(&fixture);
     usb_keyboard_ops_t operations = make_operations(&fixture);
 
-    TEST_CHECK_EQ_INT(APP_ERROR_NONE,
-                      usb_keyboard_state_press(
-                          &operations, (usb_keyboard_key_t){.modifiers = 0x03U, .usage = 0x2aU}));
+    TEST_CHECK_EQ_INT(APP_ERROR_NONE, usb_keyboard_state_press(
+                                          &operations, (usb_keyboard_key_t){.modifiers = 0x03U,
+                                                                            .usages = {0x2aU},
+                                                                            .usage_count = 1U}));
     TEST_CHECK_EQ_U64(1U, fixture.report_calls);
     TEST_CHECK_EQ_INT(0U, fixture.report_id);
     TEST_CHECK_EQ_INT(0x03U, fixture.modifiers);
@@ -269,7 +273,8 @@ static void test_press_reports_and_waits(void) {
     operations = make_operations(&fixture);
     TEST_CHECK_EQ_INT(APP_ERROR_NONE,
                       usb_keyboard_state_press(
-                          &operations, (usb_keyboard_key_t){.modifiers = 0U, .usage = 0x04U}));
+                          &operations, (usb_keyboard_key_t){
+                                           .modifiers = 0U, .usages = {0x04U}, .usage_count = 1U}));
     TEST_CHECK_EQ_U64(4U, fixture.ready_calls);
     TEST_CHECK_EQ_U64(3U, fixture.delay_calls);
     TEST_CHECK_EQ_U64(3U, fixture.total_delay_ms);
@@ -285,7 +290,8 @@ static void test_press_stops_on_disconnect_and_timeout(void) {
     usb_keyboard_ops_t operations = make_operations(&fixture);
     TEST_CHECK_EQ_INT(APP_ERROR_USB_NOT_READY,
                       usb_keyboard_state_press(
-                          &operations, (usb_keyboard_key_t){.modifiers = 0U, .usage = 0x04U}));
+                          &operations, (usb_keyboard_key_t){
+                                           .modifiers = 0U, .usages = {0x04U}, .usage_count = 1U}));
     TEST_CHECK_EQ_U64(0U, fixture.report_calls);
     TEST_CHECK_EQ_U64(2U, fixture.delay_calls);
 
@@ -295,7 +301,8 @@ static void test_press_stops_on_disconnect_and_timeout(void) {
     operations = make_operations(&fixture);
     TEST_CHECK_EQ_INT(APP_ERROR_TIMEOUT,
                       usb_keyboard_state_press(
-                          &operations, (usb_keyboard_key_t){.modifiers = 0U, .usage = 0x04U}));
+                          &operations, (usb_keyboard_key_t){
+                                           .modifiers = 0U, .usages = {0x04U}, .usage_count = 1U}));
     TEST_CHECK_EQ_U64(USB_KEYBOARD_READY_TIMEOUT_MS, fixture.delay_calls);
     TEST_CHECK_EQ_U64(0U, fixture.report_calls);
 
@@ -306,7 +313,8 @@ static void test_press_stops_on_disconnect_and_timeout(void) {
     operations = make_operations(&fixture);
     TEST_CHECK_EQ_INT(APP_ERROR_TIMEOUT,
                       usb_keyboard_state_press(
-                          &operations, (usb_keyboard_key_t){.modifiers = 0U, .usage = 0x04U}));
+                          &operations, (usb_keyboard_key_t){
+                                           .modifiers = 0U, .usages = {0x04U}, .usage_count = 1U}));
     TEST_CHECK_EQ_U64(USB_KEYBOARD_READY_TIMEOUT_MS, fixture.delay_calls);
 }
 
@@ -318,7 +326,8 @@ static void test_report_failure(void) {
     usb_keyboard_ops_t operations = make_operations(&fixture);
     TEST_CHECK_EQ_INT(APP_ERROR_IO,
                       usb_keyboard_state_press(
-                          &operations, (usb_keyboard_key_t){.modifiers = 0U, .usage = 0x04U}));
+                          &operations, (usb_keyboard_key_t){
+                                           .modifiers = 0U, .usages = {0x04U}, .usage_count = 1U}));
     TEST_CHECK_EQ_U64(1U, fixture.report_calls);
 }
 

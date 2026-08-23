@@ -203,7 +203,8 @@ static void test_release_fault_recovery_requires_reinit_and_ready_usb(void) {
     TEST_CHECK(!macro_executor_engine_get_status(&engine).available);
 
     macro_execution_request_t rejected = executor_make_request(1U);
-    rejected.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 5U};
+    rejected.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {5U}, .usage_count = 1U};
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_submit(&engine, &rejected));
     TEST_CHECK(rejected.plan.actions != NULL);
     executor_free_unowned_request(&rejected);
@@ -213,7 +214,8 @@ static void test_release_fault_recovery_requires_reinit_and_ready_usb(void) {
     fake.usb_is_ready = false;
     executor_init_engine(&engine, &fake);
     macro_execution_request_t not_ready = executor_make_request(1U);
-    not_ready.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 6U};
+    not_ready.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {6U}, .usage_count = 1U};
     TEST_CHECK_APP_ERROR(APP_ERROR_USB_NOT_READY,
                          macro_executor_engine_submit(&engine, &not_ready));
     TEST_CHECK(not_ready.plan.actions != NULL);
@@ -250,7 +252,8 @@ static void test_terminal_publish_failure_leaves_executor_unavailable(void) {
     /* The lock now works again, but the engine stays latched unavailable and
      * refuses the next submission; the caller keeps ownership of its plan. */
     macro_execution_request_t rejected = executor_make_request(1U);
-    rejected.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 5U};
+    rejected.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {5U}, .usage_count = 1U};
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_submit(&engine, &rejected));
     TEST_CHECK(rejected.plan.actions != NULL);
     executor_free_unowned_request(&rejected);
@@ -352,7 +355,8 @@ static void test_reset_terminal_flags_lock_failure_leaves_engine_stuck_busy(void
     executor_clear_injected_failure(&fake);
 
     macro_execution_request_t rejected = executor_make_request(1U);
-    rejected.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 5U};
+    rejected.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {5U}, .usage_count = 1U};
     TEST_CHECK_APP_ERROR(APP_ERROR_INTERNAL, macro_executor_engine_submit(&engine, &rejected));
     executor_free_unowned_request(&rejected);
 }

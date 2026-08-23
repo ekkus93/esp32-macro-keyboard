@@ -9,7 +9,8 @@
 
 static macro_execution_request_t confirmation_single_key_request(uint8_t usage) {
     macro_execution_request_t request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = usage};
+    request.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {usage}, .usage_count = 1U};
     request.require_confirmation = true;
     return request;
 }

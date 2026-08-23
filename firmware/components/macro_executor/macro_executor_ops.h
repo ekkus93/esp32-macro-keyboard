@@ -15,7 +15,12 @@ typedef struct {
     uint32_t (*now_ms)(void *context);
     app_error_code_t (*wait_ms)(void *context, uint32_t milliseconds);
     bool (*usb_ready)(void *context);
-    app_error_code_t (*usb_press)(void *context, uint8_t modifiers, uint8_t usage);
+    /* usages/usage_count carry a MACRO_ACTION_KEY or MACRO_ACTION_CHORD
+     * action's simultaneous non-modifier keys (0 for a standalone modifier
+     * tap, up to MACRO_ACTION_USAGES_MAX for a [...] group) -- one HID report,
+     * pressed together. */
+    app_error_code_t (*usb_press)(void *context, uint8_t modifiers, const uint8_t *usages,
+                                  uint8_t usage_count);
     app_error_code_t (*usb_release_all)(void *context);
     /* Called exactly when a release-all attempt fails. The engine keeps the
      * failure in status itself; this hook lets the platform persist the same

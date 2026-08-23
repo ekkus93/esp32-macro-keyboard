@@ -97,9 +97,10 @@ static bool adapter_usb_ready(void *context) {
     return usb_keyboard_get_state() == USB_KEYBOARD_READY;
 }
 
-static app_error_code_t adapter_usb_press(void *context, uint8_t modifiers, uint8_t usage) {
+static app_error_code_t adapter_usb_press(void *context, uint8_t modifiers, const uint8_t *usages,
+                                          uint8_t usage_count) {
     (void)context;
-    return usb_keyboard_press(modifiers, usage);
+    return usb_keyboard_press(modifiers, usages, usage_count);
 }
 
 static app_error_code_t adapter_usb_release_all(void *context) {

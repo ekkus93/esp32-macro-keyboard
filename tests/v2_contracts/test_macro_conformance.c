@@ -39,8 +39,29 @@ static const char *message_class(const char *message) {
     if (strcmp(message, "unknown key directive") == 0) {
         return "unknown_key";
     }
-    if (strcmp(message, "invalid chord directive") == 0 || strcmp(message, "invalid chord") == 0) {
-        return "invalid_chord";
+    if (strcmp(message, "unmatched opening bracket") == 0) {
+        return "unmatched_opening_bracket";
+    }
+    if (strcmp(message, "unmatched closing bracket") == 0) {
+        return "unmatched_closing_bracket";
+    }
+    if (strcmp(message, "simultaneous-key groups do not nest") == 0) {
+        return "group_nesting";
+    }
+    if (strcmp(message, "duplicate modifier in a simultaneous-key group") == 0) {
+        return "group_duplicate_modifier";
+    }
+    if (strcmp(message, "duplicate key in a simultaneous-key group") == 0) {
+        return "group_duplicate_key";
+    }
+    if (strcmp(message, "simultaneous-key group exceeds the 6-key limit") == 0) {
+        return "group_limit_exceeded";
+    }
+    if (strcmp(message, "empty simultaneous-key group") == 0) {
+        return "group_empty";
+    }
+    if (strcmp(message, "a delay is not permitted inside a simultaneous-key group") == 0) {
+        return "group_delay_not_permitted";
     }
     if (strcmp(message, "invalid delay directive") == 0 ||
         strcmp(message, "delay is outside the allowed range") == 0) {
@@ -77,8 +98,16 @@ static const char *message_class(const char *message) {
 }
 
 static bool actions_equal(const macro_action_t *expected, const macro_action_t *actual) {
-    return expected->type == actual->type && expected->modifiers == actual->modifiers &&
-           expected->usage == actual->usage && expected->delay_ms == actual->delay_ms;
+    if (expected->type != actual->type || expected->modifiers != actual->modifiers ||
+        expected->delay_ms != actual->delay_ms || expected->usage_count != actual->usage_count) {
+        return false;
+    }
+    for (uint8_t index = 0U; index < expected->usage_count; ++index) {
+        if (expected->usages[index] != actual->usages[index]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 static void verify_valid_case(const v2_macro_case_t *test_case, const macro_plan_t *plan) {

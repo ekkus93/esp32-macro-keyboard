@@ -79,14 +79,51 @@
       }
     },
     {
-      "name": "modifier chord",
-      "source": "{CTRL+SHIFT+T}",
+      "name": "standalone modifier tap",
+      "source": "{CTRL}",
       "keyPressMs": 8,
       "interKeyMs": 15,
       "valid": {
         "estimatedDurationMs": 23,
         "actions": [
-          { "kind": "chord", "usage": 23, "modifiers": 3 }
+          { "kind": "key", "usage": 0, "modifiers": 1 }
+        ]
+      }
+    },
+    {
+      "name": "simultaneous-key group",
+      "source": "[{CTRL}{SHIFT}t]",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "valid": {
+        "estimatedDurationMs": 23,
+        "actions": [
+          { "kind": "chord", "usages": [23], "modifiers": 3 }
+        ]
+      }
+    },
+    {
+      "name": "simultaneous-key group with two ordinary keys",
+      "source": "[{CTRL}{SHIFT}t{F2}]",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "valid": {
+        "estimatedDurationMs": 23,
+        "actions": [
+          { "kind": "chord", "usages": [23, 59], "modifiers": 3 }
+        ]
+      }
+    },
+    {
+      "name": "escaped brackets",
+      "source": "[[]]",
+      "keyPressMs": 0,
+      "interKeyMs": 0,
+      "valid": {
+        "estimatedDurationMs": 0,
+        "actions": [
+          { "kind": "key", "usage": 47, "modifiers": 0 },
+          { "kind": "key", "usage": 48, "modifiers": 0 }
         ]
       }
     },
@@ -183,8 +220,8 @@
       }
     },
     {
-      "name": "duplicate chord modifier",
-      "source": "{CTRL+CTRL+A}",
+      "name": "retired chord syntax is now an unknown directive",
+      "source": "{CTRL+SHIFT+T}",
       "keyPressMs": 8,
       "interKeyMs": 15,
       "invalid": {
@@ -192,12 +229,12 @@
         "byteOffset": 0,
         "line": 1,
         "column": 1,
-        "messageClass": "invalid_chord"
+        "messageClass": "unknown_key"
       }
     },
     {
-      "name": "modifier-only chord",
-      "source": "{CTRL+SHIFT}",
+      "name": "unmatched opening bracket",
+      "source": "[",
       "keyPressMs": 8,
       "interKeyMs": 15,
       "invalid": {
@@ -205,7 +242,98 @@
         "byteOffset": 0,
         "line": 1,
         "column": 1,
-        "messageClass": "invalid_chord"
+        "messageClass": "unmatched_opening_bracket"
+      }
+    },
+    {
+      "name": "unmatched closing bracket",
+      "source": "]",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 0,
+        "line": 1,
+        "column": 1,
+        "messageClass": "unmatched_closing_bracket"
+      }
+    },
+    {
+      "name": "empty simultaneous-key group",
+      "source": "[]",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 0,
+        "line": 1,
+        "column": 1,
+        "messageClass": "group_empty"
+      }
+    },
+    {
+      "name": "nested simultaneous-key group",
+      "source": "[a[b]]",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 2,
+        "line": 1,
+        "column": 3,
+        "messageClass": "group_nesting"
+      }
+    },
+    {
+      "name": "duplicate modifier in a simultaneous-key group",
+      "source": "[{CTRL}{CTRL}a]",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 7,
+        "line": 1,
+        "column": 8,
+        "messageClass": "group_duplicate_modifier"
+      }
+    },
+    {
+      "name": "duplicate key in a simultaneous-key group",
+      "source": "[aa]",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 2,
+        "line": 1,
+        "column": 3,
+        "messageClass": "group_duplicate_key"
+      }
+    },
+    {
+      "name": "simultaneous-key group exceeds the 6-key limit",
+      "source": "[abcdefg]",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_limit",
+        "byteOffset": 7,
+        "line": 1,
+        "column": 8,
+        "messageClass": "group_limit_exceeded"
+      }
+    },
+    {
+      "name": "delay not permitted inside a simultaneous-key group",
+      "source": "[{CTRL}{DELAY:5}]",
+      "keyPressMs": 8,
+      "interKeyMs": 15,
+      "invalid": {
+        "code": "macro_syntax",
+        "byteOffset": 7,
+        "line": 1,
+        "column": 8,
+        "messageClass": "group_delay_not_permitted"
       }
     },
     {

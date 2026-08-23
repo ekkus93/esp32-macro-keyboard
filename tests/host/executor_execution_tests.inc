@@ -10,10 +10,12 @@ static void test_action_order_delay_and_status_progress(void) {
     request.plan.actions[0] = (macro_action_t){
         .type = MACRO_ACTION_CHORD,
         .modifiers = 2U,
-        .usage = 4U,
+        .usages = {4U},
+        .usage_count = 1U,
     };
     request.plan.actions[1] = (macro_action_t){.type = MACRO_ACTION_DELAY, .delay_ms = 25U};
-    request.plan.actions[2] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 5U};
+    request.plan.actions[2] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {5U}, .usage_count = 1U};
     request.plan.estimated_duration_ms = 71U;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, executor_execute_queued(&engine, &fake));
@@ -97,7 +99,8 @@ static void test_timestamps_and_current_action_track_execution(void) {
     TEST_CHECK_EQ_U64(0U, engine.status.accepted_ms);
 
     macro_execution_request_t request = executor_make_request(2U);
-    request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    request.plan.actions[0] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {4U}, .usage_count = 1U};
     request.plan.actions[1] = (macro_action_t){.type = MACRO_ACTION_DELAY, .delay_ms = 20U};
     request.plan.estimated_duration_ms = 50U;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
@@ -179,7 +182,8 @@ static void test_unknown_action_type_is_rejected_safely(void) {
     macro_executor_engine_t engine;
     executor_init_engine(&engine, &fake);
     macro_execution_request_t request = executor_make_request(1U);
-    request.plan.actions[0] = (macro_action_t){.type = (macro_action_type_t)99, .usage = 4U};
+    request.plan.actions[0] =
+        (macro_action_t){.type = (macro_action_type_t)99, .usages = {4U}, .usage_count = 1U};
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
     TEST_CHECK_APP_ERROR(APP_ERROR_INVALID_ARGUMENT, executor_execute_queued(&engine, &fake));
 
@@ -211,7 +215,8 @@ static void test_main_loop_deadline_check_before_next_action(void) {
     executor_init_engine(&engine, &fake);
     macro_execution_request_t request = executor_make_request(2U);
     request.plan.actions[0] = (macro_action_t){.type = MACRO_ACTION_DELAY, .delay_ms = 5U};
-    request.plan.actions[1] = (macro_action_t){.type = MACRO_ACTION_KEY, .usage = 4U};
+    request.plan.actions[1] =
+        (macro_action_t){.type = MACRO_ACTION_KEY, .usages = {4U}, .usage_count = 1U};
     request.plan.estimated_duration_ms = 5U;
     fake.extra_advance_on_wait_ms = APP_V2_EXECUTOR_ABSOLUTE_DEADLINE_MS;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
@@ -256,8 +261,34 @@ static void test_initial_publish_lock_failure_still_finishes_and_recovers(void) 
     executor_assert_terminal(&engine, EXECUTION_COMPLETED, APP_ERROR_NONE, false);
 }
 
+/* A [...] simultaneous-key group compiles to one MACRO_ACTION_CHORD carrying
+ * every non-modifier usage; the engine must forward the whole set to
+ * usb_press in one report, not just the first key. */
+static void test_group_action_forwards_every_simultaneous_usage(void) {
+    executor_fake_t fake;
+    executor_fake_reset(&fake);
+    macro_executor_engine_t engine;
+    executor_init_engine(&engine, &fake);
+    macro_execution_request_t request = executor_make_request(1U);
+    request.plan.actions[0] = (macro_action_t){
+        .type = MACRO_ACTION_CHORD,
+        .modifiers = 0x03U,
+        .usages = {0x04U, 0x16U, 0x3bU},
+        .usage_count = 3U,
+    };
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, macro_executor_engine_submit(&engine, &request));
+    TEST_CHECK_APP_ERROR(APP_ERROR_NONE, executor_execute_queued(&engine, &fake));
+
+    TEST_CHECK_EQ_U64(3U, fake.last_press_usage_count);
+    TEST_CHECK_EQ_INT(0x04U, fake.last_press_usages[0]);
+    TEST_CHECK_EQ_INT(0x16U, fake.last_press_usages[1]);
+    TEST_CHECK_EQ_INT(0x3bU, fake.last_press_usages[2]);
+    executor_assert_terminal(&engine, EXECUTION_COMPLETED, APP_ERROR_NONE, false);
+}
+
 void executor_run_execution_tests(void) {
     test_action_order_delay_and_status_progress();
+    test_group_action_forwards_every_simultaneous_usage();
     test_cancel_before_and_during_actions();
     test_timestamps_and_current_action_track_execution();
     test_watchdog_and_wait_failures();

@@ -76,11 +76,20 @@ describe("v2 shared macro conformance corpus", () => {
 });
 
 describe("v2 macro compiler boundaries", () => {
-  test("accepts all printable ASCII when braces are escaped", () => {
+  test("accepts all printable ASCII when braces and brackets are escaped", () => {
     let source = "";
     for (let code = 0x20; code <= 0x7e; code += 1) {
       const character = String.fromCharCode(code);
-      source += character === "{" ? "{{" : character === "}" ? "}}" : character;
+      source +=
+        character === "{"
+          ? "{{"
+          : character === "}"
+            ? "}}"
+            : character === "["
+              ? "[["
+              : character === "]"
+                ? "]]"
+                : character;
     }
     const result = compileMacro(source, { keyPressMs: 0, interKeyMs: 0 });
     expect(result.ok).toBe(true);
