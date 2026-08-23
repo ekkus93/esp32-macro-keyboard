@@ -48,9 +48,10 @@ outside `webapp/`.
    `*::before` and `*::after` with `!important` (`UI_UX_SPEC_V2` §14,
    "Reduced-motion preferences disable nonessential animation") and has no
    utility form.
-3. **Two globals and one variant** — `body`, the `main` / `#main-content`
-   pair whose selectors are shared between the shell and the standalone
-   screens, and the `@custom-variant short` declaration.
+3. **Two globals** — `body`, and the `main` / `#main-content` pair whose
+   selectors are shared between the shell and the standalone screens. (A
+   `@custom-variant short` declaration lived here through 2026-08-23; retired
+   with the editor's `short:` fallback, §5.3.)
 4. **One `@source not` exclusion** — `webapp/tests/browser/visual/baselines/`
    (T1-2's checked-in visual-regression baselines) is excluded from
    Tailwind's content scan. Those JSON files store, as literal text, every
@@ -178,7 +179,6 @@ together. No `--breakpoint-*` names are added to `@theme`.
 | `min-[34rem]:` | `@media(min-width:34rem)` | `width >= 34rem` |
 | `max-[26rem]:` | `@media not all and (min-width:26rem)` | `width < 26rem` |
 | `[@media(width<=32rem)]:` | `@media(max-width:32rem)` | `width <= 32rem` |
-| `short:` | `@media(max-height:38rem)` | `height <= 38rem` |
 
 `max-[X]:` is **exclusive** and does not match a viewport exactly `X` wide.
 Use it only where the intended condition is genuinely `<`. Where the condition
@@ -205,13 +205,23 @@ pass, because the task only asked whether the class compiled.
 | 40rem | dialog heading stack | `<=` | `[@media(width<=40rem)]:` |
 | 42rem | editor toolbar columns | `>=` | `min-[42rem]:` |
 | 60rem | shell / standalone column width | `>=` | `min-[60rem]:` |
-| 38rem **height** | editor fixed/scroll fallback | `<=` | `short:` |
 
-`short` is declared once in `styles.css` because height-based media queries
-have no built-in Tailwind variant. It is load-bearing: below that height the
-editor's fixed region can exceed the viewport, which clamps the scrolling
-form's flex height to zero, and a zero-height `overflow:auto` container clips
-its content away with no scroll path back.
+**Retired 2026-08-23: 38rem height, editor fixed/scroll fallback, `short:`.**
+The macro editor originally split into a fixed top region (heading, Name,
+Macro source) and a separately-scrolling `<form>` below, with `short:` as an
+escape hatch below 38rem of viewport height where the fixed region alone
+could exceed the screen. That split had a bug its own fallback didn't cover:
+the fixed region's real height depends on package/macro name length and
+dirty-header state, so there were viewport heights *above* the 38rem
+threshold — ordinary desktop windows among them — where the fixed region
+still left the scrolling form less room than its own content needed, and
+that region grew a small permanent inner scrollbar. Fixed by removing the
+split rather than patching the fallback: the editor is now one ordinary
+block flowing through `#main-content`, the app's single scrolling region
+(same as every other screen), with `sticky` (not a structural split) keeping
+the heading/Name/Macro source group visible while the toolbar scrolls past
+underneath. No variant or threshold replaces `short:` because there is no
+longer a second mode to switch into.
 
 ---
 
@@ -419,7 +429,6 @@ full-page screenshot cannot see.
 - 844×390 with `hasTouch: true` for the landscape surface — `hasTouch`
   supplies `pointer: coarse`, one of the three conditions in
   `landscapePhoneMediaQuery`.
-- Height ≤ 608px for anything touching the editor's `short:` fallback.
 
 ### 10.4 The coverage rule
 

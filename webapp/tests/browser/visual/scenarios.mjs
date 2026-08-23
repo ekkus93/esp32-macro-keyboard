@@ -15,7 +15,7 @@ import { captureScenario } from "./capture.mjs";
  * The two viewports every scenario runs at, per
  * WEBAPP_TAILWIND_SPEC_2026-08-18.md §10.3, unless a scenario overrides
  * `viewports` for a state that only exists at one size (the landscape
- * overlay, the short-viewport editor fallback).
+ * overlay).
  */
 export const STANDARD_VIEWPORTS = [
   { name: "390x844", width: 390, height: 844 },
@@ -28,14 +28,16 @@ export const STANDARD_VIEWPORTS = [
  * one pixel above -- rather than sharing one constant. Kept separate from
  * STANDARD_VIEWPORTS because most scenarios gain nothing from running at
  * six widths instead of two; only the element that actually carries a given
- * threshold needs its boundary swept, and every SPEC §5.3 threshold has
- * exactly one boundary scenario covering it: 26rem
+ * threshold needs its boundary swept, and every SPEC §5.3 threshold still in
+ * use has exactly one boundary scenario covering it: 26rem
  * (`snapshots-storage-summary-boundary`), 32rem (`macros-32rem-boundary`),
  * 34rem (`macros-34rem-boundary`), 40rem (`dialog-restart-heading-boundary`),
  * 42rem (`macro-editor-42rem-boundary`), 60rem (`macros-60rem-boundary` for
- * the shell, `signin-60rem-boundary` for `StandaloneScreen`), and the one
- * height-based threshold, 38rem
- * (`macro-editor-short-viewport-boundary`).
+ * the shell, `signin-60rem-boundary` for `StandaloneScreen`). The one
+ * height-based threshold, 38rem (`macro-editor-short-viewport-boundary`),
+ * was retired 2026-08-23 along with the editor's `short:` fallback -- the
+ * macro editor no longer has a second mode to switch into at any height, so
+ * there is no boundary left to sweep.
  */
 
 let importFixturePathPromise = null;
@@ -238,29 +240,6 @@ export const SCENARIOS = [
       );
       return captureScenario(page);
     }),
-  ),
-  // The editor's short-viewport fallback (`short:` variant, SPEC §5.3) --
-  // Its own viewport set, not the standard pair: the split it toggles is
-  // driven by viewport *height*, not width, and this is the 38rem (<=)
-  // height boundary itself (SPEC §5.3's one height-based threshold),
-  // 607/608/609px -- 390px wide throughout since width is not what varies.
-  scenario(
-    "macro-editor-short-viewport-boundary",
-    [
-      { name: "390x607", width: 390, height: 607 }, // 38rem - 1px
-      { name: "390x608", width: 390, height: 608 }, // 38rem
-      { name: "390x609", width: 390, height: 609 }, // 38rem + 1px
-    ],
-    (browser, viewport) =>
-      withApp(browser, viewport, async (page) => {
-        await clickButtonByAriaLabel(page, "Edit Open terminal");
-        await waitFor(
-          page,
-          () => document.querySelector("#macro-editor-name") !== null,
-          "The macro editor did not open.",
-        );
-        return captureScenario(page);
-      }),
   ),
   // 42rem (>=): the editor's toolbar/timing controls go two-column.
   scenario(

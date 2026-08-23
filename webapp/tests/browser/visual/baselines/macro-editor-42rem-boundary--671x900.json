@@ -1602,15 +1602,15 @@
   },
   {
    "tag": "SECTION",
-   "cls": "flex h-full flex-col short:h-auto",
+   "cls": "",
    "rect": [
     16,
     71.55,
     639,
-    740.27
+    954.08
    ],
    "values": {
-    "display": "flex",
+    "display": "block",
     "position": "static",
     "top": "auto",
     "right": "auto",
@@ -1625,7 +1625,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "639px",
-    "height": "740.266px",
+    "height": "954.078px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -1648,7 +1648,7 @@
     "text-overflow": "clip",
     "overflow-x": "visible",
     "overflow-y": "visible",
-    "flex-direction": "column",
+    "flex-direction": "row",
     "flex-wrap": "nowrap",
     "flex-grow": "0",
     "flex-shrink": "1",
@@ -1682,6 +1682,86 @@
   },
   {
    "tag": "DIV",
+   "cls": "sticky top-0 z-10 bg-shell pb-3",
+   "rect": [
+    16,
+    71.55,
+    639,
+    369.34
+   ],
+   "values": {
+    "display": "block",
+    "position": "sticky",
+    "top": "0px",
+    "right": "auto",
+    "bottom": "auto",
+    "left": "auto",
+    "margin-top": "0px",
+    "margin-right": "0px",
+    "margin-bottom": "0px",
+    "margin-left": "0px",
+    "padding-top": "0px",
+    "padding-right": "0px",
+    "padding-bottom": "12px",
+    "padding-left": "0px",
+    "width": "639px",
+    "height": "369.344px",
+    "min-width": "0px",
+    "min-height": "0px",
+    "max-width": "none",
+    "max-height": "none",
+    "color": "rgb(33, 30, 26)",
+    "background-color": "rgb(227, 223, 214)",
+    "background-image": "none",
+    "opacity": "1",
+    "visibility": "visible",
+    "font-size": "16px",
+    "font-weight": "400",
+    "font-family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", roboto, sans-serif",
+    "font-style": "normal",
+    "line-height": "24px",
+    "letter-spacing": "normal",
+    "text-align": "start",
+    "text-transform": "none",
+    "text-decoration-line": "none",
+    "white-space": "normal",
+    "text-overflow": "clip",
+    "overflow-x": "visible",
+    "overflow-y": "visible",
+    "flex-direction": "row",
+    "flex-wrap": "nowrap",
+    "flex-grow": "0",
+    "flex-shrink": "1",
+    "flex-basis": "auto",
+    "justify-content": "normal",
+    "align-items": "normal",
+    "gap": "normal",
+    "row-gap": "normal",
+    "column-gap": "normal",
+    "grid-template-columns": "none",
+    "grid-template-rows": "none",
+    "place-items": "normal",
+    "border-top-width": "0px",
+    "border-right-width": "0px",
+    "border-bottom-width": "0px",
+    "border-left-width": "0px",
+    "border-top-color": "rgb(33, 30, 26)",
+    "border-right-color": "rgb(33, 30, 26)",
+    "border-bottom-color": "rgb(33, 30, 26)",
+    "border-left-color": "rgb(33, 30, 26)",
+    "border-top-left-radius": "0px",
+    "border-bottom-right-radius": "0px",
+    "box-shadow": "none",
+    "outline-color": "rgb(33, 30, 26)",
+    "outline-width": "3px",
+    "z-index": "10",
+    "transform": "none",
+    "transition-property": "all",
+    "list-style-type": "disc"
+   }
+  },
+  {
+   "tag": "DIV",
    "cls": "mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-cap-edge pb-3",
    "rect": [
     16,
@@ -1706,8 +1786,8 @@
     "padding-left": "0px",
     "width": "639px",
     "height": "62.375px",
-    "min-width": "auto",
-    "min-height": "auto",
+    "min-width": "0px",
+    "min-height": "0px",
     "max-width": "none",
     "max-height": "none",
     "color": "rgb(33, 30, 26)",
@@ -2322,7 +2402,7 @@
   },
   {
    "tag": "LABEL",
-   "cls": "",
+   "cls": "block",
    "rect": [
     16,
     153.92,
@@ -2346,8 +2426,8 @@
     "padding-left": "0px",
     "width": "639px",
     "height": "97.9844px",
-    "min-width": "auto",
-    "min-height": "auto",
+    "min-width": "0px",
+    "min-height": "0px",
     "max-width": "none",
     "max-height": "none",
     "color": "rgb(33, 30, 26)",
@@ -2562,7 +2642,7 @@
   },
   {
    "tag": "LABEL",
-   "cls": "[flex:0_0_auto] rounded-keycap border border-cap-edge bg-panel p-3",
+   "cls": "block rounded-keycap border border-cap-edge bg-panel p-3",
    "rect": [
     16,
     251.91,
@@ -2586,8 +2666,8 @@
     "padding-left": "12px",
     "width": "639px",
     "height": "176.984px",
-    "min-width": "auto",
-    "min-height": "auto",
+    "min-width": "0px",
+    "min-height": "0px",
     "max-width": "none",
     "max-height": "none",
     "color": "rgb(33, 30, 26)",
@@ -2611,7 +2691,7 @@
     "flex-direction": "row",
     "flex-wrap": "nowrap",
     "flex-grow": "0",
-    "flex-shrink": "0",
+    "flex-shrink": "1",
     "flex-basis": "auto",
     "justify-content": "normal",
     "align-items": "normal",
@@ -2802,12 +2882,12 @@
   },
   {
    "tag": "FORM",
-   "cls": "grid min-h-0 [flex:1_1_auto] gap-[0.85rem] overflow-y-auto overscroll-y-contain short:flex-none short:overflow-y-visible",
+   "cls": "grid gap-[0.85rem]",
    "rect": [
     16,
-    428.89,
+    440.89,
     639,
-    382.92
+    584.73
    ],
    "values": {
     "display": "grid",
@@ -2825,8 +2905,8 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "639px",
-    "height": "382.922px",
-    "min-width": "auto",
+    "height": "584.734px",
+    "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
     "max-height": "none",
@@ -2846,11 +2926,11 @@
     "text-decoration-line": "none",
     "white-space": "normal",
     "text-overflow": "clip",
-    "overflow-x": "auto",
-    "overflow-y": "auto",
+    "overflow-x": "visible",
+    "overflow-y": "visible",
     "flex-direction": "row",
     "flex-wrap": "nowrap",
-    "flex-grow": "1",
+    "flex-grow": "0",
     "flex-shrink": "1",
     "flex-basis": "auto",
     "justify-content": "normal",
@@ -2885,7 +2965,7 @@
    "cls": "",
    "rect": [
     16,
-    428.89,
+    440.89,
     639,
     460.98
    ],
@@ -2965,7 +3045,7 @@
    "cls": "font-bold",
    "rect": [
     16,
-    430.89,
+    442.89,
     138.41,
     19
    ],
@@ -3045,7 +3125,7 @@
    "cls": "mt-2 grid [grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))] gap-2 [&_button]:min-h-[44px] [&_button]:px-[0.6rem] [&_button]:py-[0.4rem] [&_button]:font-mono [&_button]:text-[0.78rem]",
    "rect": [
     16,
-    460.89,
+    472.89,
     639,
     209.22
    ],
@@ -3125,7 +3205,7 @@
    "cls": "",
    "rect": [
     16,
-    460.89,
+    472.89,
     72.88,
     44
    ],
@@ -3205,7 +3285,7 @@
    "cls": "",
    "rect": [
     96.88,
-    460.89,
+    472.89,
     72.88,
     44
    ],
@@ -3285,7 +3365,7 @@
    "cls": "",
    "rect": [
     177.75,
-    460.89,
+    472.89,
     72.88,
     44
    ],
@@ -3365,7 +3445,7 @@
    "cls": "",
    "rect": [
     258.63,
-    460.89,
+    472.89,
     72.88,
     44
    ],
@@ -3445,7 +3525,7 @@
    "cls": "",
    "rect": [
     339.5,
-    460.89,
+    472.89,
     72.88,
     44
    ],
@@ -3525,7 +3605,7 @@
    "cls": "",
    "rect": [
     420.38,
-    460.89,
+    472.89,
     72.88,
     44
    ],
@@ -3605,7 +3685,7 @@
    "cls": "",
    "rect": [
     501.25,
-    460.89,
+    472.89,
     72.88,
     44
    ],
@@ -3685,7 +3765,7 @@
    "cls": "",
    "rect": [
     582.13,
-    460.89,
+    472.89,
     72.88,
     44
    ],
@@ -3765,7 +3845,7 @@
    "cls": "",
    "rect": [
     16,
-    512.89,
+    524.89,
     72.88,
     44
    ],
@@ -3845,7 +3925,7 @@
    "cls": "",
    "rect": [
     96.88,
-    512.89,
+    524.89,
     72.88,
     44
    ],
@@ -3925,7 +4005,7 @@
    "cls": "",
    "rect": [
     177.75,
-    512.89,
+    524.89,
     72.88,
     44
    ],
@@ -4005,7 +4085,7 @@
    "cls": "",
    "rect": [
     258.63,
-    512.89,
+    524.89,
     72.88,
     44
    ],
@@ -4085,7 +4165,7 @@
    "cls": "",
    "rect": [
     339.5,
-    512.89,
+    524.89,
     72.88,
     44
    ],
@@ -4165,7 +4245,7 @@
    "cls": "",
    "rect": [
     420.38,
-    512.89,
+    524.89,
     72.88,
     44
    ],
@@ -4245,7 +4325,7 @@
    "cls": "",
    "rect": [
     501.25,
-    512.89,
+    524.89,
     72.88,
     44
    ],
@@ -4325,7 +4405,7 @@
    "cls": "",
    "rect": [
     582.13,
-    512.89,
+    524.89,
     72.88,
     44
    ],
@@ -4405,7 +4485,7 @@
    "cls": "",
    "rect": [
     16,
-    564.89,
+    576.89,
     72.88,
     44
    ],
@@ -4485,7 +4565,7 @@
    "cls": "",
    "rect": [
     96.88,
-    564.89,
+    576.89,
     72.88,
     44
    ],
@@ -4565,7 +4645,7 @@
    "cls": "",
    "rect": [
     177.75,
-    564.89,
+    576.89,
     72.88,
     44
    ],
@@ -4645,7 +4725,7 @@
    "cls": "",
    "rect": [
     258.63,
-    564.89,
+    576.89,
     72.88,
     44
    ],
@@ -4725,7 +4805,7 @@
    "cls": "",
    "rect": [
     339.5,
-    564.89,
+    576.89,
     72.88,
     44
    ],
@@ -4805,7 +4885,7 @@
    "cls": "",
    "rect": [
     420.38,
-    564.89,
+    576.89,
     72.88,
     44
    ],
@@ -4885,7 +4965,7 @@
    "cls": "",
    "rect": [
     501.25,
-    564.89,
+    576.89,
     72.88,
     44
    ],
@@ -4965,7 +5045,7 @@
    "cls": "",
    "rect": [
     582.13,
-    564.89,
+    576.89,
     72.88,
     44
    ],
@@ -5045,7 +5125,7 @@
    "cls": "",
    "rect": [
     16,
-    616.89,
+    628.89,
     72.88,
     53.22
    ],
@@ -5125,7 +5205,7 @@
    "cls": "",
    "rect": [
     96.88,
-    616.89,
+    628.89,
     72.88,
     53.22
    ],
@@ -5205,7 +5285,7 @@
    "cls": "",
    "rect": [
     177.75,
-    616.89,
+    628.89,
     72.88,
     53.22
    ],
@@ -5285,7 +5365,7 @@
    "cls": "",
    "rect": [
     258.63,
-    616.89,
+    628.89,
     72.88,
     53.22
    ],
@@ -5365,7 +5445,7 @@
    "cls": "",
    "rect": [
     339.5,
-    616.89,
+    628.89,
     72.88,
     53.22
    ],
@@ -5445,7 +5525,7 @@
    "cls": "min-[42rem]:grid min-[42rem]:grid-cols-2 min-[42rem]:items-start min-[42rem]:gap-4",
    "rect": [
     16,
-    678.11,
+    690.11,
     639,
     211.77
    ],
@@ -5525,7 +5605,7 @@
    "cls": "mt-2 flex flex-wrap gap-[0.4rem]",
    "rect": [
     16,
-    678.11,
+    690.11,
     639,
     74
    ],
@@ -5605,7 +5685,7 @@
    "cls": "",
    "rect": [
     16,
-    678.11,
+    690.11,
     223.75,
     74
    ],
@@ -5685,7 +5765,7 @@
    "cls": "",
    "rect": [
     16,
-    702.11,
+    714.11,
     223.75,
     50
    ],
@@ -5765,7 +5845,7 @@
    "cls": "",
    "rect": [
     246.14,
-    678.11,
+    690.11,
     141.28,
     74
    ],
@@ -5845,7 +5925,7 @@
    "cls": "mt-2 flex flex-wrap gap-[0.4rem]",
    "rect": [
     16,
-    760.11,
+    772.11,
     639,
     129.77
    ],
@@ -5925,7 +6005,7 @@
    "cls": "min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem]",
    "rect": [
     16,
-    760.11,
+    772.11,
     56,
     74
    ],
@@ -6005,7 +6085,7 @@
    "cls": "min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem]",
    "rect": [
     78.39,
-    760.11,
+    772.11,
     58.36,
     74
    ],
@@ -6085,7 +6165,7 @@
    "cls": "min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem]",
    "rect": [
     143.14,
-    760.11,
+    772.11,
     56,
     74
    ],
@@ -6165,7 +6245,7 @@
    "cls": "min-w-[3.5rem] px-[0.6rem] py-[0.4rem] font-mono text-[0.8rem]",
    "rect": [
     205.53,
-    760.11,
+    772.11,
     56,
     74
    ],
@@ -6245,7 +6325,7 @@
    "cls": "",
    "rect": [
     267.92,
-    760.11,
+    772.11,
     283.41,
     74
    ],
@@ -6325,7 +6405,7 @@
    "cls": "",
    "rect": [
     267.92,
-    784.11,
+    796.11,
     283.41,
     50
    ],
@@ -6405,7 +6485,7 @@
    "cls": "",
    "rect": [
     16,
-    840.5,
+    852.5,
     143.97,
     49.38
    ],
@@ -6485,7 +6565,7 @@
    "cls": "rounded-keycap border-y border-r border-l-[3px] border-y-cap-edge border-r-cap-edge border-l-actuate bg-panel p-4",
    "rect": [
     16,
-    903.47,
+    915.47,
     639,
     110.16
    ],
@@ -6565,7 +6645,7 @@
    "cls": "mt-0",
    "rect": [
     35,
-    920.47,
+    932.47,
     603,
     20.16
    ],
@@ -6645,7 +6725,7 @@
    "cls": "font-bold text-good",
    "rect": [
     35,
-    948.63,
+    960.63,
     603,
     24
    ],
@@ -6725,7 +6805,7 @@
    "cls": "",
    "rect": [
     35,
-    972.63,
+    984.63,
     603,
     24
    ],

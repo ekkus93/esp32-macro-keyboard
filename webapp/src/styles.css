@@ -15,15 +15,6 @@
    as a live source of utility candidates. */
 @source not "../tests/browser/visual/baselines/**/*.json";
 
-/* The macro editor's short-viewport fallback. Height-based media queries
-   have no built-in Tailwind variant, and this one is load-bearing: below
-   ~38rem of viewport height the fixed region can exceed the screen, which
-   clamps the editor's scrolling form's flex height to zero -- and a
-   zero-height overflow:auto container clips its content away with no scroll
-   path back, making the directive toolbar and Save footer permanently
-   unreachable. Full rationale where it's applied: MacroEditorPage.tsx. */
-@custom-variant short (@media (height <= 38rem));
-
 /*
  * Visual design: "PBT and petrol".
  *

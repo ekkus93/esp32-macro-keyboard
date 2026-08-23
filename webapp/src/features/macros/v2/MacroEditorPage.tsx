@@ -262,123 +262,126 @@ export function MacroEditorPage({
   };
 
   return (
-    // The macro editor's own two-region split, inside #main-content (already
-    // the app's one scrolling region): a fixed top part (page heading + Macro
-    // source) and the scrolling form below, which is the only part of this
-    // page that scrolls.
-    //
-    // short: (@media height <= 38rem) is load-bearing, found by testing the
-    // "avoid nested scroll views" question, not by guessing: below ~38rem
-    // (600px) of viewport *height* -- a landscape phone, or any short window
-    // -- the fixed region (heading + Name + Macro source, whose textarea has
-    // its own 12rem min-height floor) can be taller than the whole screen.
-    // This <section> has no overflow:hidden of its own, so that overflow
-    // doesn't stay contained -- it pushes past the section's height:100% box,
-    // and #main-content's own overflow-y:auto (correctly) starts scrolling to
-    // compensate. But the scrolling form's flex-computed height still gets
-    // clamped to zero in that state, and a zero-height overflow:auto
-    // container doesn't just hide its content, it clips it away with no
-    // scroll path back to it -- the entire directive toolbar and the Save
-    // footer become permanently unreachable, not merely awkward to reach.
-    // Pinning also isn't a good trade at this height regardless: there isn't
-    // room left to show even one row of buttons once it's pinned. So below
-    // the threshold, give up on the fixed/scroll split entirely (short:h-auto
-    // here, short:flex-none short:overflow-y-visible on the form below) and
-    // fall back to one ordinary scrolling page through #main-content, the
-    // same as every other screen in the app.
-    <section
-      aria-labelledby="macro-editor-title"
-      className="flex h-full flex-col short:h-auto"
-    >
-      <PageHeading>
-        <div className="min-w-0 overflow-hidden">
-          <Eyebrow tone="dark">{pkg.name}</Eyebrow>
-          <h2 className={PAGE_HEADING_TITLE_CLASS} id="macro-editor-title">
-            {macroId === null ? "Create macro" : "Edit macro"}
-          </h2>
-        </div>
-        {/* Save changes moved up from its own fixed bottom bar: with it gone,
+    // No nested scroll region: an earlier version gave this <section> a
+    // fixed top part plus its own separately-scrolling <form> below (with a
+    // `short:` fallback to fall back out of that split entirely once the
+    // fixed part alone could exceed a short viewport). That split had a bug
+    // its own `short:` fallback didn't cover -- the fixed region's real
+    // height (heading + Name + Macro source, all with real content) varies
+    // with package/macro name length and dirty-header state, and once Save
+    // changes joined it there were viewport heights *above* the short:
+    // threshold where the fixed region still left the scrolling form less
+    // room than its own content needed, so *that* region grew a small
+    // permanent inner scrollbar -- the exact nested-scroll-view problem the
+    // `short:` fallback was written to test for, just triggered from the
+    // other side. Fixed by not having two scroll regions at all: this
+    // <section> is now one ordinary block flowing through #main-content
+    // (the app's single scrolling region, same as every other screen), and
+    // the heading/Name/Macro source group below uses `sticky` instead of
+    // being structurally split out -- it stays visible while the directive
+    // toolbar scrolls past underneath, without ever clipping that toolbar
+    // away the way a zero-height overflow:auto container would.
+    <section aria-labelledby="macro-editor-title">
+      <div className="sticky top-0 z-10 bg-shell pb-3">
+        <PageHeading>
+          <div className="min-w-0 overflow-hidden">
+            <Eyebrow tone="dark">{pkg.name}</Eyebrow>
+            <h2 className={PAGE_HEADING_TITLE_CLASS} id="macro-editor-title">
+              {macroId === null ? "Create macro" : "Edit macro"}
+            </h2>
+          </div>
+          {/* Save changes moved up from its own fixed bottom bar: with it gone,
             the scrolling form below gets that space back instead of paying
             for a second pinned strip. `form` keeps Save associated with
             #macro-editor-form for submission despite living outside it,
             same as Name and Macro source above. Still disabled on the same
             `canSave` condition -- moving it didn't change when it's safe to
             submit, only where the control sits. */}
-        <HeaderActions>
-          <button
-            onClick={() => {
-              setAdvancedOpen(true);
-            }}
-            type="button"
-          >
-            Advanced
-          </button>
-          <button
-            className="primary"
-            disabled={!canSave}
+          <HeaderActions>
+            <button
+              onClick={() => {
+                setAdvancedOpen(true);
+              }}
+              type="button"
+            >
+              Advanced
+            </button>
+            <button
+              className="primary"
+              disabled={!canSave}
+              form="macro-editor-form"
+              type="submit"
+            >
+              Save changes
+            </button>
+            <button onClick={onBack} type="button">
+              Cancel
+            </button>
+          </HeaderActions>
+        </PageHeading>
+
+        {/* Sticky, not merely pinned via a structural split: everything
+            below inserts at Macro source's cursor and needs to stay visible
+            while that happens. Name lives here too, above Macro source --
+            re-measured on a real Chrome instance (the "unsaved changes"
+            dirty header, a representative portrait phone height) to confirm
+            it still leaves real room for the toolbar once stuck at the top
+            of #main-content's scroll. `form` keeps Name and the textarea
+            associated with #macro-editor-form for submission despite living
+            outside its DOM subtree.
+
+            `block` on both labels below is load-bearing, not decorative:
+            `<label>` is inline by default in HTML, and neither Tailwind's
+            preflight nor this app's own base `label{}` rule (font-weight
+            only) overrides that. Every other label in this app has looked
+            like a real block box only because it happened to be a flex or
+            grid item -- flexbox/grid blockify their children regardless of
+            the child's own `display` -- and this sticky wrapper is a plain
+            `<div>`, the first place in the app a label sits in ordinary
+            block flow. Without `block` here the label collapses to an
+            inline box sized to its content's line boxes, and Macro source's
+            panel below it overlaps Name instead of following it -- found by
+            screenshotting this exact change, not by inspection. */}
+        <label className="block" htmlFor="macro-editor-name">
+          Name
+          <input
             form="macro-editor-form"
-            type="submit"
-          >
-            Save changes
-          </button>
-          <button onClick={onBack} type="button">
-            Cancel
-          </button>
-        </HeaderActions>
-      </PageHeading>
+            id="macro-editor-name"
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              setName(event.currentTarget.value);
+            }}
+            value={name}
+          />
+          <FieldHelp exceeded={nameBytes > v2Limits.macroNameMaxBytes}>
+            {String(nameBytes)} / {String(v2Limits.macroNameMaxBytes)} UTF-8
+            bytes
+          </FieldHelp>
+        </label>
 
-      {/* Fixed, not merely pinned via scroll tracking: everything below
-          inserts at Macro source's cursor and needs to stay visible while
-          that happens. Name lives here too, above Macro source -- it was
-          moved out to the scrolling form once before, when the textarea's
-          min-height was 12rem and measuring on a real device found that
-          combination left as little as 24px for the entire directive
-          toolbar in the ordinary "unsaved changes" state, nowhere near
-          enough to fit a single 44px button. The textarea is 6rem now, and
-          re-measuring the same way (a real Chrome instance, the "unsaved
-          changes" dirty header, a representative portrait phone height)
-          confirms Name fits back above it with real room left for the
-          toolbar. `form` keeps Name and the textarea associated with
-          #macro-editor-form for submission despite living outside its DOM
-          subtree. */}
-      <label htmlFor="macro-editor-name">
-        Name
-        <input
-          form="macro-editor-form"
-          id="macro-editor-name"
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-            setName(event.currentTarget.value);
-          }}
-          value={name}
-        />
-        <FieldHelp exceeded={nameBytes > v2Limits.macroNameMaxBytes}>
-          {String(nameBytes)} / {String(v2Limits.macroNameMaxBytes)} UTF-8 bytes
-        </FieldHelp>
-      </label>
-
-      <label
-        className="[flex:0_0_auto] rounded-keycap border border-cap-edge bg-panel p-3"
-        htmlFor="macro-editor-source"
-      >
-        Macro source
-        <textarea
-          form="macro-editor-form"
-          id="macro-editor-source"
-          onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
-            setSource(event.currentTarget.value);
-          }}
-          ref={sourceRef}
-          spellCheck="false"
-          value={source}
-        />
-        <FieldHelp exceeded={sourceBytes > v2Limits.macroSourceMaxBytes}>
-          {String(sourceBytes)} / {String(v2Limits.macroSourceMaxBytes)} UTF-8
-          bytes
-        </FieldHelp>
-      </label>
+        <label
+          className="block rounded-keycap border border-cap-edge bg-panel p-3"
+          htmlFor="macro-editor-source"
+        >
+          Macro source
+          <textarea
+            form="macro-editor-form"
+            id="macro-editor-source"
+            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+              setSource(event.currentTarget.value);
+            }}
+            ref={sourceRef}
+            spellCheck="false"
+            value={source}
+          />
+          <FieldHelp exceeded={sourceBytes > v2Limits.macroSourceMaxBytes}>
+            {String(sourceBytes)} / {String(v2Limits.macroSourceMaxBytes)} UTF-8
+            bytes
+          </FieldHelp>
+        </label>
+      </div>
 
       <form
-        className="grid min-h-0 [flex:1_1_auto] gap-[0.85rem] overflow-y-auto overscroll-y-contain short:flex-none short:overflow-y-visible"
+        className="grid gap-[0.85rem]"
         id="macro-editor-form"
         onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
           event.preventDefault();
@@ -567,7 +570,10 @@ export function MacroEditorPage({
           heading={<h2 id="macro-editor-advanced-title">Advanced timing</h2>}
           role="dialog"
         >
-          <label htmlFor="macro-editor-key-press">
+          {/* `block` on both labels below: `<label>` is inline by default
+              and Dialog's panel is a plain div, not flex/grid, so nothing
+              else blockifies it -- full rationale at Name's label above. */}
+          <label className="block" htmlFor="macro-editor-key-press">
             Key-press duration (ms)
             <input
               form="macro-editor-form"
@@ -582,7 +588,7 @@ export function MacroEditorPage({
               value={Number.isNaN(keyPressMs) ? "" : keyPressMs}
             />
           </label>
-          <label htmlFor="macro-editor-inter-key">
+          <label className="block" htmlFor="macro-editor-inter-key">
             Inter-key delay (ms)
             <input
               form="macro-editor-form"
