@@ -58,7 +58,6 @@ export const repositoryGzip = gzipSync(
 export const settings = {
   deviceName: "H4 Browser Fixture",
   requireSerialConfirmation: false,
-  sendMode: "quick",
   snapshotRetentionTarget: 5,
   lastSelectedPackageId: packageId,
   apSsid: "MacroKeyboard",

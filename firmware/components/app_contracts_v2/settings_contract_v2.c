@@ -152,7 +152,6 @@ app_v2_settings_response_from_settings(const app_v2_device_settings_t *settings,
 
     out_response->device_name = view_of(settings->device_name);
     out_response->require_serial_confirmation = settings->require_serial_confirmation;
-    out_response->send_mode = settings->send_mode;
     out_response->snapshot_retention_target = settings->snapshot_retention_target;
     out_response->last_selected_package_id = optional_view_of(settings->last_selected_package_id);
     out_response->ap_ssid = view_of(settings->ap_ssid);
@@ -165,9 +164,8 @@ app_v2_settings_response_from_settings(const app_v2_device_settings_t *settings,
 
 static bool settings_update_request_is_empty(const app_v2_settings_update_request_t *request) {
     return !request->has_device_name && !request->has_require_serial_confirmation &&
-           !request->has_send_mode && !request->has_snapshot_retention_target &&
-           !request->has_last_selected_package_id && !request->has_access_point &&
-           !request->has_station;
+           !request->has_snapshot_retention_target && !request->has_last_selected_package_id &&
+           !request->has_access_point && !request->has_station;
 }
 
 static app_v2_settings_update_result_t
@@ -314,9 +312,6 @@ app_v2_settings_prepare_update(const app_v2_device_settings_t *current,
     app_v2_settings_update_result_t result = apply_device_name(request, &candidate);
     if (result == APP_V2_SETTINGS_UPDATE_OK && request->has_require_serial_confirmation) {
         candidate.require_serial_confirmation = request->require_serial_confirmation;
-    }
-    if (result == APP_V2_SETTINGS_UPDATE_OK && request->has_send_mode) {
-        candidate.send_mode = request->send_mode;
     }
     if (result == APP_V2_SETTINGS_UPDATE_OK) {
         result = apply_snapshot_retention_target(request, &candidate);

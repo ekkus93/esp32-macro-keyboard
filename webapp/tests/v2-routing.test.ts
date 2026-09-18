@@ -1,11 +1,9 @@
 import { describe, expect, test } from "vitest";
 import {
   macroEditorTargetFromHash,
-  macroPreviewTargetFromHash,
   navigateToAddMacro,
   navigateToDiagnostics,
   navigateToEditMacro,
-  navigateToMacroPreview,
   navigateToMacros,
   navigateToSettings,
   navigateV2,
@@ -23,7 +21,6 @@ describe("v2 routing", () => {
       "snapshots",
       "settings",
       "diagnostics",
-      "macro-preview",
       "macro-editor",
     ] as const) {
       setHashSilently(`/${screen}`);
@@ -53,33 +50,9 @@ describe("v2 routing", () => {
   });
 
   test("navigateToMacros always returns to the macros route", () => {
-    setHashSilently("/macro-preview?macroId=" + macroId);
+    setHashSilently(`/macro-editor?macroId=${macroId}`);
     navigateToMacros();
     expect(window.location.hash).toBe("#/macros");
-  });
-
-  test("macroPreviewTargetFromHash parses a valid preview target", () => {
-    setHashSilently(`/macro-preview?macroId=${macroId}`);
-    expect(macroPreviewTargetFromHash()).toEqual({
-      kind: "valid",
-      macroId,
-    });
-  });
-
-  test.each([
-    "/macros",
-    "/macro-preview",
-    `/macro-preview?macroId=not-a-uuid`,
-    `/macro-preview?macroId=${macroId}&extra=true`,
-    `/macro-preview?macroId=${macroId}&macroId=${macroId}`,
-  ])("rejects malformed preview route %s", (hash) => {
-    setHashSilently(hash);
-    expect(macroPreviewTargetFromHash()).toEqual({ kind: "invalid" });
-  });
-
-  test("navigateToMacroPreview encodes the macro ID", () => {
-    navigateToMacroPreview(macroId);
-    expect(window.location.hash).toBe(`#/macro-preview?macroId=${macroId}`);
   });
 
   test("macroEditorTargetFromHash treats a bare macro-editor route as create", () => {

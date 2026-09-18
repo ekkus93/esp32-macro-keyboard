@@ -149,7 +149,6 @@ describe("v2 browser-storage prohibition: runtime behavior", () => {
           settings: {
             deviceName: "Desk Macro Keyboard",
             requireSerialConfirmation: false,
-            sendMode: "quick",
             snapshotRetentionTarget: 5,
             lastSelectedPackageId: "550e8400-e29b-41d4-a716-446655440000",
             apSsid: "MacroKeyboard",
@@ -287,7 +286,6 @@ describe("v2 browser-storage prohibition: runtime behavior", () => {
     planJsonResponse({
       deviceName: "Desk Macro Keyboard",
       requireSerialConfirmation: false,
-      sendMode: "quick",
       snapshotRetentionTarget: 5,
       lastSelectedPackageId: null,
       apSsid: "MacroKeyboard",
@@ -318,7 +316,6 @@ describe("v2 browser-storage prohibition: runtime behavior", () => {
           settings: {
             deviceName: "Desk Macro Keyboard",
             requireSerialConfirmation: false,
-            sendMode: "quick",
             snapshotRetentionTarget: 5,
             lastSelectedPackageId: "550e8400-e29b-41d4-a716-446655440000",
             apSsid: "MacroKeyboard",

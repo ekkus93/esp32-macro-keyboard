@@ -1605,9 +1605,9 @@
    "cls": "",
    "rect": [
     16,
-    -362.23,
+    -305.23,
     358,
-    2447.42
+    2390.05
    ],
    "values": {
     "display": "block",
@@ -1625,7 +1625,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "358px",
-    "height": "2447.42px",
+    "height": "2390.05px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -1685,7 +1685,7 @@
    "cls": "mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-cap-edge pb-3",
    "rect": [
     16,
-    -362.23,
+    -305.23,
     358,
     139.89
    ],
@@ -1765,7 +1765,7 @@
    "cls": "min-w-0 overflow-hidden",
    "rect": [
     16,
-    -362.23,
+    -305.23,
     239.97,
     65.52
    ],
@@ -1845,7 +1845,7 @@
    "cls": "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[0.65rem] font-bold uppercase tracking-legend text-actuate",
    "rect": [
     16,
-    -362.23,
+    -305.23,
     239.97,
     15.61
    ],
@@ -1925,7 +1925,7 @@
    "cls": "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.35rem] tracking-[-0.01em]",
    "rect": [
     16,
-    -346.62,
+    -289.62,
     239.97,
     25.91
    ],
@@ -2005,7 +2005,7 @@
    "cls": "",
    "rect": [
     16,
-    -320.72,
+    -263.72,
     239.97,
     24
    ],
@@ -2085,7 +2085,7 @@
    "cls": "flex flex-wrap items-center justify-end gap-[0.4rem] [@media(width<=32rem)]:justify-start",
    "rect": [
     16,
-    -284.72,
+    -227.72,
     237.13,
     49.38
    ],
@@ -2165,7 +2165,7 @@
    "cls": "",
    "rect": [
     16,
-    -284.72,
+    -227.72,
     100.59,
     49.38
    ],
@@ -2245,7 +2245,7 @@
    "cls": "primary",
    "rect": [
     122.98,
-    -284.72,
+    -227.72,
     130.14,
     49.38
    ],
@@ -2325,7 +2325,7 @@
    "cls": "",
    "rect": [
     16,
-    -202.34,
+    -145.34,
     358,
     0
    ],
@@ -2405,9 +2405,9 @@
    "cls": "",
    "rect": [
     16,
-    -202.34,
+    -145.34,
     358,
-    2287.53
+    2230.16
    ],
    "values": {
     "display": "block",
@@ -2425,7 +2425,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "358px",
-    "height": "2287.53px",
+    "height": "2230.16px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -2485,9 +2485,9 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    -202.34,
+    -145.34,
     358,
-    721.91
+    664.53
    ],
    "values": {
     "display": "grid",
@@ -2505,7 +2505,7 @@
     "padding-bottom": "16px",
     "padding-left": "16px",
     "width": "358px",
-    "height": "721.906px",
+    "height": "664.531px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -2539,7 +2539,7 @@
     "row-gap": "16px",
     "column-gap": "16px",
     "grid-template-columns": "324px",
-    "grid-template-rows": "52.1406px 619.766px",
+    "grid-template-rows": "52.1406px 562.391px",
     "place-items": "normal",
     "border-top-width": "1px",
     "border-right-width": "1px",
@@ -2565,7 +2565,7 @@
    "cls": "",
    "rect": [
     33,
-    -185.34,
+    -128.34,
     324,
     52.14
    ],
@@ -2645,7 +2645,7 @@
    "cls": "",
    "rect": [
     33,
-    -185.34,
+    -128.34,
     324,
     20.16
    ],
@@ -2725,7 +2725,7 @@
    "cls": "",
    "rect": [
     33,
-    -160.39,
+    -103.39,
     324,
     24
    ],
@@ -2805,7 +2805,7 @@
    "cls": "",
    "rect": [
     33,
-    -158.39,
+    -101.39,
     9.64,
     19
    ],
@@ -2885,9 +2885,9 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    -117.2,
+    -60.2,
     324,
-    619.77
+    562.39
    ],
    "values": {
     "display": "flex",
@@ -2905,7 +2905,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "324px",
-    "height": "619.766px",
+    "height": "562.391px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -2965,7 +2965,7 @@
    "cls": "primary",
    "rect": [
     33,
-    -117.2,
+    -60.2,
     77.86,
     221.5
    ],
@@ -3045,7 +3045,7 @@
    "cls": "",
    "rect": [
     117.25,
-    -117.2,
+    -60.2,
     68.16,
     221.5
    ],
@@ -3125,7 +3125,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     191.8,
-    -117.2,
+    -60.2,
     135.83,
     221.5
    ],
@@ -3205,7 +3205,7 @@
    "cls": "",
    "rect": [
     191.8,
-    -117.2,
+    -60.2,
     135.83,
     49.38
    ],
@@ -3285,7 +3285,7 @@
    "cls": "",
    "rect": [
     191.8,
-    -59.83,
+    -2.83,
     135.83,
     49.38
    ],
@@ -3365,7 +3365,7 @@
    "cls": "",
    "rect": [
     191.8,
-    -2.45,
+    54.55,
     135.83,
     49.38
    ],
@@ -3445,7 +3445,7 @@
    "cls": "",
    "rect": [
     191.8,
-    54.92,
+    111.92,
     135.83,
     49.38
    ],
@@ -3525,9 +3525,9 @@
    "cls": "relative",
    "rect": [
     33,
-    110.69,
+    167.69,
     324,
-    391.88
+    334.5
    ],
    "values": {
     "display": "block",
@@ -3545,7 +3545,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "324px",
-    "height": "391.875px",
+    "height": "334.5px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -3605,7 +3605,7 @@
    "cls": "",
    "rect": [
     33,
-    110.69,
+    167.69,
     150.47,
     49.38
    ],
@@ -3685,9 +3685,9 @@
    "cls": "mt-2 grid min-w-[12rem] gap-2 rounded-keycap border border-cap-edge bg-panel p-3 shadow-[0_0.5rem_1.5rem_rgb(33_30_26_/_18%)]",
    "rect": [
     33,
-    168.06,
+    225.06,
     324,
-    334.5
+    277.13
    ],
    "values": {
     "display": "grid",
@@ -3705,7 +3705,7 @@
     "padding-bottom": "12px",
     "padding-left": "12px",
     "width": "324px",
-    "height": "334.5px",
+    "height": "277.125px",
     "min-width": "192px",
     "min-height": "0px",
     "max-width": "none",
@@ -3739,7 +3739,7 @@
     "row-gap": "8px",
     "column-gap": "8px",
     "grid-template-columns": "298px",
-    "grid-template-rows": "49.375px 49.375px 193.75px",
+    "grid-template-rows": "49.375px 193.75px",
     "place-items": "normal",
     "border-top-width": "1px",
     "border-right-width": "1px",
@@ -3765,87 +3765,7 @@
    "cls": "",
    "rect": [
     46,
-    181.06,
-    298,
-    49.38
-   ],
-   "values": {
-    "display": "block",
-    "position": "static",
-    "top": "auto",
-    "right": "auto",
-    "bottom": "auto",
-    "left": "auto",
-    "margin-top": "0px",
-    "margin-right": "0px",
-    "margin-bottom": "0px",
-    "margin-left": "0px",
-    "padding-top": "11.2px",
-    "padding-right": "16px",
-    "padding-bottom": "11.2px",
-    "padding-left": "16px",
-    "width": "298px",
-    "height": "49.375px",
-    "min-width": "auto",
-    "min-height": "48px",
-    "max-width": "none",
-    "max-height": "none",
-    "color": "rgb(33, 30, 26)",
-    "background-color": "rgb(255, 253, 249)",
-    "background-image": "none",
-    "opacity": "1",
-    "visibility": "visible",
-    "font-size": "16px",
-    "font-weight": "700",
-    "font-family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", roboto, sans-serif",
-    "font-style": "normal",
-    "line-height": "24px",
-    "letter-spacing": "0.16px",
-    "text-align": "center",
-    "text-transform": "none",
-    "text-decoration-line": "none",
-    "white-space": "normal",
-    "text-overflow": "clip",
-    "overflow-x": "visible",
-    "overflow-y": "visible",
-    "flex-direction": "row",
-    "flex-wrap": "nowrap",
-    "flex-grow": "0",
-    "flex-shrink": "1",
-    "flex-basis": "auto",
-    "justify-content": "normal",
-    "align-items": "normal",
-    "gap": "normal",
-    "row-gap": "normal",
-    "column-gap": "normal",
-    "grid-template-columns": "none",
-    "grid-template-rows": "none",
-    "place-items": "normal",
-    "border-top-width": "0px",
-    "border-right-width": "0px",
-    "border-bottom-width": "3px",
-    "border-left-width": "0px",
-    "border-top-color": "rgb(192, 185, 172)",
-    "border-right-color": "rgb(192, 185, 172)",
-    "border-bottom-color": "rgb(192, 185, 172)",
-    "border-left-color": "rgb(192, 185, 172)",
-    "border-top-left-radius": "8px",
-    "border-bottom-right-radius": "8px",
-    "box-shadow": "none",
-    "outline-color": "rgb(33, 30, 26)",
-    "outline-width": "3px",
-    "z-index": "auto",
-    "transform": "none",
-    "transition-property": "translate, border-bottom-width",
-    "list-style-type": "disc"
-   }
-  },
-  {
-   "tag": "BUTTON",
-   "cls": "",
-   "rect": [
-    46,
-    238.44,
+    238.06,
     298,
     49.38
    ],
@@ -3925,7 +3845,7 @@
    "cls": "my-4 rounded-keycap border-y border-r border-l-[3px] border-lamp bg-warning-tint p-4",
    "rect": [
     46,
-    311.81,
+    311.44,
     298,
     161.75
    ],
@@ -4005,7 +3925,7 @@
    "cls": "",
    "rect": [
     65,
-    332,
+    331.63,
     262,
     72
    ],
@@ -4085,7 +4005,7 @@
    "cls": "",
    "rect": [
     122.66,
-    334,
+    333.63,
     129.09,
     19
    ],
@@ -4165,7 +4085,7 @@
    "cls": "danger",
    "rect": [
     65,
-    407.19,
+    406.81,
     168.09,
     49.38
    ],
@@ -4245,7 +4165,7 @@
    "cls": "",
    "rect": [
     233.09,
-    407.19,
+    406.81,
     92.72,
     49.38
    ],
@@ -4325,7 +4245,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    531.56,
+    531.19,
     358,
     379.41
    ],
@@ -4405,7 +4325,7 @@
    "cls": "",
    "rect": [
     33,
-    548.56,
+    548.19,
     324,
     52.14
    ],
@@ -4485,7 +4405,7 @@
    "cls": "",
    "rect": [
     33,
-    548.56,
+    548.19,
     324,
     20.16
    ],
@@ -4565,7 +4485,7 @@
    "cls": "",
    "rect": [
     33,
-    573.52,
+    573.14,
     324,
     24
    ],
@@ -4645,7 +4565,7 @@
    "cls": "",
    "rect": [
     33,
-    575.52,
+    575.14,
     125.23,
     19
    ],
@@ -4725,7 +4645,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    616.7,
+    616.33,
     324,
     277.27
    ],
@@ -4805,7 +4725,7 @@
    "cls": "primary",
    "rect": [
     33,
-    616.7,
+    616.33,
     77.86,
     221.5
    ],
@@ -4885,7 +4805,7 @@
    "cls": "",
    "rect": [
     117.25,
-    616.7,
+    616.33,
     68.16,
     221.5
    ],
@@ -4965,7 +4885,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     191.8,
-    616.7,
+    616.33,
     135.83,
     221.5
    ],
@@ -5045,7 +4965,7 @@
    "cls": "",
    "rect": [
     191.8,
-    616.7,
+    616.33,
     135.83,
     49.38
    ],
@@ -5125,7 +5045,7 @@
    "cls": "",
    "rect": [
     191.8,
-    674.08,
+    673.7,
     135.83,
     49.38
    ],
@@ -5205,7 +5125,7 @@
    "cls": "",
    "rect": [
     191.8,
-    731.45,
+    731.08,
     135.83,
     49.38
    ],
@@ -5285,7 +5205,7 @@
    "cls": "",
    "rect": [
     191.8,
-    788.83,
+    788.45,
     135.83,
     49.38
    ],
@@ -5365,7 +5285,7 @@
    "cls": "relative",
    "rect": [
     33,
-    844.59,
+    844.22,
     150.47,
     49.38
    ],
@@ -5445,7 +5365,7 @@
    "cls": "",
    "rect": [
     33,
-    844.59,
+    844.22,
     150.47,
     49.38
    ],
@@ -5525,7 +5445,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    922.97,
+    922.59,
     358,
     379.41
    ],
@@ -5605,7 +5525,7 @@
    "cls": "",
    "rect": [
     33,
-    939.97,
+    939.59,
     324,
     52.14
    ],
@@ -5685,7 +5605,7 @@
    "cls": "",
    "rect": [
     33,
-    939.97,
+    939.59,
     324,
     20.16
    ],
@@ -5765,7 +5685,7 @@
    "cls": "",
    "rect": [
     33,
-    964.92,
+    964.55,
     324,
     24
    ],
@@ -5845,7 +5765,7 @@
    "cls": "",
    "rect": [
     33,
-    966.92,
+    966.55,
     38.53,
     19
    ],
@@ -5925,7 +5845,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    1008.11,
+    1007.73,
     324,
     277.27
    ],
@@ -6005,7 +5925,7 @@
    "cls": "primary",
    "rect": [
     33,
-    1008.11,
+    1007.73,
     77.86,
     221.5
    ],
@@ -6085,7 +6005,7 @@
    "cls": "",
    "rect": [
     117.25,
-    1008.11,
+    1007.73,
     68.16,
     221.5
    ],
@@ -6165,7 +6085,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     191.8,
-    1008.11,
+    1007.73,
     135.83,
     221.5
    ],
@@ -6245,7 +6165,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1008.11,
+    1007.73,
     135.83,
     49.38
    ],
@@ -6325,7 +6245,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1065.48,
+    1065.11,
     135.83,
     49.38
    ],
@@ -6405,7 +6325,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1122.86,
+    1122.48,
     135.83,
     49.38
    ],
@@ -6485,7 +6405,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1180.23,
+    1179.86,
     135.83,
     49.38
    ],
@@ -6565,7 +6485,7 @@
    "cls": "relative",
    "rect": [
     33,
-    1236,
+    1235.63,
     150.47,
     49.38
    ],
@@ -6645,7 +6565,7 @@
    "cls": "",
    "rect": [
     33,
-    1236,
+    1235.63,
     150.47,
     49.38
    ],
@@ -6725,7 +6645,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    1314.38,
+    1314,
     358,
     379.41
    ],
@@ -6805,7 +6725,7 @@
    "cls": "",
    "rect": [
     33,
-    1331.38,
+    1331,
     324,
     52.14
    ],
@@ -6885,7 +6805,7 @@
    "cls": "",
    "rect": [
     33,
-    1331.38,
+    1331,
     324,
     20.16
    ],
@@ -6965,7 +6885,7 @@
    "cls": "",
    "rect": [
     33,
-    1356.33,
+    1355.95,
     324,
     24
    ],
@@ -7045,7 +6965,7 @@
    "cls": "",
    "rect": [
     33,
-    1358.33,
+    1357.95,
     67.44,
     19
    ],
@@ -7125,7 +7045,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    1399.52,
+    1399.14,
     324,
     277.27
    ],
@@ -7205,7 +7125,7 @@
    "cls": "primary",
    "rect": [
     33,
-    1399.52,
+    1399.14,
     77.86,
     221.5
    ],
@@ -7285,7 +7205,7 @@
    "cls": "",
    "rect": [
     117.25,
-    1399.52,
+    1399.14,
     68.16,
     221.5
    ],
@@ -7365,7 +7285,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     191.8,
-    1399.52,
+    1399.14,
     135.83,
     221.5
    ],
@@ -7445,7 +7365,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1399.52,
+    1399.14,
     135.83,
     49.38
    ],
@@ -7525,7 +7445,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1456.89,
+    1456.52,
     135.83,
     49.38
    ],
@@ -7605,7 +7525,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1514.27,
+    1513.89,
     135.83,
     49.38
    ],
@@ -7685,7 +7605,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1571.64,
+    1571.27,
     135.83,
     49.38
    ],
@@ -7765,7 +7685,7 @@
    "cls": "relative",
    "rect": [
     33,
-    1627.41,
+    1627.03,
     150.47,
     49.38
    ],
@@ -7845,7 +7765,7 @@
    "cls": "",
    "rect": [
     33,
-    1627.41,
+    1627.03,
     150.47,
     49.38
    ],
@@ -7925,7 +7845,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     16,
-    1705.78,
+    1705.41,
     358,
     379.41
    ],
@@ -8005,7 +7925,7 @@
    "cls": "",
    "rect": [
     33,
-    1722.78,
+    1722.41,
     324,
     52.14
    ],
@@ -8085,7 +8005,7 @@
    "cls": "",
    "rect": [
     33,
-    1722.78,
+    1722.41,
     324,
     20.16
    ],
@@ -8165,7 +8085,7 @@
    "cls": "",
    "rect": [
     33,
-    1747.73,
+    1747.36,
     324,
     24
    ],
@@ -8245,7 +8165,7 @@
    "cls": "",
    "rect": [
     33,
-    1749.73,
+    1749.36,
     125.23,
     19
    ],
@@ -8325,7 +8245,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     33,
-    1790.92,
+    1790.55,
     324,
     277.27
    ],
@@ -8405,7 +8325,7 @@
    "cls": "primary",
    "rect": [
     33,
-    1790.92,
+    1790.55,
     77.86,
     221.5
    ],
@@ -8485,7 +8405,7 @@
    "cls": "",
    "rect": [
     117.25,
-    1790.92,
+    1790.55,
     68.16,
     221.5
    ],
@@ -8565,7 +8485,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     191.8,
-    1790.92,
+    1790.55,
     135.83,
     221.5
    ],
@@ -8645,7 +8565,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1790.92,
+    1790.55,
     135.83,
     49.38
    ],
@@ -8725,7 +8645,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1848.3,
+    1847.92,
     135.83,
     49.38
    ],
@@ -8805,7 +8725,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1905.67,
+    1905.3,
     135.83,
     49.38
    ],
@@ -8885,7 +8805,7 @@
    "cls": "",
    "rect": [
     191.8,
-    1963.05,
+    1962.67,
     135.83,
     49.38
    ],
@@ -8965,7 +8885,7 @@
    "cls": "relative",
    "rect": [
     33,
-    2018.81,
+    2018.44,
     150.47,
     49.38
    ],
@@ -9045,7 +8965,7 @@
    "cls": "",
    "rect": [
     33,
-    2018.81,
+    2018.44,
     150.47,
     49.38
    ],

@@ -1607,7 +1607,7 @@
     144,
     71.55,
     992,
-    1200.53
+    1143.16
    ],
    "values": {
     "display": "block",
@@ -1625,7 +1625,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "992px",
-    "height": "1200.53px",
+    "height": "1143.16px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -2407,7 +2407,7 @@
     144,
     170.06,
     992,
-    1102.02
+    1044.64
    ],
    "values": {
     "display": "block",
@@ -2425,7 +2425,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "992px",
-    "height": "1102.02px",
+    "height": "1044.64px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -2487,7 +2487,7 @@
     144,
     170.06,
     992,
-    491.02
+    433.64
    ],
    "values": {
     "display": "grid",
@@ -2505,7 +2505,7 @@
     "padding-bottom": "16px",
     "padding-left": "16px",
     "width": "992px",
-    "height": "491.016px",
+    "height": "433.641px",
     "min-width": "0px",
     "min-height": "0px",
     "max-width": "none",
@@ -2539,7 +2539,7 @@
     "row-gap": "16px",
     "column-gap": "16px",
     "grid-template-columns": "77.9219px 864.078px",
-    "grid-template-rows": "457.016px",
+    "grid-template-rows": "399.641px",
     "place-items": "flex-start normal",
     "border-top-width": "1px",
     "border-right-width": "1px",
@@ -2887,7 +2887,7 @@
     254.92,
     187.06,
     864.08,
-    457.02
+    399.64
    ],
    "values": {
     "display": "flex",
@@ -2905,7 +2905,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "864.078px",
-    "height": "457.016px",
+    "height": "399.641px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -3527,7 +3527,7 @@
     254.92,
     300.2,
     707.94,
-    343.88
+    286.5
    ],
    "values": {
     "display": "block",
@@ -3545,7 +3545,7 @@
     "padding-bottom": "0px",
     "padding-left": "0px",
     "width": "707.938px",
-    "height": "343.875px",
+    "height": "286.5px",
     "min-width": "auto",
     "min-height": "auto",
     "max-width": "none",
@@ -3687,7 +3687,7 @@
     254.92,
     357.58,
     707.94,
-    286.5
+    229.13
    ],
    "values": {
     "display": "grid",
@@ -3705,7 +3705,7 @@
     "padding-bottom": "12px",
     "padding-left": "12px",
     "width": "707.938px",
-    "height": "286.5px",
+    "height": "229.125px",
     "min-width": "192px",
     "min-height": "0px",
     "max-width": "none",
@@ -3739,7 +3739,7 @@
     "row-gap": "8px",
     "column-gap": "8px",
     "grid-template-columns": "681.938px",
-    "grid-template-rows": "49.375px 49.375px 145.75px",
+    "grid-template-rows": "49.375px 145.75px",
     "place-items": "normal",
     "border-top-width": "1px",
     "border-right-width": "1px",
@@ -3841,91 +3841,11 @@
    }
   },
   {
-   "tag": "BUTTON",
-   "cls": "",
-   "rect": [
-    267.92,
-    427.95,
-    681.94,
-    49.38
-   ],
-   "values": {
-    "display": "block",
-    "position": "static",
-    "top": "auto",
-    "right": "auto",
-    "bottom": "auto",
-    "left": "auto",
-    "margin-top": "0px",
-    "margin-right": "0px",
-    "margin-bottom": "0px",
-    "margin-left": "0px",
-    "padding-top": "11.2px",
-    "padding-right": "16px",
-    "padding-bottom": "11.2px",
-    "padding-left": "16px",
-    "width": "681.938px",
-    "height": "49.375px",
-    "min-width": "auto",
-    "min-height": "48px",
-    "max-width": "none",
-    "max-height": "none",
-    "color": "rgb(33, 30, 26)",
-    "background-color": "rgb(255, 253, 249)",
-    "background-image": "none",
-    "opacity": "1",
-    "visibility": "visible",
-    "font-size": "16px",
-    "font-weight": "700",
-    "font-family": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", roboto, sans-serif",
-    "font-style": "normal",
-    "line-height": "24px",
-    "letter-spacing": "0.16px",
-    "text-align": "center",
-    "text-transform": "none",
-    "text-decoration-line": "none",
-    "white-space": "normal",
-    "text-overflow": "clip",
-    "overflow-x": "visible",
-    "overflow-y": "visible",
-    "flex-direction": "row",
-    "flex-wrap": "nowrap",
-    "flex-grow": "0",
-    "flex-shrink": "1",
-    "flex-basis": "auto",
-    "justify-content": "normal",
-    "align-items": "normal",
-    "gap": "normal",
-    "row-gap": "normal",
-    "column-gap": "normal",
-    "grid-template-columns": "none",
-    "grid-template-rows": "none",
-    "place-items": "normal",
-    "border-top-width": "0px",
-    "border-right-width": "0px",
-    "border-bottom-width": "3px",
-    "border-left-width": "0px",
-    "border-top-color": "rgb(192, 185, 172)",
-    "border-right-color": "rgb(192, 185, 172)",
-    "border-bottom-color": "rgb(192, 185, 172)",
-    "border-left-color": "rgb(192, 185, 172)",
-    "border-top-left-radius": "8px",
-    "border-bottom-right-radius": "8px",
-    "box-shadow": "none",
-    "outline-color": "rgb(33, 30, 26)",
-    "outline-width": "3px",
-    "z-index": "auto",
-    "transform": "none",
-    "transition-property": "translate, border-bottom-width",
-    "list-style-type": "disc"
-   }
-  },
-  {
    "tag": "DIV",
    "cls": "my-4 rounded-keycap border-y border-r border-l-[3px] border-lamp bg-warning-tint p-4",
    "rect": [
     267.92,
-    501.33,
+    443.95,
     681.94,
     113.75
    ],
@@ -4005,7 +3925,7 @@
    "cls": "",
    "rect": [
     286.92,
-    521.52,
+    464.14,
     645.94,
     24
    ],
@@ -4085,7 +4005,7 @@
    "cls": "",
    "rect": [
     344.58,
-    523.52,
+    466.14,
     129.09,
     19
    ],
@@ -4165,7 +4085,7 @@
    "cls": "danger",
    "rect": [
     286.92,
-    548.7,
+    491.33,
     168.09,
     49.38
    ],
@@ -4245,7 +4165,7 @@
    "cls": "",
    "rect": [
     455.02,
-    548.7,
+    491.33,
     92.72,
     49.38
    ],
@@ -4325,7 +4245,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     144,
-    673.08,
+    615.7,
     992,
     140.75
    ],
@@ -4405,7 +4325,7 @@
    "cls": "",
    "rect": [
     161,
-    690.08,
+    632.7,
     346.69,
     52.14
    ],
@@ -4485,7 +4405,7 @@
    "cls": "",
    "rect": [
     161,
-    690.08,
+    632.7,
     346.69,
     20.16
    ],
@@ -4565,7 +4485,7 @@
    "cls": "",
    "rect": [
     161,
-    715.03,
+    657.66,
     346.69,
     24
    ],
@@ -4645,7 +4565,7 @@
    "cls": "",
    "rect": [
     161,
-    717.03,
+    659.66,
     125.23,
     19
    ],
@@ -4725,7 +4645,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     523.69,
-    690.08,
+    632.7,
     595.31,
     106.75
    ],
@@ -4805,7 +4725,7 @@
    "cls": "primary",
    "rect": [
     523.69,
-    690.08,
+    632.7,
     77.86,
     106.75
    ],
@@ -4885,7 +4805,7 @@
    "cls": "",
    "rect": [
     607.94,
-    690.08,
+    632.7,
     68.16,
     106.75
    ],
@@ -4965,7 +4885,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     682.48,
-    690.08,
+    632.7,
     279.66,
     106.75
    ],
@@ -5045,7 +4965,7 @@
    "cls": "",
    "rect": [
     682.48,
-    690.08,
+    632.7,
     135.83,
     49.38
    ],
@@ -5125,7 +5045,7 @@
    "cls": "",
    "rect": [
     826.31,
-    690.08,
+    632.7,
     135.83,
     49.38
    ],
@@ -5205,7 +5125,7 @@
    "cls": "",
    "rect": [
     682.48,
-    747.45,
+    690.08,
     135.83,
     49.38
    ],
@@ -5285,7 +5205,7 @@
    "cls": "",
    "rect": [
     826.31,
-    747.45,
+    690.08,
     135.83,
     49.38
    ],
@@ -5365,7 +5285,7 @@
    "cls": "relative",
    "rect": [
     968.53,
-    690.08,
+    632.7,
     150.47,
     106.75
    ],
@@ -5445,7 +5365,7 @@
    "cls": "",
    "rect": [
     968.53,
-    690.08,
+    632.7,
     150.47,
     49.38
    ],
@@ -5525,7 +5445,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     144,
-    825.83,
+    768.45,
     992,
     140.75
    ],
@@ -5605,7 +5525,7 @@
    "cls": "",
    "rect": [
     161,
-    842.83,
+    785.45,
     346.69,
     52.14
    ],
@@ -5685,7 +5605,7 @@
    "cls": "",
    "rect": [
     161,
-    842.83,
+    785.45,
     346.69,
     20.16
    ],
@@ -5765,7 +5685,7 @@
    "cls": "",
    "rect": [
     161,
-    867.78,
+    810.41,
     346.69,
     24
    ],
@@ -5845,7 +5765,7 @@
    "cls": "",
    "rect": [
     161,
-    869.78,
+    812.41,
     38.53,
     19
    ],
@@ -5925,7 +5845,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     523.69,
-    842.83,
+    785.45,
     595.31,
     106.75
    ],
@@ -6005,7 +5925,7 @@
    "cls": "primary",
    "rect": [
     523.69,
-    842.83,
+    785.45,
     77.86,
     106.75
    ],
@@ -6085,7 +6005,7 @@
    "cls": "",
    "rect": [
     607.94,
-    842.83,
+    785.45,
     68.16,
     106.75
    ],
@@ -6165,7 +6085,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     682.48,
-    842.83,
+    785.45,
     279.66,
     106.75
    ],
@@ -6245,7 +6165,7 @@
    "cls": "",
    "rect": [
     682.48,
-    842.83,
+    785.45,
     135.83,
     49.38
    ],
@@ -6325,7 +6245,7 @@
    "cls": "",
    "rect": [
     826.31,
-    842.83,
+    785.45,
     135.83,
     49.38
    ],
@@ -6405,7 +6325,7 @@
    "cls": "",
    "rect": [
     682.48,
-    900.2,
+    842.83,
     135.83,
     49.38
    ],
@@ -6485,7 +6405,7 @@
    "cls": "",
    "rect": [
     826.31,
-    900.2,
+    842.83,
     135.83,
     49.38
    ],
@@ -6565,7 +6485,7 @@
    "cls": "relative",
    "rect": [
     968.53,
-    842.83,
+    785.45,
     150.47,
     106.75
    ],
@@ -6645,7 +6565,7 @@
    "cls": "",
    "rect": [
     968.53,
-    842.83,
+    785.45,
     150.47,
     49.38
    ],
@@ -6725,7 +6645,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     144,
-    978.58,
+    921.2,
     992,
     140.75
    ],
@@ -6805,7 +6725,7 @@
    "cls": "",
    "rect": [
     161,
-    995.58,
+    938.2,
     346.69,
     52.14
    ],
@@ -6885,7 +6805,7 @@
    "cls": "",
    "rect": [
     161,
-    995.58,
+    938.2,
     346.69,
     20.16
    ],
@@ -6965,7 +6885,7 @@
    "cls": "",
    "rect": [
     161,
-    1020.53,
+    963.16,
     346.69,
     24
    ],
@@ -7045,7 +6965,7 @@
    "cls": "",
    "rect": [
     161,
-    1022.53,
+    965.16,
     67.44,
     19
    ],
@@ -7125,7 +7045,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     523.69,
-    995.58,
+    938.2,
     595.31,
     106.75
    ],
@@ -7205,7 +7125,7 @@
    "cls": "primary",
    "rect": [
     523.69,
-    995.58,
+    938.2,
     77.86,
     106.75
    ],
@@ -7285,7 +7205,7 @@
    "cls": "",
    "rect": [
     607.94,
-    995.58,
+    938.2,
     68.16,
     106.75
    ],
@@ -7365,7 +7285,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     682.48,
-    995.58,
+    938.2,
     279.66,
     106.75
    ],
@@ -7445,7 +7365,7 @@
    "cls": "",
    "rect": [
     682.48,
-    995.58,
+    938.2,
     135.83,
     49.38
    ],
@@ -7525,7 +7445,7 @@
    "cls": "",
    "rect": [
     826.31,
-    995.58,
+    938.2,
     135.83,
     49.38
    ],
@@ -7605,7 +7525,7 @@
    "cls": "",
    "rect": [
     682.48,
-    1052.95,
+    995.58,
     135.83,
     49.38
    ],
@@ -7685,7 +7605,7 @@
    "cls": "",
    "rect": [
     826.31,
-    1052.95,
+    995.58,
     135.83,
     49.38
    ],
@@ -7765,7 +7685,7 @@
    "cls": "relative",
    "rect": [
     968.53,
-    995.58,
+    938.2,
     150.47,
     106.75
    ],
@@ -7845,7 +7765,7 @@
    "cls": "",
    "rect": [
     968.53,
-    995.58,
+    938.2,
     150.47,
     49.38
    ],
@@ -7925,7 +7845,7 @@
    "cls": "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft my-3 border border-cap-edge bg-panel",
    "rect": [
     144,
-    1131.33,
+    1073.95,
     992,
     140.75
    ],
@@ -8005,7 +7925,7 @@
    "cls": "",
    "rect": [
     161,
-    1148.33,
+    1090.95,
     346.69,
     52.14
    ],
@@ -8085,7 +8005,7 @@
    "cls": "",
    "rect": [
     161,
-    1148.33,
+    1090.95,
     346.69,
     20.16
    ],
@@ -8165,7 +8085,7 @@
    "cls": "",
    "rect": [
     161,
-    1173.28,
+    1115.91,
     346.69,
     24
    ],
@@ -8245,7 +8165,7 @@
    "cls": "",
    "rect": [
     161,
-    1175.28,
+    1117.91,
     125.23,
     19
    ],
@@ -8325,7 +8245,7 @@
    "cls": "flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full",
    "rect": [
     523.69,
-    1148.33,
+    1090.95,
     595.31,
     106.75
    ],
@@ -8405,7 +8325,7 @@
    "cls": "primary",
    "rect": [
     523.69,
-    1148.33,
+    1090.95,
     77.86,
     106.75
    ],
@@ -8485,7 +8405,7 @@
    "cls": "",
    "rect": [
     607.94,
-    1148.33,
+    1090.95,
     68.16,
     106.75
    ],
@@ -8565,7 +8485,7 @@
    "cls": "grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1",
    "rect": [
     682.48,
-    1148.33,
+    1090.95,
     279.66,
     106.75
    ],
@@ -8645,7 +8565,7 @@
    "cls": "",
    "rect": [
     682.48,
-    1148.33,
+    1090.95,
     135.83,
     49.38
    ],
@@ -8725,7 +8645,7 @@
    "cls": "",
    "rect": [
     826.31,
-    1148.33,
+    1090.95,
     135.83,
     49.38
    ],
@@ -8805,7 +8725,7 @@
    "cls": "",
    "rect": [
     682.48,
-    1205.7,
+    1148.33,
     135.83,
     49.38
    ],
@@ -8885,7 +8805,7 @@
    "cls": "",
    "rect": [
     826.31,
-    1205.7,
+    1148.33,
     135.83,
     49.38
    ],
@@ -8965,7 +8885,7 @@
    "cls": "relative",
    "rect": [
     968.53,
-    1148.33,
+    1090.95,
     150.47,
     106.75
    ],
@@ -9045,7 +8965,7 @@
    "cls": "",
    "rect": [
     968.53,
-    1148.33,
+    1090.95,
     150.47,
     49.38
    ],

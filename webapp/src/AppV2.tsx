@@ -9,7 +9,6 @@ import { LandscapeBlockSurface } from "./features/shell/v2/LandscapeBlockSurface
 import { useDeviceStatus } from "./features/shell/v2/useDeviceStatus";
 import { useLandscapePhoneBlock } from "./features/shell/v2/useLandscapePhoneBlock";
 import { MacroEditorPage } from "./features/macros/v2/MacroEditorPage";
-import { MacroPreviewPage } from "./features/macros/v2/MacroPreviewPage";
 import { MacrosPage } from "./features/macros/v2/MacrosPage";
 import { PackageManagementPage } from "./features/macros/v2/PackageManagementPage";
 import { SnapshotsPage } from "./features/snapshots/v2/SnapshotsPage";
@@ -35,11 +34,9 @@ import type { SendRecoveryState } from "./v2/startup";
 import { getStatus } from "./v2/statusClient";
 import {
   macroEditorTargetFromHash,
-  macroPreviewTargetFromHash,
   navigateToAddMacro,
   navigateToDiagnostics,
   navigateToEditMacro,
-  navigateToMacroPreview,
   navigateToMacros,
   navigateToSettings,
   navigateV2,
@@ -328,41 +325,11 @@ export function AuthenticatedShell({
             onOpenEditMacro={(macroId) => {
               navigateToEditMacro(macroId);
             }}
-            onOpenPreview={(macroId) => {
-              navigateToMacroPreview(macroId);
-            }}
-            packageId={packageId}
-            sendMode={settings.sendMode}
-            store={store}
-            usbState={trustedUsbState}
-          />
-        );
-      case "macro-preview": {
-        const target = macroPreviewTargetFromHash();
-        if (target.kind === "invalid") {
-          return (
-            <section>
-              <h2>Preview and send</h2>
-              <p role="alert">This preview link is invalid.</p>
-              <button onClick={navigateToMacros} type="button">
-                Back to Macros
-              </button>
-            </section>
-          );
-        }
-        return (
-          <MacroPreviewPage
-            macroId={target.macroId}
-            onBack={navigateToMacros}
-            onSendInitiated={(status) => {
-              setSendHandoff(status);
-            }}
             packageId={packageId}
             store={store}
             usbState={trustedUsbState}
           />
         );
-      }
       case "macro-editor": {
         const target = macroEditorTargetFromHash();
         if (target.kind === "invalid") {

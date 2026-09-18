@@ -20,8 +20,8 @@ static void test_settings_get_valid(void) {
      * TypeScript tests": provisioned_settings() above already produces every
      * field contracts/v2/api/examples.json's "settings" example claims
      * (app_v2_device_settings_init_unprovisioned()'s own defaults already
-     * match sendMode/snapshotRetentionTarget/
-     * requireSerialConfirmation/lastSelectedPackageId, and
+     * match snapshotRetentionTarget/requireSerialConfirmation/
+     * lastSelectedPackageId, and
      * provisioned_settings() overrides deviceName/apSsid to the same
      * strings), so this diffs the whole live response against it wholesale. */
     const cJSON *example = test_examples_fixture_get("settings");
@@ -92,7 +92,7 @@ static void test_settings_put_valid_matches_example(void) {
     authenticate(&fake);
     bind_json_body(&request, &fake, "/api/v1/settings", HTTP_PUT,
                    "{\"deviceName\":\"Desk Macro Keyboard\",\"requireSerialConfirmation\":false,"
-                   "\"sendMode\":\"quick\",\"snapshotRetentionTarget\":5,"
+                   "\"snapshotRetentionTarget\":5,"
                    "\"lastSelectedPackageId\":null,"
                    "\"accessPoint\":{\"ssid\":\"MacroKeyboard\",\"passphrase\":\"new-example-"
                    "passphrase\"},\"station\":{\"ssid\":\"OfficeWiFi\",\"passphrase\":\"station-"

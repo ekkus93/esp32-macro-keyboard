@@ -81,7 +81,6 @@ export const accepted = {
 export interface RenderOptions {
   usbState?: "ready" | "disconnected";
   initialSend?: SendStatusResponse | null;
-  sendMode?: "quick" | "preview";
   onActiveSendChange?: (summary: ActiveSendSummary | null) => void;
   dependencies?: MacrosPageDependencies;
 }
@@ -90,7 +89,6 @@ export async function renderMacrosPage(options: RenderOptions = {}) {
   const store = createRepositoryWorkingCopyStore(makeRepository());
   const callbacks = {
     onChangePackage: vi.fn(),
-    onOpenPreview: vi.fn(),
     onOpenAddMacro: vi.fn(),
     onOpenEditMacro: vi.fn(),
   };
@@ -104,9 +102,7 @@ export async function renderMacrosPage(options: RenderOptions = {}) {
       onChangePackage={callbacks.onChangePackage}
       onOpenAddMacro={callbacks.onOpenAddMacro}
       onOpenEditMacro={callbacks.onOpenEditMacro}
-      onOpenPreview={callbacks.onOpenPreview}
       packageId={packageId}
-      sendMode={options.sendMode ?? "quick"}
       store={store}
       usbState={options.usbState ?? "ready"}
     />,

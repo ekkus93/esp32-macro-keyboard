@@ -76,9 +76,6 @@ export async function startApplicationServer() {
               state.settings.requireSerialConfirmation =
                 body.requireSerialConfirmation;
             }
-            if (typeof body.sendMode === "string") {
-              state.settings.sendMode = body.sendMode;
-            }
             if (typeof body.snapshotRetentionTarget === "number") {
               state.settings.snapshotRetentionTarget =
                 body.snapshotRetentionTarget;

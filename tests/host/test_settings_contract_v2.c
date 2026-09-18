@@ -53,7 +53,6 @@ static void test_response_from_settings_excludes_secrets(void) {
     TEST_CHECK_EQ_STRING("OfficeWiFi", response.station_ssid.value.data);
     TEST_CHECK(response.last_selected_package_id.present);
     TEST_CHECK_EQ_STRING(TEST_UUID_A, response.last_selected_package_id.value.data);
-    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_QUICK, response.send_mode);
     TEST_CHECK_EQ_U64(5U, response.snapshot_retention_target);
 }
 
@@ -319,14 +318,12 @@ static void test_response_from_settings_invalid_arguments(void) {
                       app_v2_settings_response_from_settings(&settings, NULL));
 }
 
-static void test_prepare_update_require_confirmation_and_send_mode(void) {
+static void test_prepare_update_require_confirmation(void) {
     app_v2_device_settings_t current = provisioned_settings();
     current.require_serial_confirmation = false;
     app_v2_settings_update_request_t request = {
         .has_require_serial_confirmation = true,
         .require_serial_confirmation = true,
-        .has_send_mode = true,
-        .send_mode = APP_V2_SEND_MODE_PREVIEW,
     };
     app_v2_device_settings_t candidate = {0};
     bool restart = true;
@@ -335,7 +332,6 @@ static void test_prepare_update_require_confirmation_and_send_mode(void) {
         APP_V2_SETTINGS_UPDATE_OK,
         app_v2_settings_prepare_update(&current, &request, &candidate, &restart, &reconnect));
     TEST_CHECK(candidate.require_serial_confirmation);
-    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_PREVIEW, candidate.send_mode);
     TEST_CHECK(!restart);
     TEST_CHECK(!reconnect);
 }
@@ -688,7 +684,7 @@ int main(void) {
     test_prepare_update_invalid_arguments();
     test_response_from_settings_invalid_arguments();
     test_setup_preserves_uart_configured_station_before_provisioning();
-    test_prepare_update_require_confirmation_and_send_mode();
+    test_prepare_update_require_confirmation();
     test_prepare_update_device_name_multibyte_utf8_accepted();
     test_prepare_update_device_name_invalid_leading_byte_rejected();
     test_prepare_update_device_name_truncated_multibyte_rejected();

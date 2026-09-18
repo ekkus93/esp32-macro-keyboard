@@ -95,7 +95,9 @@ describe("v2 API request contracts", () => {
   });
 
   test("accepts strict partial settings and rejects ambiguous updates", () => {
-    expect(isSettingsUpdateRequest({ sendMode: "preview" })).toBe(true);
+    expect(isSettingsUpdateRequest({ requireSerialConfirmation: true })).toBe(
+      true,
+    );
     expect(isSettingsUpdateRequest({ station: null })).toBe(true);
     expect(isSettingsUpdateRequest({})).toBe(false);
     expect(isSettingsUpdateRequest({ station: {} })).toBe(false);

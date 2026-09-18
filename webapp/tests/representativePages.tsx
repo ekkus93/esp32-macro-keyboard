@@ -74,7 +74,6 @@ export async function renderSettings(): Promise<RenderResult> {
   const settings: SettingsResponse = {
     deviceName: "Desk Macro Keyboard",
     requireSerialConfirmation: false,
-    sendMode: "quick",
     snapshotRetentionTarget: 5,
     lastSelectedPackageId: null,
     apSsid: "MacroKeyboard",

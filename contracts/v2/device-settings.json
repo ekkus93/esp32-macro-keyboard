@@ -14,7 +14,6 @@
   "defaults": {
     "deviceName": "ESP32 Macro Keyboard",
     "requireSerialConfirmation": false,
-    "sendMode": "quick",
     "snapshotRetentionTarget": 5,
     "lastSelectedPackageId": null,
     "stationConfigured": false,
@@ -28,10 +27,6 @@
     "snapshotRetentionTargetMax": 100,
     "uuidTextBytes": 36
   },
-  "sendModeValues": {
-    "quick": 0,
-    "preview": 1
-  },
   "fields": [
     { "name": "magic", "offset": 0, "length": 4, "encoding": "u32" },
     { "name": "recordVersion", "offset": 4, "length": 2, "encoding": "u16" },
@@ -42,7 +37,8 @@
     { "name": "passwordSalt", "offset": 16, "length": 16, "encoding": "bytes" },
     { "name": "passwordVerifier", "offset": 32, "length": 32, "encoding": "bytes" },
     { "name": "nextBlobId", "offset": 64, "length": 8, "encoding": "u64-zero-means-null" },
-    { "name": "sendMode", "offset": 72, "length": 1, "encoding": "enum" },
+    { "name": "reservedSendMode", "offset": 72, "length": 1, "encoding": "boolean-u8",
+      "note": "Formerly sendMode (removed: the optional Preview-and-Send screen is gone and Quick Send is the only send path). New records write 0; an already-provisioned device may still hold 0 or 1 here, so it stays a tolerated boolean byte rather than a must-be-zero reserved byte." },
     { "name": "snapshotRetentionTarget", "offset": 73, "length": 1, "encoding": "u8" },
     { "name": "reservedShowSourcePreviews", "offset": 74, "length": 1, "encoding": "boolean-u8",
       "note": "Formerly showMacroSourcePreviews (removed: the Macros page always shows source now). New records write 0; an already-provisioned device may still hold 0 or 1 here, so it stays a tolerated boolean byte rather than a must-be-zero reserved byte." },
@@ -61,7 +57,6 @@
     "record length, magic, record version, and password algorithm version must match exactly",
     "all booleans must be encoded as 0 or 1",
     "reserved bytes must be zero",
-    "send mode must be a defined enum value",
     "snapshot retention target must be 0 through 100",
     "last selected package ID must be empty or a canonical lowercase UUID v4",
     "all text buffers must contain a NUL terminator and valid UTF-8 within their field",

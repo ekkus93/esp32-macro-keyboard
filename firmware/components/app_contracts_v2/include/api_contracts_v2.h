@@ -172,7 +172,6 @@ typedef struct {
 typedef struct {
     app_v2_string_view_t device_name;
     bool require_serial_confirmation;
-    app_v2_send_mode_t send_mode;
     uint8_t snapshot_retention_target;
     app_v2_optional_string_view_t last_selected_package_id;
     app_v2_string_view_t ap_ssid;
@@ -190,8 +189,6 @@ typedef struct {
     app_v2_string_view_t device_name;
     bool has_require_serial_confirmation;
     bool require_serial_confirmation;
-    bool has_send_mode;
-    app_v2_send_mode_t send_mode;
     bool has_snapshot_retention_target;
     uint8_t snapshot_retention_target;
     bool has_last_selected_package_id;

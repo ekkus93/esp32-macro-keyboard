@@ -1353,23 +1353,23 @@ already-provisioned device's stored settings still decode — see
       user can understand or dismiss them.
 - [x] Never include source in the acknowledgement.
 
-## V2-094 — Optional Preview and Send
+## V2-094 — Optional Preview and Send (REMOVED 2026-08-23)
 
-- [x] Make preview available from overflow actions. `MacrosPage.tsx`'s
-      overflow menu offers "Preview and send" per macro row, tested in
-      `tests/v2-macros-page.test.tsx::"the overflow menu still offers Preview
-      and send"`.
-- [x] Honor Always Preview when configured. The primary Send control now
-      reads the device's `sendMode` setting: `preview` routes through the
-      Preview and Send page instead of quick-sending, `quick` sends directly
-      as before — both branches tested in
-      `tests/v2-macros-page.test.tsx::"MacrosPage — V2-094 honoring Always
-      Preview"`. Closed by
-      `docs/implementation-v2/V2_100_103_MACRO_EDITING_PACKAGE_MANAGEMENT_2026-08-09.md`.
-- [x] Show package, macro, source/action summary, timing, action count, duration,
-      and USB state.
-- [x] Provide explicit Send now and Cancel.
-- [x] Return to the Macros page for progress.
+- [x] ~~Make preview available from overflow actions.~~
+- [x] ~~Honor Always Preview when configured.~~
+- [x] ~~Show package, macro, source/action summary, timing, action count,
+      duration, and USB state.~~
+- [x] ~~Provide explicit Send now and Cancel.~~
+- [x] ~~Return to the Macros page for progress.~~
+
+Removed 2026-08-23: product decision that Quick Send is now the only send
+path (SPEC_V2 §14.5, UI_UX_SPEC_V2 §5.1/§5.4/§11). The Preview-and-Send
+screen, the overflow menu's "Preview and send" action, and the device-wide
+"Always Preview" `sendMode` setting are gone. The firmware settings record's
+byte at offset 72 (formerly `send_mode`) is kept reserved rather than reused
+or shrunk out of the record, so an already-provisioned device's stored
+settings still decode — see `device_settings_v2.h`'s doc comment on
+`APP_V2_SETTINGS_OFFSET_RESERVED_SEND_MODE`.
 
 ## V2-095 — Reload and race handling
 

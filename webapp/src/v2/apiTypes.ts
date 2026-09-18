@@ -14,8 +14,6 @@ export type SendState =
   | "failed"
   | "timed_out";
 
-export type SendMode = "quick" | "preview";
-
 export type SubsystemHealthState =
   | "healthy"
   | "degraded"
@@ -136,7 +134,6 @@ export type BlobCreatedResponse = BlobSummary;
 export interface SettingsResponse {
   deviceName: string;
   requireSerialConfirmation: boolean;
-  sendMode: SendMode;
   snapshotRetentionTarget: number;
   lastSelectedPackageId: string | null;
   apSsid: string;
@@ -152,7 +149,6 @@ export interface NetworkCredentialsRequest {
 export interface SettingsUpdateRequest {
   deviceName?: string;
   requireSerialConfirmation?: boolean;
-  sendMode?: SendMode;
   snapshotRetentionTarget?: number;
   lastSelectedPackageId?: string | null;
   accessPoint?: NetworkCredentialsRequest;

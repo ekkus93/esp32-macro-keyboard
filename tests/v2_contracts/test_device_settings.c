@@ -32,7 +32,6 @@ static void make_provisioned(app_v2_device_settings_t *settings) {
     memset(settings->password_salt, 0x11, sizeof(settings->password_salt));
     memset(settings->password_verifier, 0x22, sizeof(settings->password_verifier));
     settings->next_blob_id = UINT64_C(42);
-    settings->send_mode = APP_V2_SEND_MODE_PREVIEW;
     settings->snapshot_retention_target = 9U;
     settings->require_serial_confirmation = true;
     settings->station_configured = true;
@@ -55,7 +54,7 @@ static bool settings_equal(const app_v2_device_settings_t *left,
            memcmp(left->password_salt, right->password_salt, sizeof(left->password_salt)) == 0 &&
            memcmp(left->password_verifier, right->password_verifier,
                   sizeof(left->password_verifier)) == 0 &&
-           left->next_blob_id == right->next_blob_id && left->send_mode == right->send_mode &&
+           left->next_blob_id == right->next_blob_id &&
            left->snapshot_retention_target == right->snapshot_retention_target &&
            left->require_serial_confirmation == right->require_serial_confirmation &&
            left->station_configured == right->station_configured &&
@@ -141,19 +140,13 @@ static void test_enum_boolean_reserved_and_string_rejection(void) {
     uint8_t modified[APP_V2_SETTINGS_RECORD_BYTES];
 
     memcpy(modified, record, sizeof(modified));
-    modified[APP_V2_SETTINGS_OFFSET_SEND_MODE] = UINT8_C(2);
-    CHECK(app_v2_device_settings_decode(modified, sizeof(modified), &decoded) ==
-          APP_V2_SETTINGS_CORRUPT);
-
-    memcpy(modified, record, sizeof(modified));
     modified[APP_V2_SETTINGS_OFFSET_RETENTION_TARGET] = UINT8_C(101);
     CHECK(app_v2_device_settings_decode(modified, sizeof(modified), &decoded) ==
           APP_V2_SETTINGS_CORRUPT);
 
     static const size_t boolean_offsets[] = {
-        APP_V2_SETTINGS_OFFSET_RESERVED_SHOW_SOURCE,
-        APP_V2_SETTINGS_OFFSET_REQUIRE_CONFIRMATION,
-        APP_V2_SETTINGS_OFFSET_PROVISIONED,
+        APP_V2_SETTINGS_OFFSET_RESERVED_SEND_MODE,   APP_V2_SETTINGS_OFFSET_RESERVED_SHOW_SOURCE,
+        APP_V2_SETTINGS_OFFSET_REQUIRE_CONFIRMATION, APP_V2_SETTINGS_OFFSET_PROVISIONED,
         APP_V2_SETTINGS_OFFSET_STATION_CONFIGURED,
     };
     for (size_t index = 0U; index < sizeof(boolean_offsets) / sizeof(boolean_offsets[0]); ++index) {
@@ -239,7 +232,6 @@ static void test_reset_settings_preserves_credentials_and_counter(void) {
     CHECK(strcmp(settings.ap_passphrase, ap_passphrase) == 0);
     CHECK(strcmp(settings.device_name, "ESP32 Macro Keyboard") == 0);
     CHECK(!settings.require_serial_confirmation);
-    CHECK(settings.send_mode == APP_V2_SEND_MODE_QUICK);
     CHECK(settings.snapshot_retention_target == 5U);
     CHECK(settings.last_selected_package_id[0] == '\0');
     CHECK(!settings.station_configured);

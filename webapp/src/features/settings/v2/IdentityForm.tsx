@@ -25,7 +25,6 @@ export function IdentityForm({
   const [requireSerialConfirmation, setRequireSerialConfirmation] = useState(
     settings.requireSerialConfirmation,
   );
-  const [sendMode, setSendMode] = useState(settings.sendMode);
   const [snapshotRetentionTarget, setSnapshotRetentionTarget] = useState(
     String(settings.snapshotRetentionTarget),
   );
@@ -33,12 +32,10 @@ export function IdentityForm({
   useEffect(() => {
     setDeviceName(settings.deviceName);
     setRequireSerialConfirmation(settings.requireSerialConfirmation);
-    setSendMode(settings.sendMode);
     setSnapshotRetentionTarget(String(settings.snapshotRetentionTarget));
   }, [
     settings.deviceName,
     settings.requireSerialConfirmation,
-    settings.sendMode,
     settings.snapshotRetentionTarget,
   ]);
 
@@ -46,7 +43,6 @@ export function IdentityForm({
   const request: SettingsUpdateRequest = {
     deviceName,
     requireSerialConfirmation,
-    sendMode,
     snapshotRetentionTarget: retentionTargetNumber,
   };
   const valid = isSettingsUpdateRequest(request);
@@ -89,34 +85,6 @@ export function IdentityForm({
         />
         Require physical confirmation before typing
       </CheckboxRow>
-
-      <fieldset disabled={busy}>
-        <legend>Sending behavior</legend>
-        <CheckboxRow htmlFor="settings-send-mode-quick">
-          <input
-            checked={sendMode === "quick"}
-            id="settings-send-mode-quick"
-            name="settings-send-mode"
-            onChange={() => {
-              setSendMode("quick");
-            }}
-            type="radio"
-          />
-          Quick Send
-        </CheckboxRow>
-        <CheckboxRow htmlFor="settings-send-mode-preview">
-          <input
-            checked={sendMode === "preview"}
-            id="settings-send-mode-preview"
-            name="settings-send-mode"
-            onChange={() => {
-              setSendMode("preview");
-            }}
-            type="radio"
-          />
-          Always Preview
-        </CheckboxRow>
-      </fieldset>
 
       <label htmlFor="settings-retention-target">
         Advisory snapshot retention target

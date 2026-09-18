@@ -43,7 +43,6 @@ const repositoryGzip = gzipSync(
 const settings = {
   deviceName: "H5 Reconciliation Keyboard",
   requireSerialConfirmation: false,
-  sendMode: "quick",
   snapshotRetentionTarget: 5,
   lastSelectedPackageId: packageId,
   apSsid: "MacroKeyboard",

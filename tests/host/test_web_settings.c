@@ -34,7 +34,6 @@ int main(void) {
     test_put_unknown_field_rejected();
     test_put_duplicate_field_rejected();
     test_put_wrong_type_rejected();
-    test_put_invalid_send_mode_rejected();
     test_put_access_point_missing_passphrase_rejected();
     test_put_station_wrong_type_rejected();
     test_put_invalid_device_name_rejected();
@@ -50,14 +49,11 @@ int main(void) {
     test_put_device_name_wrong_type_rejected();
     test_put_access_point_extra_credential_field_rejected();
     test_put_require_serial_confirmation_success();
-    test_put_send_mode_preview_success();
-    test_put_send_mode_quick_success();
     test_put_snapshot_retention_negative_rejected();
     test_put_snapshot_retention_fractional_rejected();
     test_put_last_selected_package_id_wrong_type_rejected();
     test_put_last_selected_package_id_valid_string_success();
     test_put_station_valid_object_success();
-    test_put_send_mode_wrong_type_rejected();
     test_put_access_point_ssid_too_long_rejected();
     test_put_access_point_passphrase_too_short_rejected();
     test_put_station_ssid_too_long_rejected();

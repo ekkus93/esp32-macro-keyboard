@@ -38,9 +38,9 @@
 /* SPEC_V2.md and contracts/v2/api/examples.json pin "power_on" (snake_case,
  * not "power-on") as the exact resetReason value for ESP_RST_POWERON; no
  * other value has an explicit example, but every other v2 API string enum in
- * this codebase (state, sendMode, accessPointState, ...) uses unhyphenated
- * lowercase words, so the rest of this enum follows the same snake_case
- * convention for consistency rather than mixing hyphens and underscores. */
+ * this codebase (state, accessPointState, ...) uses unhyphenated lowercase
+ * words, so the rest of this enum follows the same snake_case convention for
+ * consistency rather than mixing hyphens and underscores. */
 static const char *reset_reason_string(esp_reset_reason_t reason) {
     switch (reason) {
     case ESP_RST_POWERON:

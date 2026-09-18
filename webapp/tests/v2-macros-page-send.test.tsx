@@ -267,9 +267,7 @@ describe("MacrosPage — V2-132 landscape active-send summary", () => {
         onChangePackage={vi.fn()}
         onOpenAddMacro={vi.fn()}
         onOpenEditMacro={vi.fn()}
-        onOpenPreview={vi.fn()}
         packageId={packageId}
-        sendMode="quick"
         store={store}
         usbState="ready"
       />,

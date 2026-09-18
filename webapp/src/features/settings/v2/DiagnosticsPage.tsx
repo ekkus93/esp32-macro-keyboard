@@ -13,7 +13,7 @@ import type { DiagnosticsResponse } from "../../../v2/apiTypes";
 import { saveBytesAsFile } from "../../../v2/saveFile";
 
 /**
- * Diagnostics, per SPEC_V2 §13.13/§16.3 and UI_UX_SPEC_V2 §4 screen 15
+ * Diagnostics, per SPEC_V2 §13.13/§16.3 and UI_UX_SPEC_V2 §4 screen 14
  * (TODO_V2 V2-122). Renders exactly the fixed `GET /api/v1/diagnostics`
  * schema — firmware/build, uptime, reset reason, memory, USB, Wi-Fi,
  * storage (including invalid/temporary filenames), send state, and

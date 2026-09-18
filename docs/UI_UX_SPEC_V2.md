@@ -195,14 +195,13 @@ a snapshot.
 7. Package Chooser
 8. Macros page with Quick Send
 9. Macro Editor
-10. Optional Preview and Send
-11. Package Management
-12. Snapshot Management
-13. Repository Import and Export
-14. Settings
-15. Diagnostics
-16. Portrait-required phone surface
-17. Dialogs and inline states for delete, replace, failure, cancellation, session
+10. Package Management
+11. Snapshot Management
+12. Repository Import and Export
+13. Settings
+14. Diagnostics
+15. Portrait-required phone surface
+16. Dialogs and inline states for delete, replace, failure, cancellation, session
     expiry, and unsaved changes
 
 Send progress and terminal results are normally inline surfaces on the Macros
@@ -224,10 +223,10 @@ It shows:
 - **Add macro**;
 - ordered macro rows or cards;
 - macro name;
-- source visibility state;
+- macro source;
 - **Edit**;
 - primary **Send** control;
-- overflow actions such as Preview and send, Duplicate, Move, and Delete;
+- overflow actions such as Duplicate, Move, and Delete;
 - reorder affordances;
 - repository dirty state;
 - inline send status and cancellation.
@@ -235,7 +234,7 @@ It shows:
 ### 5.2 Macro-source handling
 
 Macro source is shown plainly on the Macros page, the same as in the Macro
-Editor and the Optional Preview and Send screen.
+Editor.
 
 Macro source is sensitive user content and may contain passwords, tokens, or
 private commands, so while it is always visible in the UI, it must not be
@@ -251,25 +250,10 @@ A Send press is the explicit user action required before keyboard output. React
 calls `POST /api/v1/send` with source and timing and then polls
 `GET /api/v1/send`.
 
-The application does not require navigation to a confirmation page for ordinary
-Quick Send. Quick Send is the default device setting.
+The application does not require navigation to a confirmation page for Quick
+Send.
 
-### 5.4 Optional preview
-
-A full preview remains available through the macro overflow menu. The device-wide
-**Always preview before sending** preference may make it the default behavior.
-
-The preview shows:
-
-- package name;
-- macro name;
-- readable source or decoded action summary;
-- key-press and inter-key timing;
-- action count and estimated duration when available;
-- current USB state;
-- explicit **Send now** and **Cancel** actions.
-
-### 5.5 Inline send states
+### 5.4 Inline send states
 
 When Quick Send starts:
 
@@ -290,7 +274,7 @@ Terminal behavior:
 
 The acknowledgement identifies the macro but never includes macro source.
 
-### 5.6 Recovery after reload
+### 5.5 Recovery after reload
 
 When the page reloads during a send, React obtains state from
 `GET /api/v1/send` and restores inline status and cancellation controls.
@@ -495,7 +479,6 @@ User-visible settings include:
 - serial-confirmation policy;
 - administrator password change;
 - access-point and optional station-network configuration;
-- sending behavior: Quick Send or Always Preview;
 - snapshot retention target, default `5` and advisory only;
 - restart;
 - reset settings;
@@ -647,18 +630,17 @@ Errors preserve the working copy whenever technically possible.
     errors are visible.
 11. A terminal completion acknowledgement identifies the macro, reveals no
     source, and returns the row to Send after a short interval.
-12. Optional Preview and send remains available.
-13. Package and macro edits do not call firmware CRUD routes.
-14. Dirty working-copy state remains visible until a snapshot save succeeds or
+12. Package and macro edits do not call firmware CRUD routes.
+13. Dirty working-copy state remains visible until a snapshot save succeeds or
     changes are deliberately discarded.
-15. Reload, close, sign-out, import replacement, and snapshot replacement paths
+14. Reload, close, sign-out, import replacement, and snapshot replacement paths
     protect dirty work as specified.
-16. Snapshot creation and deletion are manual.
-17. Exceeding the default retention target of five produces an advisory cleanup
+15. Snapshot creation and deletion are manual.
+16. Exceeding the default retention target of five produces an advisory cleanup
     indicator and no automatic deletion.
-18. Repository data is absent from browser persistent storage.
-19. Phone landscape shows the portrait-required surface.
-20. Active-send cancellation remains accessible from that surface.
-21. Tablets and desktops remain usable in landscape.
-22. Accessibility requirements in §14 pass automated and manual checks.
-23. This document matches the implemented v2 React behavior.
+17. Repository data is absent from browser persistent storage.
+18. Phone landscape shows the portrait-required surface.
+19. Active-send cancellation remains accessible from that surface.
+20. Tablets and desktops remain usable in landscape.
+21. Accessibility requirements in §14 pass automated and manual checks.
+22. This document matches the implemented v2 React behavior.

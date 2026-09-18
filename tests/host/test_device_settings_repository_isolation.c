@@ -196,7 +196,7 @@ static void test_preference_changes_never_touch_repository(void) {
     app_v2_device_settings_t settings = provisioned_settings();
     bool changed = false;
 
-    settings.send_mode = APP_V2_SEND_MODE_PREVIEW;
+    settings.require_serial_confirmation = !settings.require_serial_confirmation;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_replace(&core, &settings, &changed));
     TEST_CHECK(changed);
 
@@ -214,7 +214,7 @@ static void test_preference_changes_never_touch_repository(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_replace(&core, &settings, &changed));
     TEST_CHECK(changed);
 
-    settings.send_mode = APP_V2_SEND_MODE_QUICK;
+    settings.require_serial_confirmation = !settings.require_serial_confirmation;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_replace(&core, &settings, &changed));
     TEST_CHECK(changed);
 
@@ -222,7 +222,6 @@ static void test_preference_changes_never_touch_repository(void) {
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE,
                          device_settings_core_reset_noncredential(&core, &reset_result, &changed));
     TEST_CHECK(changed);
-    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_QUICK, reset_result.send_mode);
     TEST_CHECK_EQ_U64(5U, reset_result.snapshot_retention_target);
 
     uint8_t after_one[16] = {0};

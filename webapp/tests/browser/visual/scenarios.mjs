@@ -211,25 +211,6 @@ export const SCENARIOS = [
       return captureScenario(page);
     }),
   ),
-  scenario("macro-preview", STANDARD_VIEWPORTS, (browser, viewport) =>
-    withApp(browser, viewport, async (page) => {
-      await clickButtonByAriaLabel(page, "More actions for Open terminal");
-      await waitFor(
-        page,
-        () =>
-          document.querySelector('[aria-label="Actions for Open terminal"]') !==
-          null,
-        "The overflow menu did not open.",
-      );
-      await clickButtonByAriaLabel(page, "Preview and send Open terminal");
-      await waitFor(
-        page,
-        () => document.body.innerText.includes("Preview"),
-        "The macro preview page did not render.",
-      );
-      return captureScenario(page);
-    }),
-  ),
   scenario("macro-editor", STANDARD_VIEWPORTS, (browser, viewport) =>
     withApp(browser, viewport, async (page) => {
       await clickButtonByAriaLabel(page, "Edit Open terminal");

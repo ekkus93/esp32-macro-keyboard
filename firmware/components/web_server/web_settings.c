@@ -13,8 +13,6 @@
 #include "setup_contract_v2.h"
 
 #define SETTINGS_NUL_ESCAPE "\\u0000"
-#define SETTINGS_SEND_MODE_QUICK "quick"
-#define SETTINGS_SEND_MODE_PREVIEW "preview"
 /* Raw wire-shape ceiling for snapshotRetentionTarget: the widest value that
  * still fits the field's uint8_t storage. app_v2_settings_prepare_update()
  * separately enforces the narrower SPEC_V2 0-100 semantic range, mapped to
@@ -140,16 +138,10 @@ static bool add_view_string(cJSON *root, const char *key, app_v2_string_view_t v
     return cJSON_AddStringToObject(root, key, buffer) != NULL;
 }
 
-static const char *send_mode_string(app_v2_send_mode_t mode) {
-    return mode == APP_V2_SEND_MODE_PREVIEW ? SETTINGS_SEND_MODE_PREVIEW : SETTINGS_SEND_MODE_QUICK;
-}
-
 static bool settings_response_populate(cJSON *root, const app_v2_settings_response_t *response) {
     return add_view_string(root, "deviceName", response->device_name) &&
            cJSON_AddBoolToObject(root, "requireSerialConfirmation",
                                  response->require_serial_confirmation) != NULL &&
-           cJSON_AddStringToObject(root, "sendMode", send_mode_string(response->send_mode)) !=
-               NULL &&
            cJSON_AddNumberToObject(root, "snapshotRetentionTarget",
                                    (double)response->snapshot_retention_target) != NULL &&
            add_optional_string(root, "lastSelectedPackageId", response->last_selected_package_id) &&
@@ -210,12 +202,11 @@ web_settings_get_outcome_t web_settings_get_handle(const web_settings_ops_t *ops
  * PUT /api/v1/settings
  * ---------------------------------------------------------------------- */
 
-#define SETTINGS_PUT_FIELD_COUNT 7U
+#define SETTINGS_PUT_FIELD_COUNT 6U
 
 static const char *const SETTINGS_PUT_FIELDS[SETTINGS_PUT_FIELD_COUNT] = {
     "deviceName",
     "requireSerialConfirmation",
-    "sendMode",
     "snapshotRetentionTarget",
     "lastSelectedPackageId",
     "accessPoint",
@@ -302,34 +293,6 @@ static bool populate_require_confirmation(const cJSON *root,
     return true;
 }
 
-/* Structurally-a-string-but-unrecognized ("sendMode":"eventually") is not a
- * malformed-body condition: it leaves has_send_mode false and reports itself
- * through *out_invalid_enum instead of a false return, so the caller can
- * answer the dedicated WEB_SETTINGS_PUT_INVALID_SEND_MODE result (matching
- * accessPoint/station's field-specific errors) rather than a generic
- * invalid-body one -- and so no out-of-range app_v2_send_mode_t value is
- * ever constructed. */
-static bool populate_send_mode(const cJSON *root, app_v2_settings_update_request_t *out_request,
-                               bool *out_invalid_enum) {
-    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "sendMode");
-    if (item == NULL) {
-        return true;
-    }
-    if (!cJSON_IsString(item) || item->valuestring == NULL) {
-        return false;
-    }
-    if (strcmp(item->valuestring, SETTINGS_SEND_MODE_QUICK) == 0) {
-        out_request->has_send_mode = true;
-        out_request->send_mode = APP_V2_SEND_MODE_QUICK;
-    } else if (strcmp(item->valuestring, SETTINGS_SEND_MODE_PREVIEW) == 0) {
-        out_request->has_send_mode = true;
-        out_request->send_mode = APP_V2_SEND_MODE_PREVIEW;
-    } else {
-        *out_invalid_enum = true;
-    }
-    return true;
-}
-
 static bool populate_snapshot_retention_target(const cJSON *root,
                                                app_v2_settings_update_request_t *out_request) {
     const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "snapshotRetentionTarget");
@@ -405,14 +368,11 @@ static bool populate_station(const cJSON *root, app_v2_settings_update_request_t
  * on any wrong-type field; the caller has already confirmed the field-name
  * shape via exact_settings_put_fields(). Every populated string view points
  * into `root`, which must stay alive (and un-wiped) until the caller is
- * finished reading `*out_request`. See populate_send_mode()'s doc comment
- * for *out_invalid_send_mode. */
+ * finished reading `*out_request`. */
 static bool populate_settings_update_request(const cJSON *root,
-                                             app_v2_settings_update_request_t *out_request,
-                                             bool *out_invalid_send_mode) {
+                                             app_v2_settings_update_request_t *out_request) {
     return populate_device_name(root, out_request) &&
            populate_require_confirmation(root, out_request) &&
-           populate_send_mode(root, out_request, out_invalid_send_mode) &&
            populate_snapshot_retention_target(root, out_request) &&
            populate_last_selected_package_id(root, out_request) &&
            populate_access_point(root, out_request) && populate_station(root, out_request);
@@ -505,14 +465,9 @@ web_settings_put_outcome_t web_settings_put_handle(char *body, size_t body_capac
     }
 
     app_v2_settings_update_request_t request = {0};
-    bool invalid_send_mode = false;
-    if (!populate_settings_update_request(root, &request, &invalid_send_mode)) {
+    if (!populate_settings_update_request(root, &request)) {
         cJSON_Delete(root);
         return put_outcome(WEB_SETTINGS_PUT_INVALID_BODY);
-    }
-    if (invalid_send_mode) {
-        cJSON_Delete(root);
-        return put_outcome(WEB_SETTINGS_PUT_INVALID_SEND_MODE);
     }
 
     app_v2_device_settings_t current = {0};

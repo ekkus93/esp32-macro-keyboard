@@ -104,27 +104,6 @@ describe("AppShellV2 — V2-090 application shell", () => {
     await unmount();
   });
 
-  test("highlights Macros while on the macro-preview route", async () => {
-    const { container, unmount } = await render(
-      <AppShellV2
-        deviceName="Desk Macro Keyboard"
-        dirty={false}
-        navigate={vi.fn()}
-        onSaveSnapshot={vi.fn()}
-        packageName={null}
-        route="macro-preview"
-        saveError={null}
-        saving={false}
-        usbState="ready"
-      >
-        <p>content</p>
-      </AppShellV2>,
-    );
-    const active = container.querySelector('[aria-current="page"]');
-    expect(active?.textContent).toBe("Macros");
-    await unmount();
-  });
-
   test("highlights Settings while on the diagnostics route (TODO_V2 V2-122: reachable only from Settings, not its own nav destination)", async () => {
     const { container, unmount } = await render(
       <AppShellV2

@@ -31,7 +31,16 @@ extern "C" {
 #define APP_V2_SETTINGS_OFFSET_PASSWORD_SALT UINT16_C(16)
 #define APP_V2_SETTINGS_OFFSET_PASSWORD_VERIFIER UINT16_C(32)
 #define APP_V2_SETTINGS_OFFSET_NEXT_BLOB_ID UINT16_C(64)
-#define APP_V2_SETTINGS_OFFSET_SEND_MODE UINT16_C(72)
+/* Formerly send_mode (the "Quick Send"/"Always Preview" device preference,
+ * removed: the optional Preview-and-Send screen is gone and Quick Send is
+ * the only send path). Left reserved rather than reclaimed or shrunk out of
+ * the record so an already-provisioned device's stored byte here -- 0 or 1,
+ * whichever it last wrote -- keeps decoding instead of tripping
+ * APP_V2_SETTINGS_CORRUPT; there is no migration path in this decoder
+ * (record_length/version/every other byte must match exactly), so removing
+ * the slot outright would strand existing settings records. New encodes
+ * always write 0 here. */
+#define APP_V2_SETTINGS_OFFSET_RESERVED_SEND_MODE UINT16_C(72)
 #define APP_V2_SETTINGS_OFFSET_RETENTION_TARGET UINT16_C(73)
 /* Formerly show_macro_source_previews (the "Show macro source previews"
  * device preference, removed: the Macros page now always shows source).
@@ -54,11 +63,6 @@ extern "C" {
 #define APP_V2_SETTINGS_OFFSET_STATION_PASSPHRASE UINT16_C(280)
 
 typedef enum {
-    APP_V2_SEND_MODE_QUICK = 0,
-    APP_V2_SEND_MODE_PREVIEW = 1,
-} app_v2_send_mode_t;
-
-typedef enum {
     APP_V2_SETTINGS_OK = 0,
     APP_V2_SETTINGS_INVALID_ARGUMENT,
     APP_V2_SETTINGS_INVALID_LENGTH,
@@ -74,7 +78,6 @@ typedef struct {
     uint8_t password_salt[APP_V2_PASSWORD_SALT_BYTES];
     uint8_t password_verifier[APP_V2_PASSWORD_VERIFIER_BYTES];
     uint64_t next_blob_id;
-    app_v2_send_mode_t send_mode;
     uint8_t snapshot_retention_target;
     bool require_serial_confirmation;
     bool station_configured;

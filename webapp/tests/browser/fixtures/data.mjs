@@ -84,7 +84,6 @@ export const repositoryGzip = gzipSync(
 export const settings = {
   deviceName: "Bench Macro Keyboard",
   requireSerialConfirmation: false,
-  sendMode: "quick",
   snapshotRetentionTarget: 5,
   lastSelectedPackageId: packageId,
   apSsid: "MacroKeyboard",

@@ -30,7 +30,6 @@ function settings(overrides: Partial<SettingsResponse> = {}): SettingsResponse {
   return {
     deviceName: "Desk Macro Keyboard",
     requireSerialConfirmation: false,
-    sendMode: "quick",
     snapshotRetentionTarget: 5,
     lastSelectedPackageId: null,
     apSsid: "MacroKeyboard",
@@ -133,9 +132,6 @@ describe("SettingsPage (TODO_V2 V2-120)", () => {
         .checked,
     ).toBe(false);
     expect(
-      requiredElement("#settings-send-mode-quick", HTMLInputElement).checked,
-    ).toBe(true);
-    expect(
       requiredElement("#settings-retention-target", HTMLInputElement).value,
     ).toBe("5");
     // The opaque device UUID must never appear as literal text anywhere on
@@ -164,7 +160,6 @@ describe("SettingsPage (TODO_V2 V2-120)", () => {
     expect(updateSettings).toHaveBeenCalledWith({
       deviceName: "New name",
       requireSerialConfirmation: false,
-      sendMode: "quick",
       snapshotRetentionTarget: 5,
     });
     expect(onSettingsChanged).toHaveBeenCalledWith(

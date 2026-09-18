@@ -18,7 +18,6 @@ const settingsUpdateKeys = [
   "deviceName",
   "lastSelectedPackageId",
   "requireSerialConfirmation",
-  "sendMode",
   "snapshotRetentionTarget",
   "station",
 ] as const;
@@ -176,11 +175,6 @@ function isOptionalDeviceSettings(value: Record<string, unknown>): boolean {
       value,
       "requireSerialConfirmation",
       (candidate) => typeof candidate === "boolean",
-    ),
-    optionalField(
-      value,
-      "sendMode",
-      (candidate) => candidate === "quick" || candidate === "preview",
     ),
     optionalField(value, "snapshotRetentionTarget", (candidate) =>
       isBoundedInteger(candidate, 0, v2Limits.snapshotRetentionTargetMax),

@@ -806,7 +806,6 @@ NVS stores small device configuration only:
 - whether physical confirmation is required;
 - provisioned flag and credential-record version;
 - optional next-blob-ID counter;
-- `sendMode`, default `quick`;
 - `snapshotRetentionTarget`, default `5`;
 - `lastSelectedPackageId`, default `null`.
 
@@ -818,14 +817,9 @@ and do not make the repository dirty.
 ### 11.2 Preference values
 
 ```text
-sendMode                    quick | preview
 snapshotRetentionTarget    integer 0..100
 lastSelectedPackageId       canonical lowercase UUID v4 | null
 ```
-
-`quick` means the primary Send control starts a send from the Macros page.
-`preview` means the primary Send control first opens the optional Preview and
-Send screen.
 
 ### 11.3 Credential handling
 
@@ -853,7 +847,6 @@ corrupt and MUST NOT be parsed on a best-effort basis.
 ```text
 deviceName                  ESP32 Macro Keyboard
 requireSerialConfirmation   false
-sendMode                    quick
 snapshotRetentionTarget     5
 lastSelectedPackageId       null
 station configuration       removed
@@ -1330,7 +1323,6 @@ A successful delete returns `204 No Content`.
 {
   "deviceName": "Desk Macro Keyboard",
   "requireSerialConfirmation": false,
-  "sendMode": "quick",
   "snapshotRetentionTarget": 5,
   "lastSelectedPackageId": null,
   "apSsid": "MacroKeyboard",
@@ -1349,7 +1341,6 @@ current values. Accepted fields are:
 {
   "deviceName": "Desk Macro Keyboard",
   "requireSerialConfirmation": false,
-  "sendMode": "quick",
   "snapshotRetentionTarget": 5,
   "lastSelectedPackageId": null,
   "accessPoint": {
@@ -1382,7 +1373,6 @@ Success returns `200`:
   "settings": {
     "deviceName": "Desk Macro Keyboard",
     "requireSerialConfirmation": false,
-    "sendMode": "quick",
     "snapshotRetentionTarget": 5,
     "lastSelectedPackageId": null,
     "apSsid": "MacroKeyboard",
@@ -1691,22 +1681,17 @@ discard, or cancel decision first.
 
 The Macros page is the primary operating console.
 
-With `sendMode: quick`, pressing the primary Send control is the explicit user
-action and immediately calls `POST /api/v1/send`. The user remains on the Macros
-page while React displays inline progress, cancellation, completion, failure,
-timeout, and release-error states.
-
-With `sendMode: preview`, the primary Send control opens the Preview and Send
-screen first. Preview remains available as an optional macro action in either
-mode.
+Pressing the primary Send control is the explicit user action and immediately
+calls `POST /api/v1/send`. The user remains on the Macros page while React
+displays inline progress, cancellation, completion, failure, timeout, and
+release-error states.
 
 The application sends source and timing, not package ID, macro ID, revision, or
 blob ID. The next macro MUST NOT execute automatically.
 
 ### 14.6 Macro-source handling
 
-Macro source is shown plainly on the Macros page, the editor, and the optional
-preview screen alike.
+Macro source is shown plainly on the Macros page and the editor alike.
 
 Macro source is sensitive user content and MUST NOT be included in logs,
 diagnostics, send acknowledgements, or notification text, regardless of where

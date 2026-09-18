@@ -122,9 +122,6 @@ static app_error_code_t settings_put_error(web_api_response_t *response,
     case WEB_SETTINGS_PUT_INVALID_DEVICE_NAME:
         return web_api_handler_error(response, APP_ERROR_INVALID_ARGUMENT, "invalid device name",
                                      "deviceName");
-    case WEB_SETTINGS_PUT_INVALID_SEND_MODE:
-        return web_api_handler_error(response, APP_ERROR_INVALID_ARGUMENT, "invalid send mode",
-                                     "sendMode");
     case WEB_SETTINGS_PUT_INVALID_SNAPSHOT_RETENTION_TARGET:
         return web_api_handler_error(response, APP_ERROR_INVALID_ARGUMENT,
                                      "invalid snapshot retention target",

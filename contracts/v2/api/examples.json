@@ -115,7 +115,6 @@
   "settings": {
     "deviceName": "Desk Macro Keyboard",
     "requireSerialConfirmation": false,
-    "sendMode": "quick",
     "snapshotRetentionTarget": 5,
     "lastSelectedPackageId": null,
     "apSsid": "MacroKeyboard",
@@ -125,7 +124,6 @@
   "settingsUpdate": {
     "deviceName": "Desk Macro Keyboard",
     "requireSerialConfirmation": false,
-    "sendMode": "quick",
     "snapshotRetentionTarget": 5,
     "lastSelectedPackageId": null,
     "accessPoint": {
@@ -141,7 +139,6 @@
     "settings": {
       "deviceName": "Desk Macro Keyboard",
       "requireSerialConfirmation": false,
-      "sendMode": "quick",
       "snapshotRetentionTarget": 5,
       "lastSelectedPackageId": null,
       "apSsid": "MacroKeyboard",

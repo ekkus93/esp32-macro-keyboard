@@ -133,20 +133,6 @@ static void test_put_wrong_type_rejected(void) {
     TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
 }
 
-static void test_put_invalid_send_mode_rejected(void) {
-    fake_t fake = {.current = provisioned_settings()};
-    const web_settings_ops_t ops = operations(&fake);
-    char body[TEST_BODY_CAPACITY];
-    build_body(body, sizeof(body), "{\"sendMode\":\"eventually\"}");
-    char *json = NULL;
-
-    const web_settings_put_outcome_t outcome =
-        web_settings_put_handle(body, sizeof(body), &ops, &json);
-
-    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_SEND_MODE, outcome.result);
-    TEST_CHECK_EQ_U64(0U, fake.settings_read_calls);
-}
-
 static void test_put_access_point_missing_passphrase_rejected(void) {
     fake_t fake = {.current = provisioned_settings()};
     const web_settings_ops_t ops = operations(&fake);
@@ -360,39 +346,6 @@ static void test_put_require_serial_confirmation_success(void) {
     free(json);
 }
 
-static void test_put_send_mode_preview_success(void) {
-    fake_t fake = {.current = provisioned_settings()};
-    const web_settings_ops_t ops = operations(&fake);
-    char body[TEST_BODY_CAPACITY];
-    build_body(body, sizeof(body), "{\"sendMode\":\"preview\"}");
-    char *json = NULL;
-
-    const web_settings_put_outcome_t outcome =
-        web_settings_put_handle(body, sizeof(body), &ops, &json);
-
-    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_OK, outcome.result);
-    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_PREVIEW, fake.committed_candidate.send_mode);
-    TEST_CHECK(json_contains(json, "\"sendMode\":\"preview\""));
-    free(json);
-}
-
-static void test_put_send_mode_quick_success(void) {
-    fake_t fake = {.current = provisioned_settings()};
-    fake.current.send_mode = APP_V2_SEND_MODE_PREVIEW;
-    const web_settings_ops_t ops = operations(&fake);
-    char body[TEST_BODY_CAPACITY];
-    build_body(body, sizeof(body), "{\"sendMode\":\"quick\"}");
-    char *json = NULL;
-
-    const web_settings_put_outcome_t outcome =
-        web_settings_put_handle(body, sizeof(body), &ops, &json);
-
-    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_OK, outcome.result);
-    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_QUICK, fake.committed_candidate.send_mode);
-    TEST_CHECK(json_contains(json, "\"sendMode\":\"quick\""));
-    free(json);
-}
-
 static void test_put_snapshot_retention_negative_rejected(void) {
     fake_t fake = {.current = provisioned_settings()};
     const web_settings_ops_t ops = operations(&fake);
@@ -470,19 +423,6 @@ static void test_put_station_valid_object_success(void) {
     TEST_CHECK(json_contains(json, "\"restartRequired\":true"));
     TEST_CHECK(json_contains(json, "\"reconnectRequired\":false"));
     free(json);
-}
-
-static void test_put_send_mode_wrong_type_rejected(void) {
-    fake_t fake = {.current = provisioned_settings()};
-    const web_settings_ops_t ops = operations(&fake);
-    char body[TEST_BODY_CAPACITY];
-    build_body(body, sizeof(body), "{\"sendMode\":42}");
-    char *json = NULL;
-
-    const web_settings_put_outcome_t outcome =
-        web_settings_put_handle(body, sizeof(body), &ops, &json);
-
-    TEST_CHECK_EQ_INT(WEB_SETTINGS_PUT_INVALID_BODY, outcome.result);
 }
 
 /* The five tests below each carry a validly-shaped field past

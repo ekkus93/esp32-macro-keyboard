@@ -61,7 +61,6 @@ export type {
   ResetAccepted,
   ResetSettingsRequest,
   SendAcceptedResponse,
-  SendMode,
   SendRequest,
   SendState,
   SendStatusResponse,

@@ -38,11 +38,7 @@ import {
   trackSend as defaultTrackSend,
 } from "../../../v2/sendClient";
 import type { SendMacroHandle } from "../../../v2/sendClient";
-import type {
-  SendMode,
-  SendStatusResponse,
-  UsbState,
-} from "../../../v2/apiTypes";
+import type { SendStatusResponse, UsbState } from "../../../v2/apiTypes";
 
 /**
  * The Macros page and its Quick Send operating console, per UI_UX_SPEC_V2
@@ -71,7 +67,6 @@ export interface MacrosPageProps {
   store: RepositoryWorkingCopyStore;
   packageId: string;
   usbState: UsbState;
-  sendMode: SendMode;
   /** The send recovered during startup (UI_UX_SPEC_V2 §3.4 step 8), if any. */
   initialSend: SendStatusResponse | null;
   /**
@@ -83,7 +78,6 @@ export interface MacrosPageProps {
    */
   onActiveSendChange?: (summary: ActiveSendSummary | null) => void;
   onChangePackage: () => void;
-  onOpenPreview: (macroId: string) => void;
   onOpenAddMacro: () => void;
   onOpenEditMacro: (macroId: string) => void;
   /** Test-only dependency injection; defaults to the real v2 send client. */
@@ -94,11 +88,9 @@ export function MacrosPage({
   store,
   packageId,
   usbState,
-  sendMode,
   initialSend,
   onActiveSendChange,
   onChangePackage,
-  onOpenPreview,
   onOpenAddMacro,
   onOpenEditMacro,
   dependencies,
@@ -232,7 +224,7 @@ export function MacrosPage({
     });
   }, [handleComplete, handleStatus, handleTrackingError]);
 
-  // Reload recovery (V2-095, UI_UX_SPEC_V2 §5.6): resume tracking a
+  // Reload recovery (V2-095, UI_UX_SPEC_V2 §5.5): resume tracking a
   // non-terminal recovered send, or restore an undismissed terminal-issue
   // banner. A recovered send carries no macro identity (the wire protocol
   // does not track one), so its banner never names a macro. `initialSend` is
@@ -283,7 +275,7 @@ export function MacrosPage({
 
   const startSend = async (macro: RepositoryMacro): Promise<void> => {
     // A persistent cancelled/failed/timed-out banner does not block a new
-    // send — UI_UX_SPEC_V2 §5.5 says it lasts "until dismissed or another
+    // send — UI_UX_SPEC_V2 §5.4 says it lasts "until dismissed or another
     // send begins" — starting one here implicitly clears it, matched by
     // `setLifecycle` below unconditionally replacing the previous state.
     const canStart =
@@ -461,7 +453,7 @@ export function MacrosPage({
     );
   }
 
-  // UI_UX_SPEC_V2 §5.5: the completion acknowledgement blocks a new send
+  // UI_UX_SPEC_V2 §5.4: the completion acknowledgement blocks a new send
   // until it restores the ordinary Send control ("then restore the ordinary
   // Send control"), but a persistent cancelled/failed/timed-out banner does
   // not — it explicitly lasts "until dismissed OR another send begins".
@@ -583,18 +575,7 @@ export function MacrosPage({
               onMove={(action) => {
                 moveMacro(index, action);
               }}
-              onPreview={() => {
-                onOpenPreview(macro.id);
-              }}
               onSend={() => {
-                // SPEC_V2 §14.5/UI_UX_SPEC_V2 §5.4: with `sendMode: preview`
-                // the primary Send control opens Preview and Send first
-                // instead of calling `POST /api/v1/send` directly (TODO_V2
-                // V2-094 "Honor Always Preview when configured").
-                if (sendMode === "preview") {
-                  onOpenPreview(macro.id);
-                  return;
-                }
                 void startSend(macro);
               }}
               sendDisabled={sendDisabled}
@@ -608,12 +589,6 @@ export function MacrosPage({
           ))}
         </div>
       )}
-      {sendMode === "preview" ? (
-        <p>
-          Always preview before sending is on — use Preview and send for the
-          full preview screen.
-        </p>
-      ) : null}
     </section>
   );
 }

@@ -3,7 +3,6 @@ import { getFetchCalls, planJsonResponse } from "./fakeFetch";
 import { buttonWithText, click, requiredElement } from "./render";
 import {
   accepted,
-  macroAId,
   macroBId,
   packageId,
   renderMacrosPage,
@@ -178,58 +177,5 @@ describe("MacrosPage — V2-101 overflow menu (Duplicate/Delete)", () => {
     expect(pkg?.macros.map((m) => m.id)).toEqual([macroBId]);
     expect(store.getIsDirty()).toBe(true);
     await unmount();
-  });
-
-  test("the overflow menu still offers Preview and send", async () => {
-    const { callbacks, unmount } = await renderMacrosPage();
-    await click(
-      requiredElement(
-        '[aria-label="More actions for Start the build"]',
-        HTMLButtonElement,
-      ),
-    );
-    await click(
-      requiredElement(
-        '[aria-label="Preview and send Start the build"]',
-        HTMLButtonElement,
-      ),
-    );
-    expect(callbacks.onOpenPreview).toHaveBeenCalledWith(macroAId);
-    await unmount();
-  });
-});
-
-describe("MacrosPage — V2-094 honoring Always Preview", () => {
-  test("sendMode 'preview' routes the primary Send control to Preview and send instead of quick-sending", async () => {
-    const { callbacks, unmount } = await renderMacrosPage({
-      sendMode: "preview",
-    });
-    await click(buttonWithText("Send"));
-    expect(callbacks.onOpenPreview).toHaveBeenCalledWith(macroAId);
-    expect(
-      getFetchCalls().filter((call) => call.method === "POST"),
-    ).toHaveLength(0);
-    await unmount();
-  });
-
-  test("sendMode 'quick' still sends directly without opening preview", async () => {
-    vi.useFakeTimers();
-    try {
-      const { callbacks, unmount } = await renderMacrosPage({
-        sendMode: "quick",
-      });
-      planJsonResponse(accepted, 202);
-      await click(buttonWithText("Send"));
-      await tick(0);
-      expect(callbacks.onOpenPreview).not.toHaveBeenCalled();
-      expect(
-        getFetchCalls().filter((call) => call.method === "POST"),
-      ).toHaveLength(1);
-      planJsonResponse(statusAt("completed", 2));
-      await tick(1000);
-      await unmount();
-    } finally {
-      vi.useRealTimers();
-    }
   });
 });

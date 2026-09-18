@@ -10,7 +10,6 @@ import { getFetchCalls, jsonResponse, planFetch } from "./fakeFetch";
 const settingsBody = {
   deviceName: "Desk Macro Keyboard",
   requireSerialConfirmation: false,
-  sendMode: "quick",
   snapshotRetentionTarget: 5,
   lastSelectedPackageId: null,
   apSsid: "MacroKeyboard",

@@ -11,7 +11,6 @@ interface MacroRowProps {
   sending: boolean;
   onSend: () => void;
   onEdit: () => void;
-  onPreview: () => void;
   onMove: (action: MoveAction) => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -25,7 +24,6 @@ export function MacroRow({
   sending,
   onSend,
   onEdit,
-  onPreview,
   onMove,
   onDuplicate,
   onDelete,
@@ -101,7 +99,6 @@ export function MacroRow({
           macro={macro}
           onDelete={onDelete}
           onDuplicate={onDuplicate}
-          onPreview={onPreview}
         />
       </div>
     </Card>

@@ -535,7 +535,6 @@ function isSettingsIdentity(value: Record<string, unknown>): boolean {
   return all([
     isNonEmptyString(value.deviceName),
     typeof value.requireSerialConfirmation === "boolean",
-    value.sendMode === "quick" || value.sendMode === "preview",
     isNonNegativeInteger(value.snapshotRetentionTarget),
     typeof value.snapshotRetentionTarget === "number" &&
       value.snapshotRetentionTarget <= v2Limits.snapshotRetentionTargetMax,
@@ -573,7 +572,6 @@ export function isSettingsResponse(value: unknown): value is SettingsResponse {
       "deviceName",
       "lastSelectedPackageId",
       "requireSerialConfirmation",
-      "sendMode",
       "snapshotRetentionTarget",
       "stationConfigured",
       "stationSsid",

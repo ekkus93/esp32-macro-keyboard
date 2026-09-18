@@ -17,7 +17,7 @@ export type SendLifecycle =
       status: SendStatusResponse;
     };
 
-/** UI_UX_SPEC_V2 §5.5: "an acknowledgement for approximately three to five seconds." */
+/** UI_UX_SPEC_V2 §5.4: "an acknowledgement for approximately three to five seconds." */
 export const completionAckMs = 4000;
 
 /**

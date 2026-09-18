@@ -20,7 +20,6 @@ const secondPackage = {
 const settingsResponse = {
   deviceName: "Desk Macro Keyboard",
   requireSerialConfirmation: false,
-  sendMode: "quick",
   snapshotRetentionTarget: 5,
   lastSelectedPackageId: canonicalPackageId,
   apSsid: "MacroKeyboard",

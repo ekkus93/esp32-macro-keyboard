@@ -12,7 +12,6 @@ static void test_get_success(void) {
     TEST_CHECK_EQ_INT(WEB_SETTINGS_GET_OK, outcome.result);
     TEST_CHECK(json_contains(json, "\"deviceName\":\"Desk Macro Keyboard\""));
     TEST_CHECK(json_contains(json, "\"apSsid\":\"MacroKeyboard\""));
-    TEST_CHECK(json_contains(json, "\"sendMode\":\"quick\""));
     TEST_CHECK(!json_contains(json, "example-passphrase"));
     TEST_CHECK(!json_contains(json, "password"));
     free(json);

@@ -83,7 +83,6 @@ static app_v2_device_settings_t configured_settings(void) {
     memset(settings.password_salt, 0x11, sizeof(settings.password_salt));
     memset(settings.password_verifier, 0x22, sizeof(settings.password_verifier));
     settings.next_blob_id = UINT64_C(42);
-    settings.send_mode = APP_V2_SEND_MODE_PREVIEW;
     settings.snapshot_retention_target = 9U;
     settings.require_serial_confirmation = true;
     settings.station_configured = true;
@@ -128,7 +127,6 @@ static void test_missing_record_uses_defaults_without_write(void) {
     app_v2_device_settings_t loaded;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_load(&core, &loaded));
     TEST_CHECK(!loaded.provisioned);
-    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_QUICK, loaded.send_mode);
     TEST_CHECK_EQ_U64(5U, loaded.snapshot_retention_target);
     TEST_CHECK_EQ_U64(1U, fake.read_calls);
     TEST_CHECK_EQ_U64(0U, fake.replace_calls);
@@ -315,7 +313,6 @@ static void test_replace_and_failure_preservation(void) {
     app_v2_device_settings_t reloaded;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_load(&reloaded_core, &reloaded));
     TEST_CHECK(strcmp(reloaded.device_name, replacement.device_name) == 0);
-    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_PREVIEW, reloaded.send_mode);
 
     app_v2_device_settings_t failed = replacement;
     TEST_CHECK(snprintf(failed.device_name, sizeof(failed.device_name), "%s", "Failed Update") > 0);
@@ -397,7 +394,6 @@ static void test_reset_preserves_credentials_and_blob_counter(void) {
     TEST_CHECK_EQ_U64(original.next_blob_id, reset.next_blob_id);
     TEST_CHECK(strcmp(original.ap_ssid, reset.ap_ssid) == 0);
     TEST_CHECK(strcmp(original.ap_passphrase, reset.ap_passphrase) == 0);
-    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_QUICK, reset.send_mode);
     TEST_CHECK_EQ_U64(5U, reset.snapshot_retention_target);
     TEST_CHECK(!reset.require_serial_confirmation);
     TEST_CHECK(!reset.station_configured);
@@ -438,7 +434,7 @@ static void test_duplicate_write_suppressed_after_prior_value(void) {
 
     /* Changing exactly one preference field does trigger a write. */
     app_v2_device_settings_t modified = configured;
-    modified.send_mode = APP_V2_SEND_MODE_QUICK;
+    modified.require_serial_confirmation = !modified.require_serial_confirmation;
     changed = false;
     TEST_CHECK_APP_ERROR(APP_ERROR_NONE, device_settings_core_replace(&core, &modified, &changed));
     TEST_CHECK(changed);
@@ -532,7 +528,6 @@ static void test_factory_reset_erases_everything(void) {
     TEST_CHECK(reset.station_ssid[0] == '\0');
     TEST_CHECK(reset.station_passphrase[0] == '\0');
     TEST_CHECK(!reset.station_configured);
-    TEST_CHECK_EQ_INT(APP_V2_SEND_MODE_QUICK, reset.send_mode);
     TEST_CHECK_EQ_U64(5U, reset.snapshot_retention_target);
     TEST_CHECK(!reset.require_serial_confirmation);
     TEST_CHECK(reset.last_selected_package_id[0] == '\0');

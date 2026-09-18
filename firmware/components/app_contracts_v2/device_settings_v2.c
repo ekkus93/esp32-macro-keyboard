@@ -248,7 +248,6 @@ void app_v2_device_settings_init_unprovisioned(app_v2_device_settings_t *setting
     memset(settings, 0, sizeof(*settings));
     settings->credential_version = APP_V2_CREDENTIAL_VERSION;
     settings->password_algorithm_version = APP_V2_PASSWORD_ALGORITHM_VERSION;
-    settings->send_mode = APP_V2_SEND_MODE_QUICK;
     settings->snapshot_retention_target = APP_V2_SETTINGS_DEFAULT_SNAPSHOT_RETENTION_TARGET;
     (void)memcpy(settings->device_name, "ESP32 Macro Keyboard", sizeof("ESP32 Macro Keyboard"));
 }
@@ -259,8 +258,6 @@ app_v2_settings_result_t app_v2_device_settings_validate(const app_v2_device_set
     }
     if (settings->credential_version != APP_V2_CREDENTIAL_VERSION ||
         settings->password_algorithm_version != APP_V2_PASSWORD_ALGORITHM_VERSION ||
-        (settings->send_mode != APP_V2_SEND_MODE_QUICK &&
-         settings->send_mode != APP_V2_SEND_MODE_PREVIEW) ||
         settings->snapshot_retention_target > APP_V2_SNAPSHOT_RETENTION_TARGET_MAX ||
         !valid_uuid_or_empty(settings->last_selected_package_id) ||
         !valid_text(settings->device_name, sizeof(settings->device_name), 1U,
@@ -318,10 +315,10 @@ app_v2_settings_result_t app_v2_device_settings_encode(const app_v2_device_setti
     memcpy(record + APP_V2_SETTINGS_OFFSET_PASSWORD_VERIFIER, settings->password_verifier,
            APP_V2_PASSWORD_VERIFIER_BYTES);
     write_u64_le(record + APP_V2_SETTINGS_OFFSET_NEXT_BLOB_ID, settings->next_blob_id);
-    record[APP_V2_SETTINGS_OFFSET_SEND_MODE] = (uint8_t)settings->send_mode;
     record[APP_V2_SETTINGS_OFFSET_RETENTION_TARGET] = settings->snapshot_retention_target;
-    /* APP_V2_SETTINGS_OFFSET_RESERVED_SHOW_SOURCE is left at the 0 the
-     * memset above already gave it -- see the offset's own doc comment. */
+    /* APP_V2_SETTINGS_OFFSET_RESERVED_SEND_MODE and
+     * APP_V2_SETTINGS_OFFSET_RESERVED_SHOW_SOURCE are left at the 0 the
+     * memset above already gave them -- see each offset's own doc comment. */
     record[APP_V2_SETTINGS_OFFSET_REQUIRE_CONFIRMATION] =
         settings->require_serial_confirmation ? 1U : 0U;
     record[APP_V2_SETTINGS_OFFSET_PROVISIONED] = settings->provisioned ? 1U : 0U;
@@ -366,12 +363,13 @@ app_v2_settings_result_t app_v2_device_settings_decode(const uint8_t *record, si
             APP_V2_PASSWORD_ALGORITHM_VERSION) {
         return APP_V2_SETTINGS_UNSUPPORTED_VERSION;
     }
-    /* The reserved byte accepts 0 or 1, not just 0: an already-provisioned
-     * device may still hold either value from before the show-macro-source-
-     * previews preference was removed (see the offset's own doc comment),
-     * and this decoder has no migration path to normalize it. */
+    /* The two reserved bytes each accept 0 or 1, not just 0: an
+     * already-provisioned device may still hold either value from before the
+     * send-mode and show-macro-source-previews preferences were removed (see
+     * each offset's own doc comment), and this decoder has no migration path
+     * to normalize them. */
     if (!bytes_are_zero(record + APP_V2_SETTINGS_OFFSET_RESERVED, 2U) ||
-        record[APP_V2_SETTINGS_OFFSET_SEND_MODE] > (uint8_t)APP_V2_SEND_MODE_PREVIEW ||
+        record[APP_V2_SETTINGS_OFFSET_RESERVED_SEND_MODE] > 1U ||
         record[APP_V2_SETTINGS_OFFSET_RETENTION_TARGET] > APP_V2_SNAPSHOT_RETENTION_TARGET_MAX ||
         record[APP_V2_SETTINGS_OFFSET_RESERVED_SHOW_SOURCE] > 1U ||
         record[APP_V2_SETTINGS_OFFSET_REQUIRE_CONFIRMATION] > 1U ||
@@ -390,7 +388,6 @@ app_v2_settings_result_t app_v2_device_settings_decode(const uint8_t *record, si
     memcpy(decoded.password_verifier, record + APP_V2_SETTINGS_OFFSET_PASSWORD_VERIFIER,
            APP_V2_PASSWORD_VERIFIER_BYTES);
     decoded.next_blob_id = read_u64_le(record + APP_V2_SETTINGS_OFFSET_NEXT_BLOB_ID);
-    decoded.send_mode = (app_v2_send_mode_t)record[APP_V2_SETTINGS_OFFSET_SEND_MODE];
     decoded.snapshot_retention_target = record[APP_V2_SETTINGS_OFFSET_RETENTION_TARGET];
     decoded.require_serial_confirmation = record[APP_V2_SETTINGS_OFFSET_REQUIRE_CONFIRMATION] != 0U;
     decoded.provisioned = record[APP_V2_SETTINGS_OFFSET_PROVISIONED] != 0U;
@@ -435,7 +432,6 @@ app_v2_device_settings_reset_noncredential(app_v2_device_settings_t *settings) {
     memset(settings->device_name, 0, sizeof(settings->device_name));
     (void)memcpy(settings->device_name, "ESP32 Macro Keyboard", sizeof("ESP32 Macro Keyboard"));
     settings->require_serial_confirmation = false;
-    settings->send_mode = APP_V2_SEND_MODE_QUICK;
     settings->snapshot_retention_target = APP_V2_SETTINGS_DEFAULT_SNAPSHOT_RETENTION_TARGET;
     memset(settings->last_selected_package_id, 0, sizeof(settings->last_selected_package_id));
     settings->station_configured = false;
