@@ -47,12 +47,13 @@ tests/hardware/.local/
 __pycache__/
 *.pyc
 
-# Local developer convenience scripts: machine-specific (e.g. a hardcoded
-# Claude Code session id), not shared tooling.
-run_claude.sh
-
 # Editor and OS files
 .vscode/
 .idea/
 .DS_Store
 *.swp
+
+
+run_opencode*.sh*
+run_claude*.sh*
+*~
