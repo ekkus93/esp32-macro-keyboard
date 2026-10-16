@@ -170,10 +170,14 @@ prototype screenshots in `docs/ui-redesign/phase1-prototype/`.
 - [ ] Verify safe-area insets, browser chrome, text zoom, and virtual keyboard.
       (Partial: safe-area insets are applied in the shell, and the bottom
       navigation hides while a field has focus on a touch phone
-      (`runKeyboardNavigationWorkflow`). `interactive-widget=resizes-content`
-      was tried and rejected: it would shrink the layout viewport and make a
-      narrow phone with its keyboard open match the landscape-block media
-      query. Text zoom and a real on-screen keyboard are not yet verified.)
+      (`runKeyboardNavigationWorkflow`).
+      `runMacroEditorKeyboardViewportWorkflow` checks that the focused source
+      field and Save/Cancel remain reachable in a reduced mobile viewport; an
+      Android emulator check with Gboard open also passed.
+      `interactive-widget=resizes-content` was tried and rejected: it would
+      shrink the layout viewport and make a narrow phone with its keyboard open
+      match the landscape-block media query. Physical-device behavior and text
+      zoom are not yet verified.)
 
 **Phase 2 evidence** (2026-10-15): app bar, navigation bar/rail, send banner,
 focus handling in `AppShellV2.tsx` and `AppV2.tsx`; browser checks in

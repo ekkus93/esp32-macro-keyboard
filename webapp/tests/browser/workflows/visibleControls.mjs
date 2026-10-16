@@ -468,6 +468,67 @@ export async function runKeyboardNavigationWorkflow(browser) {
   }
 }
 
+/**
+ * UXR-021: opening a phone's virtual keyboard reduces the usable height.
+ * Playwright cannot open Android's Gboard, so focus the real macro source
+ * field, then shrink the mobile viewport to the space remaining above a
+ * typical keyboard. This covers the web layout behavior: the focused field
+ * and Save/Cancel stay reachable, and bottom navigation steps aside.
+ */
+export async function runMacroEditorKeyboardViewportWorkflow(browser) {
+  const application = await startApplicationServer();
+  try {
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+      isMobile: true,
+      hasTouch: true,
+    });
+    const page = await context.newPage();
+    try {
+      await page.goto(application.baseUrl);
+      await waitFor(
+        page,
+        () => document.body.innerText.includes("Lab bench workflow"),
+        "The Macros page did not render for the keyboard viewport check.",
+      );
+      await page.getByRole("button", { name: "Edit Open terminal" }).click();
+      const source = page.locator("#macro-editor-source");
+      await source.click();
+      await page.setViewportSize({ width: 390, height: 450 });
+
+      const navigation = page.getByRole("navigation", {
+        name: "Primary navigation",
+      });
+      assert(
+        !(await navigation.isVisible()),
+        "Phone navigation did not step aside while the macro source field had focus.",
+      );
+      const where = "Macro editor with virtual-keyboard viewport @ 390x450";
+      await assertVisibleInViewport(
+        page,
+        { label: "Macro source field", find: () => source },
+        where,
+      );
+      for (const name of ["Cancel", "Save changes"]) {
+        await assertVisibleInViewport(
+          page,
+          {
+            label: `button: ${name}`,
+            find: (currentPage) =>
+              currentPage.getByRole("button", { name, exact: true }),
+          },
+          where,
+        );
+      }
+      await assertFitsViewport(page, where);
+    } finally {
+      await context.close();
+    }
+  } finally {
+    await application.close();
+  }
+}
+
 const id = (selector) => ({
   label: `field ${selector}`,
   find: (page) => page.locator(selector),
