@@ -15,9 +15,9 @@
  */
 const SEND_STATUS_CLASS = {
   status:
-    "my-3 rounded-keycap border-l-[3px] border-actuate bg-send-tint px-4 py-[0.8rem] [&_p]:mb-2 [&_p]:font-bold",
+    "my-3 rounded-shape-md bg-primary-container px-4 py-3 text-on-primary-container [&_p]:mb-2 [&_p]:font-semibold",
   alert:
-    "my-3 rounded-keycap border-l-[3px] border-alert bg-bad-tint px-4 py-[0.8rem] [&_p]:mb-2 [&_p]:font-bold",
+    "my-3 rounded-shape-md bg-error-container px-4 py-3 text-on-error-container [&_p]:mb-2 [&_p]:font-semibold",
 } as const;
 
 /**
@@ -25,7 +25,7 @@ const SEND_STATUS_CLASS = {
  * page flow: it sits on a full-viewport overlay, so it gets a measured width
  * and the inverted ink that reads on that surface.
  */
-const SEND_STATUS_OVERLAY_CLASS = "w-[min(100%,24rem)] text-legend";
+const SEND_STATUS_OVERLAY_CLASS = "w-[min(100%,24rem)]";
 
 export interface SendStatusProps {
   children: React.ReactNode;

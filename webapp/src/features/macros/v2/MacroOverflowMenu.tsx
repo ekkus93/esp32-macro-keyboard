@@ -68,7 +68,7 @@ export function MacroOverflowMenu({
       {open ? (
         <div
           aria-label={`Actions for ${macro.name}`}
-          className="mt-2 grid min-w-[12rem] gap-2 rounded-keycap border border-cap-edge bg-panel p-3 shadow-[0_0.5rem_1.5rem_rgb(33_30_26_/_18%)]"
+          className="mt-2 grid min-w-[12rem] gap-2 rounded-shape-md bg-surface-container-high p-3 shadow-elevation-2"
         >
           <button
             aria-label={`Duplicate ${macro.name}`}
@@ -82,7 +82,7 @@ export function MacroOverflowMenu({
           </button>
           {confirmingDelete ? (
             <div
-              className="my-4 rounded-keycap border-y border-r border-l-[3px] border-lamp bg-warning-tint p-4"
+              className="my-4 rounded-shape-md bg-warning-container p-4 text-on-warning-container"
               ref={confirmRef}
               role="alertdialog"
               tabIndex={-1}

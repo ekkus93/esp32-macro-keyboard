@@ -17,8 +17,8 @@
  * changes rendering.
  */
 const FIELD_HELP_CLASS = {
-  within: "mt-[0.3rem] block text-[0.8rem] font-normal text-legend-soft",
-  exceeded: "mt-[0.3rem] block text-[0.8rem] font-bold text-alert",
+  within: "mt-1 block text-body-sm font-normal text-on-surface-variant",
+  exceeded: "mt-1 block text-body-sm font-semibold text-error",
 } as const;
 
 export interface FieldHelpProps {

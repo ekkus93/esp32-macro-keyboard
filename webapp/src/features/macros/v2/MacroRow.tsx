@@ -36,7 +36,7 @@ export function MacroRow({
           <code>{macro.source}</code>
         </p>
       </div>
-      <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full">
+      <div className="flex flex-wrap content-start items-center gap-2 [&_button]:flex-initial [@media(width<=32rem)]:w-full">
         <button
           aria-label={sending ? `Sending ${macro.name}` : `Send ${macro.name}`}
           className="primary"

@@ -1,6 +1,6 @@
 /**
- * The keycap surface every list row, settings group and diagnostics panel
- * sits on. Replaces the `.card` rule (and, for the one call site that stacked
+ * The M3 filled-card surface every list row, settings group and diagnostics
+ * panel sits on. Replaces the `.card` rule (and, for the one call site that stacked
  * them, `.card danger-zone`).
  *
  * The three variants are **complete literal class strings**, not a base string
@@ -31,16 +31,17 @@
  * (`WEBAPP_TAILWIND_SPEC_2026-08-18.md` §6.1, T3-2).
  */
 const CARD_SHAPE =
-  "grid gap-4 rounded-keycap p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-[1.05rem] [&_h3]:mb-[0.3rem] [&_h3]:text-[1.05rem] [&_p]:my-[0.2rem] [&_p]:text-legend-soft";
+  "grid gap-4 rounded-shape-lg p-4 min-[34rem]:items-start min-[34rem]:[grid-template-columns:1fr_auto] [&_h2]:mb-[0.3rem] [&_h2]:text-title-md [&_h3]:mb-[0.3rem] [&_h3]:text-title-md [&_p]:my-[0.2rem]";
 
 const CARD_CLASS = {
   /* Stands alone in page flow, so it carries its own vertical rhythm. */
-  default: `${CARD_SHAPE} my-3 border border-cap-edge bg-panel`,
+  default: `${CARD_SHAPE} my-3 bg-surface-container [&_p]:text-on-surface-variant`,
   /* A row inside a `gap`-managed list: the list owns the spacing. */
-  flush: `${CARD_SHAPE} border border-cap-edge bg-panel`,
-  /* "This permanently deletes something" — the alert palette and the left
-     accent rule, with the wider top gap `.danger-zone` set. */
-  danger: `${CARD_SHAPE} mb-3 mt-4 border-y border-r border-l-[3px] border-alert bg-bad-tint`,
+  flush: `${CARD_SHAPE} bg-surface-container [&_p]:text-on-surface-variant`,
+  /* "This permanently deletes something" — the error container, with a
+     wider top gap. Text colour is spelled out for the whole container so no
+     two colour utilities ever meet on one element. */
+  danger: `${CARD_SHAPE} mb-3 mt-4 bg-error-container text-on-error-container [&_p]:text-on-error-container`,
 } as const;
 
 export type CardVariant = keyof typeof CARD_CLASS;

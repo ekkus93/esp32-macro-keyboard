@@ -117,20 +117,28 @@ screen is mapped to `SPEC_V2.md` sections during its own task.
 
 ### UXR-012 — Build design tokens and primitives
 
-- [ ] Define semantic M3 color roles, typography scale, shape, spacing,
+- [x] Define semantic M3 color roles, typography scale, shape, spacing,
       elevation, state, focus, and motion tokens.
 - [ ] Define button, icon-button, text-field, list, card, navigation,
       menu, dialog, snackbar, status, and progress primitives.
-- [ ] Establish sentence-case copy and icon labeling rules.
-- [ ] Remove the PBT/keycap/uppercase-legend visual language from shared
+      (Partial: `Button`, `IconButton`, `Icon`, `Card`, `Dialog`,
+      `StatusBadge`, `ErrorBanner`, and the shell navigation exist; snackbar,
+      progress, list item, text field, and menu are not yet extracted.)
+- [x] Establish sentence-case copy and icon labeling rules.
+- [x] Remove the PBT/keycap/uppercase-legend visual language from shared
       components and global styles.
-- [ ] Add theme/contrast checks and reduced-motion behavior.
+- [x] Add theme/contrast checks and reduced-motion behavior.
+
+**Phase 1 evidence** (2026-10-15): `UXR_010_SCREEN_MAP_2026-10-15.md`,
+`UXR_011_M3_IMPLEMENTATION_APPROACH_2026-10-15.md`,
+`UXR_012_TOKENS_AND_PRIMITIVES_2026-10-15.md` in `docs/implementation-v2/`;
+prototype screenshots in `docs/ui-redesign/phase1-prototype/`.
 
 **Phase 1 exit gate**
 
-- [ ] A representative screen prototype uses the selected M3 system and reads
+- [x] A representative screen prototype uses the selected M3 system and reads
       clearly at phone and desktop sizes.
-- [ ] No remote resources are loaded; bundle headroom remains acceptable.
+- [x] No remote resources are loaded; bundle headroom remains acceptable.
 - [ ] Product owner accepts the overall design direction before broad screen
       conversion.
 

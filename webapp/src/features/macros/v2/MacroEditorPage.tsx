@@ -274,7 +274,7 @@ export function MacroEditorPage({
     // toolbar scrolls past underneath, without ever clipping that toolbar
     // away the way a zero-height overflow:auto container would.
     <section aria-labelledby="macro-editor-title">
-      <div className="sticky top-0 z-10 bg-shell pb-3">
+      <div className="sticky top-0 z-10 bg-surface pb-3">
         <PageHeading>
           <div className="min-w-0 overflow-hidden">
             <Eyebrow tone="dark">{pkg.name}</Eyebrow>
@@ -351,7 +351,7 @@ export function MacroEditorPage({
         </label>
 
         <label
-          className="block rounded-keycap border border-cap-edge bg-panel p-3"
+          className="block rounded-shape-md bg-surface-container p-3"
           htmlFor="macro-editor-source"
         >
           Macro source
@@ -470,12 +470,12 @@ export function MacroEditorPage({
             for a box to show it in. */}
         <div aria-live="polite">
           {compiled.ok ? (
-            <p className="font-bold text-good">
+            <p className="font-semibold text-success">
               Macro is valid — {estimatedDurationText(compiled)}
             </p>
           ) : (
             <>
-              <p className="font-bold text-alert" role="alert">
+              <p className="font-semibold text-error" role="alert">
                 {compiled.error.message}
               </p>
               <p>
@@ -489,7 +489,7 @@ export function MacroEditorPage({
             </>
           )}
           {nameValid ? null : (
-            <p className="font-bold text-alert" role="alert">
+            <p className="font-semibold text-error" role="alert">
               Name must be non-empty after trimming and at most{" "}
               {String(v2Limits.macroNameMaxBytes)} UTF-8 bytes.
             </p>

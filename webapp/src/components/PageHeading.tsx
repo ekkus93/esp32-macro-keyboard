@@ -27,11 +27,11 @@
  * what it is ever nested inside.
  */
 const PAGE_HEADING_CLASS =
-  "mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-cap-edge pb-3";
+  "mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3";
 
 /** The class every `PageHeading`'s own `<h2>` carries — see above. */
 export const PAGE_HEADING_TITLE_CLASS =
-  "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[1.35rem] tracking-[-0.01em]";
+  "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-headline-sm";
 
 export interface PageHeadingProps {
   children: React.ReactNode;

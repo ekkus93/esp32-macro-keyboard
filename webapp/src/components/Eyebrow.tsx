@@ -1,6 +1,6 @@
 /**
- * The keycap legend above a title: small, tight-tracked, uppercase, and
- * truncated rather than wrapped, since what it carries — a device name, a
+ * The small supporting label above a title: sentence case, and truncated
+ * rather than wrapped, since what it carries — a device name, a
  * package name — is arbitrary-length user text. Replaces `.eyebrow` and
  * `.eyebrow.dark`.
  *
@@ -16,8 +16,8 @@
  */
 const EYEBROW_CLASS = {
   default:
-    "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[0.65rem] font-bold uppercase tracking-legend text-lamp",
-  dark: "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-[0.65rem] font-bold uppercase tracking-legend text-actuate",
+    "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-label-md text-on-surface-variant",
+  dark: "m-0 overflow-hidden text-ellipsis whitespace-nowrap text-label-md text-primary",
 } as const;
 
 export type EyebrowTone = keyof typeof EYEBROW_CLASS;

@@ -543,11 +543,11 @@ export function MacrosPage({
 
       {activePackage.macros.length === 0 ? (
         <div
-          className="grid justify-items-start gap-2 rounded-keycap border border-dashed border-cap-edge bg-panel p-6"
+          className="grid justify-items-start gap-2 rounded-shape-lg bg-surface-container p-6"
           role="status"
         >
           <h3 className="m-0">No macros in {activePackage.name}</h3>
-          <p className="m-0 max-w-[34ch] text-legend-soft">
+          <p className="m-0 max-w-[34ch] text-on-surface-variant">
             A macro is a sequence of keystrokes the device types for you over
             USB. Add one to get started.
           </p>

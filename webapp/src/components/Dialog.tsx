@@ -3,12 +3,9 @@
  * Replaces `.dialog-backdrop`, `.dialog-panel`, `.dialog-heading` and its
  * `h2`/`p` descendant rule.
  *
- * These lived in a second stylesheet (`src/management.css`) that predated the
- * design system and never joined it: it hardcoded a cold slate/blue palette
- * against this app's warm PBT-and-petrol one, so every dialog rendered in a
- * different colour language than the page behind it. They are on the `@theme`
- * tokens now — the scrim is legend ink, the panel a raised keycap face, the
- * radius the same 0.5rem as every other surface.
+ * The M3 dialog: a `scrim` wash, and a high-container panel with the extra-
+ * large corner and level-3 elevation. All values come from the `@theme`
+ * tokens.
  *
  * ## `tone`
  *
@@ -44,9 +41,9 @@
  */
 const DIALOG_PANEL_CLASS = {
   panel:
-    "max-h-[calc(100dvh-2rem)] w-[min(100%,38rem)] overflow-y-auto rounded-keycap border border-cap-edge bg-cap p-4 shadow-[0_1.5rem_4rem_rgb(33_30_26_/_35%)]",
+    "max-h-[calc(100dvh-2rem)] w-[min(100%,38rem)] overflow-y-auto rounded-shape-xl bg-surface-container-high p-6 text-on-surface shadow-elevation-3",
   danger:
-    "mt-4 max-h-[calc(100dvh-2rem)] w-[min(100%,38rem)] overflow-y-auto rounded-keycap border-y border-r border-l-[3px] border-alert bg-bad-tint p-4 shadow-[0_1.5rem_4rem_rgb(33_30_26_/_35%)]",
+    "mt-4 max-h-[calc(100dvh-2rem)] w-[min(100%,38rem)] overflow-y-auto rounded-shape-xl bg-error-container p-6 text-on-error-container shadow-elevation-3",
 } as const;
 
 /**
@@ -85,7 +82,7 @@ export function Dialog({
 }: DialogProps): React.JSX.Element {
   return (
     <div
-      className="fixed inset-0 z-20 grid place-items-center overflow-y-auto bg-legend/70 p-4"
+      className="fixed inset-0 z-20 grid place-items-center overflow-y-auto bg-scrim/40 p-4"
       role="presentation"
     >
       <div

@@ -37,8 +37,8 @@ export function LandscapeBlockSurface({
     // this is the one surface that fills the viewport in *either* landscape
     // rotation, so the notch can land on either side and the home indicator
     // along the bottom edge.
-    <div className="landscape-block fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-legend pt-[calc(1.5rem+env(safe-area-inset-top))] pr-[calc(1.5rem+env(safe-area-inset-right))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] pl-[calc(1.5rem+env(safe-area-inset-left))] text-center text-cap">
-      <h1 className="m-0 text-[1.5rem]">Rotate your phone</h1>
+    <div className="landscape-block fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-inverse-surface pt-[calc(1.5rem+env(safe-area-inset-top))] pr-[calc(1.5rem+env(safe-area-inset-right))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] pl-[calc(1.5rem+env(safe-area-inset-left))] text-center text-inverse-on-surface">
+      <h1 className="m-0 text-headline-sm">Rotate your phone</h1>
       <p>ESP32 Macro Keyboard is designed for portrait mode.</p>
       {activeSend !== null ? (
         // `overlay` adds this surface's two overrides -- a measured width

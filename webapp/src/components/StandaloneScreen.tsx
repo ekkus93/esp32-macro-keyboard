@@ -51,7 +51,7 @@
  * more room than the viewport still grows past this floor.
  */
 const STANDALONE_CLASS =
-  "mx-auto flex min-h-dvh w-[min(100%,48rem)] flex-col bg-shell " +
+  "mx-auto flex min-h-dvh w-[min(100%,48rem)] flex-col bg-surface " +
   "pt-[calc(max(2rem,7vh)+env(safe-area-inset-top))] " +
   "pr-[calc(1rem+env(safe-area-inset-right))] " +
   "pb-[calc(1.25rem+env(safe-area-inset-bottom))] " +

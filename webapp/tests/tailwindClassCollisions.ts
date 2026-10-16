@@ -229,6 +229,27 @@ function classifyToken(base: string): string[] {
     return [arbitraryPropertyMatch[1]];
   }
 
+  // M3 type-role utilities (`text-title-lg`, ...) set several properties at
+  // once. The families listed are exactly the sub-variables each role defines
+  // in `@theme` (src/styles.css): the body roles set no weight, and the
+  // display/headline roles set no tracking, so a call site may still add
+  // `font-semibold` to body text or `tracking-*` to a headline without a
+  // collision -- but never a second font size, or a weight on a role that
+  // already carries one.
+  const typeRoleMatch =
+    /^text-(display|headline|title|body|label)-(sm|md|lg)$/.exec(base);
+  if (typeRoleMatch?.[1] !== undefined) {
+    switch (typeRoleMatch[1]) {
+      case "display":
+      case "headline":
+        return ["font-size", "line-height", "font-weight"];
+      case "body":
+        return ["font-size", "line-height", "letter-spacing"];
+      default:
+        return ["font-size", "line-height", "font-weight", "letter-spacing"];
+    }
+  }
+
   const singleFamily: [RegExp, string][] = [
     [/^(grid|inline-flex|flex|block)$/, "display"],
     [/^(absolute|fixed|relative|static|sticky)$/, "position"],

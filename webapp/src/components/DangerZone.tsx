@@ -35,7 +35,7 @@ export function DangerZone({
 }: DangerZoneProps): React.JSX.Element {
   return (
     <div
-      className="mt-4 rounded-keycap border-y border-r border-l-[3px] border-alert bg-bad-tint p-4"
+      className="mt-4 rounded-shape-lg bg-error-container p-4 text-on-error-container"
       ref={containerRef}
       role={role}
       tabIndex={role === undefined ? undefined : -1}

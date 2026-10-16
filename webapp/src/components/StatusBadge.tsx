@@ -4,11 +4,9 @@
  *
  * ## Every state has its own shape, not just its own colour
  *
- * Deliberately NOT uppercased, unlike the key legends elsewhere in the
- * interface. These carry sentences ("Unsaved changes"), not labels, and
- * `text-transform` rewrites `innerText` — which silently broke a real-browser
- * assertion matching "Unsaved changes". Legends are uppercase because they
- * label a key; status text is prose.
+ * Sentence case, never uppercased: these carry sentences ("Unsaved changes"),
+ * and `text-transform` rewrites `innerText`, which silently broke a
+ * real-browser assertion matching that text once already.
  *
  * `UI_UX_SPEC_V2` §14 requires that colour is never the only indicator, so
  * the `::before` dot differs structurally in all four states: a filled disc
@@ -30,17 +28,17 @@
  * states. So each entry below spells out the winning declarations only.
  */
 const STATUS_BADGE_SHAPE =
-  "inline-flex items-center gap-[0.4rem] rounded-full border border-current px-[0.6rem] py-[0.3rem] text-[0.76rem] font-bold tracking-[0.02em] before:content-['']";
+  "inline-flex items-center gap-2 rounded-full border border-current px-3 py-1 text-label-md before:content-['']";
 
 const STATUS_BADGE_CLASS = {
   /* Lit: filled disc with a halo. */
-  good: `${STATUS_BADGE_SHAPE} bg-good-tint text-good before:h-[0.6rem] before:w-[0.6rem] before:rounded-full before:bg-current before:shadow-[0_0_0_3px_rgb(11_92_51_/_22%)]`,
+  good: `${STATUS_BADGE_SHAPE} bg-success-container text-on-success-container before:h-[0.6rem] before:w-[0.6rem] before:rounded-full before:bg-current before:shadow-[0_0_0_3px_color-mix(in_srgb,currentcolor_22%,transparent)]`,
   /* Attention: hollow ring. */
-  warning: `${STATUS_BADGE_SHAPE} bg-warning-tint text-warning-ink before:h-[0.6rem] before:w-[0.6rem] before:rounded-full before:border-2 before:border-current before:bg-transparent`,
+  warning: `${STATUS_BADGE_SHAPE} bg-warning-container text-on-warning-container before:h-[0.6rem] before:w-[0.6rem] before:rounded-full before:border-2 before:border-current before:bg-transparent`,
   /* Fault: square, not a disc. */
-  bad: `${STATUS_BADGE_SHAPE} bg-bad-tint text-alert before:h-[0.6rem] before:w-[0.6rem] before:rounded-[1px] before:bg-current`,
+  bad: `${STATUS_BADGE_SHAPE} bg-error-container text-on-error-container before:h-[0.6rem] before:w-[0.6rem] before:rounded-[1px] before:bg-current`,
   /* Idle: small hollow dot. */
-  neutral: `${STATUS_BADGE_SHAPE} bg-neutral-tint text-legend-soft before:h-[0.45rem] before:w-[0.45rem] before:rounded-full before:border-[1.5px] before:border-current before:bg-transparent`,
+  neutral: `${STATUS_BADGE_SHAPE} bg-surface-container-high text-on-surface-variant before:h-[0.45rem] before:w-[0.45rem] before:rounded-full before:border-[1.5px] before:border-current before:bg-transparent`,
 } as const;
 
 export type StatusBadgeState = keyof typeof STATUS_BADGE_CLASS;

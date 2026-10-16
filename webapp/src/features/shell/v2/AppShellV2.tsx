@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { Eyebrow } from "../../../components/Eyebrow";
-import { HeaderActions } from "../../../components/HeaderActions";
 import { ErrorBanner } from "../../../components/ErrorBanner";
+import { Icon } from "../../../components/m3/Icon";
+import type { IconName } from "../../../components/m3/Icon";
 import { StatusBadge } from "../../../components/StatusBadge";
 import type { ScreenV2 } from "../../../v2/routingV2";
 import type { UsbState } from "../../../v2/apiTypes";
@@ -10,7 +11,9 @@ import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
 /**
  * The authenticated application shell, per UI_UX_SPEC_V2 §2 (TODO_V2
  * V2-090): device name, selected package, USB state, repository state, Save
- * snapshot when dirty, and the fixed bottom navigation. Purely presentational
+ * snapshot when dirty, and primary navigation -- an M3 navigation bar at the
+ * bottom on phones and a navigation rail from 600px up
+ * (UI_UX_SPEC_MATERIAL_3_EXPRESSIVE §4.3). Purely presentational
  * — this component owns no network calls; its caller supplies live state and
  * the Save snapshot handler. It also registers the `beforeunload` warning
  * while dirty (TODO_V2 V2-103) since every authenticated route renders
@@ -32,11 +35,11 @@ export interface AppShellV2Props {
 }
 
 const navigation = [
-  ["macros", "Macros"],
-  ["packages", "Packages"],
-  ["snapshots", "Snapshots"],
-  ["settings", "Settings"],
-] as const satisfies readonly (readonly [ScreenV2, string])[];
+  ["macros", "Macros", "keyboard"],
+  ["packages", "Packages", "layers"],
+  ["snapshots", "Snapshots", "archive"],
+  ["settings", "Settings", "settings"],
+] as const satisfies readonly (readonly [ScreenV2, string, IconName])[];
 
 /**
  * `diagnostics` belongs to the Settings section for nav-highlighting
@@ -82,104 +85,104 @@ export function AppShellV2({
   useBeforeUnloadGuard(dirty);
 
   return (
-    // Locked to the viewport, not merely a min-height floor: header and
-    // bottom nav are fixed chrome and #main-content below is the one
-    // scrolling region, so a page can genuinely pin something outside the
-    // part that scrolls. width: min(100%, 48rem)/64rem>=60rem is shared with
-    // StandaloneScreen.tsx -- kept identical by hand since both need the
-    // same measured column width.
-    <div
-      // app-shell carries no CSS rule (styling is inline below); kept as a
-      // structural test hook only --
-      // tests/v2-app-v2-orientation.test.tsx:56 asserts it's still in the
-      // DOM (not discarded) while hidden behind the landscape-block
-      // overlay, proving the shell stayed mounted rather than reloading.
-      className="app-shell mx-auto flex h-dvh w-[min(100%,48rem)] flex-col overflow-hidden bg-shell min-[60rem]:w-[min(100%,64rem)]"
-    >
-      {/* Every piece of status here is required (UI_UX_SPEC_V2 §2.1: device
-          name, package name, USB state, repository state, Save snapshot
-          when dirty) -- none of it is optional content to cut. What was
-          wrong was density: a tall top/bottom padding written for a single
-          row, applied to a header that then force-stacked into 2-3 rows
-          below 32rem. Kept to one wrapping row instead, with tight padding
-          sized to the 44px Save-snapshot button that already sets the
-          row's real minimum height -- the padding was adding height on top
-          of that floor, not because the content needed it. */}
-      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-[0.4rem] border-b-[3px] border-actuate bg-legend px-[0.85rem] pt-[calc(0.4rem+env(safe-area-inset-top))] pb-[0.4rem] text-panel">
-        <div className="min-w-0 overflow-hidden">
-          <Eyebrow>{deviceName}</Eyebrow>
-          <h1 className="m-0 overflow-hidden text-[1.05rem] tracking-[-0.01em] text-ellipsis whitespace-nowrap">
-            {packageName ?? "No package selected"}
-          </h1>
-        </div>
-        <HeaderActions>
-          <StatusBadge
-            label={`USB ${usbState}`}
-            state={usbBadgeState(usbState)}
-          />
-          {/* SPEC_V2/UI_UX_SPEC_V2 §2.1: the unsaved indicator remains
-              visible on every authenticated operational screen, cleared only
-              by a successful snapshot upload or a deliberate discard. */}
-          <StatusBadge
-            aria-live="polite"
-            label={dirty ? "Unsaved changes" : "Saved"}
-            role="status"
-            state="neutral"
-          />
+    // Locked to the viewport: the app bar and navigation are fixed chrome and
+    // #main-content below is the one scrolling region, so a page can pin
+    // something outside the part that scrolls. `app-shell` carries no CSS
+    // rule; it is a structural test hook --
+    // tests/v2-app-v2-orientation.test.tsx asserts it stays in the DOM (not
+    // discarded) while hidden behind the landscape-block overlay, proving the
+    // shell stayed mounted rather than reloading.
+    //
+    // 37.5rem (600px) is the M3 compact/medium boundary: below it the
+    // navigation is a bottom bar (`order-last`), at and above it a left rail.
+    // The nav is first in the DOM so keyboard order matches the rail's visual
+    // order on larger screens.
+    <div className="app-shell flex h-dvh w-full flex-col bg-surface min-[37.5rem]:flex-row">
+      <nav
+        aria-label="Primary navigation"
+        className="order-last grid grid-cols-4 gap-1 bg-surface-container px-2 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] min-[37.5rem]:order-none min-[37.5rem]:flex min-[37.5rem]:w-20 min-[37.5rem]:shrink-0 min-[37.5rem]:flex-col min-[37.5rem]:items-center min-[37.5rem]:gap-3 min-[37.5rem]:px-0 min-[37.5rem]:pt-[calc(1.5rem+env(safe-area-inset-top))]"
+      >
+        {navigation.map(([target, label, icon]) => {
+          const active = navigationActive(route, target);
+          return (
+            <button
+              aria-current={active ? "page" : undefined}
+              className="min-h-14 min-w-0 flex-col gap-1 rounded-none bg-transparent p-0 text-label-md text-on-surface-variant hover:[background-image:none] active:[background-image:none] min-[37.5rem]:w-full"
+              key={target}
+              onClick={() => {
+                navigate(target);
+              }}
+              type="button"
+            >
+              {/* The active destination is marked by the filled indicator
+                  pill AND a bold label (UI_UX_SPEC_V2 §5: never colour
+                  alone). Full literal string per branch, not interpolation
+                  (§8.2). */}
+              <span
+                className={
+                  active
+                    ? "grid h-8 w-16 place-items-center rounded-full bg-secondary-container text-on-secondary-container"
+                    : "grid h-8 w-16 place-items-center rounded-full"
+                }
+              >
+                <Icon name={icon} />
+              </span>
+              <span className={active ? "font-bold text-on-surface" : ""}>
+                {label}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {/* One compact bar. Device name, package, USB state, saved state and
+            the Save action are all required (UI_UX_SPEC_V2 §2.1); they share
+            one wrapping row so the bar costs one line of chrome on a wide
+            screen and two on a phone, instead of the old three. */}
+        <header className="flex flex-wrap items-center gap-x-3 gap-y-2 bg-surface px-4 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-2">
+          <div className="min-w-0 flex-1 overflow-hidden">
+            <Eyebrow>{deviceName}</Eyebrow>
+            <h1 className="m-0 overflow-hidden text-title-lg text-ellipsis whitespace-nowrap">
+              {packageName ?? "No package selected"}
+            </h1>
+          </div>
           {dirty ? (
             <button
-              className="min-h-[44px] border-header-button-edge bg-header-button px-[0.65rem] py-[0.3rem] text-[0.82rem] text-cap"
+              className="primary"
               disabled={saving}
               onClick={onSaveSnapshot}
               type="button"
             >
+              <Icon name="save" size={18} />
               {saving ? "Saving…" : "Save snapshot"}
             </button>
           ) : null}
-        </HeaderActions>
-      </header>
-      <ErrorBanner message={saveError} />
-      <main id="main-content" tabIndex={-1}>
-        {children}
-      </main>
-      {/* No position: sticky here -- the shell above is a locked-height flex
-          column (#main-content is the one scrolling region within it), so
-          this is simply the last flex child and is always visible without
-          any scroll-tracking. grid-cols-4, not a hand-rolled
-          grid-template-columns: Tailwind's default for that utility is
-          already `repeat(4, minmax(0, 1fr))` -- minmax(0, 1fr) over a bare
-          1fr matters because a bare `1fr` track's implied minimum is its
-          content's min-content width, so it refuses to shrink below that —
-          at narrow viewports the four buttons (bold/uppercase/
-          letter-spaced text such as "Settings") would force this row wider
-          than the viewport itself. */}
-      <nav
-        aria-label="Primary navigation"
-        className="grid grid-cols-4 gap-[0.4rem] border-t border-cap-edge bg-shell px-[0.6rem] pt-[0.6rem] pb-[calc(0.6rem+env(safe-area-inset-bottom))]"
-      >
-        {navigation.map(([target, label]) => (
-          <button
-            aria-current={navigationActive(route, target) ? "page" : undefined}
-            // The active destination is marked by an inset top rule and
-            // full ink as well as colour (UI_UX_SPEC_V2 §5: never colour
-            // alone). Full literal string per branch, not interpolation
-            // (§8.2) -- a template literal here would produce no substring
-            // Tailwind's content scanner can match.
-            className={
-              navigationActive(route, target)
-                ? "min-w-0 border-actuate-edge bg-actuate px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] text-cap uppercase shadow-[inset_0_3px_0_var(--color-lamp)]"
-                : "min-w-0 px-[0.35rem] text-[0.78rem] font-bold tracking-[0.04em] uppercase"
-            }
-            key={target}
-            onClick={() => {
-              navigate(target);
-            }}
-            type="button"
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
+          <div className="flex basis-full flex-wrap items-center gap-2 min-[37.5rem]:basis-auto">
+            <StatusBadge
+              label={`USB ${usbState}`}
+              state={usbBadgeState(usbState)}
+            />
+            {/* SPEC_V2/UI_UX_SPEC_V2 §2.1: the unsaved indicator remains
+                visible on every authenticated operational screen, cleared
+                only by a successful snapshot upload or a deliberate
+                discard. */}
+            <StatusBadge
+              aria-live="polite"
+              label={dirty ? "Unsaved changes" : "Saved"}
+              role="status"
+              state="neutral"
+            />
+          </div>
+        </header>
+        {saveError === null ? null : (
+          <div className="px-4 pb-2">
+            <ErrorBanner message={saveError} />
+          </div>
+        )}
+        <main id="main-content" tabIndex={-1}>
+          <div className="mx-auto w-full max-w-[52rem]">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }
