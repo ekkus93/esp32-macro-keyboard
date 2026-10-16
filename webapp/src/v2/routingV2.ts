@@ -80,6 +80,26 @@ export function macroEditorTargetFromHash(): MacroEditorTarget {
   return { kind: "edit", macroId };
 }
 
+export type SnapshotsView = "list" | "files";
+
+/**
+ * Snapshots has two screens under one route: the snapshot list, and "Import
+ * and export" (`#/snapshots?view=files`). Any other query is the list, so a
+ * malformed hash can only ever land on the safe, ordinary screen.
+ */
+export function snapshotsViewFromHash(): SnapshotsView {
+  const [route, query] = hashRouteAndQuery();
+  if (route !== "snapshots") {
+    return "list";
+  }
+  const parameters = new URLSearchParams(query);
+  return parameters.get("view") === "files" ? "files" : "list";
+}
+
+export function navigateToSnapshotsFiles(): void {
+  window.location.hash = "/snapshots?view=files";
+}
+
 export function navigateV2(target: ScreenV2): void {
   window.location.hash = `/${target}`;
 }

@@ -126,8 +126,37 @@ export const SCREENS = [
       labelled("Insert Tab key"),
     ],
   },
-  { route: "packages", ready: "Create package", controls: [] },
-  { route: "snapshots", ready: "Snapshots", controls: [] },
+  {
+    route: "packages",
+    ready: "New package",
+    controls: [
+      button("New package"),
+      labelled("Open Lab bench workflow"),
+      labelled("More actions for Lab bench workflow"),
+    ],
+  },
+  {
+    route: "snapshots",
+    ready: "Import or export",
+    controls: [
+      button("Save current snapshot"),
+      button("Import or export"),
+      labelled("Load snapshot 1"),
+      labelled("More actions for snapshot 1"),
+    ],
+  },
+  {
+    // UXR-051/052: Import and export is its own focused screen.
+    route: "snapshots?view=files",
+    name: "import and export",
+    ready: "Export working copy",
+    focused: true,
+    controls: [
+      labelled("Back to snapshots"),
+      button("Export working copy"),
+      button("Import repository…"),
+    ],
+  },
   { route: "settings", ready: "Settings", controls: [] },
 ];
 
@@ -254,8 +283,7 @@ export async function runKeyboardNavigationWorkflow(browser) {
       });
       await waitFor(
         page,
-        () =>
-          document.querySelector("#package-management-create-name") !== null,
+        () => document.body.innerText.includes("New package"),
         "The Packages page did not render.",
       );
       const nav = page.getByRole("navigation", { name: "Primary navigation" });
@@ -263,7 +291,17 @@ export async function runKeyboardNavigationWorkflow(browser) {
         await nav.isVisible(),
         "Navigation is hidden before any field has focus.",
       );
-      await page.locator("#package-management-create-name").focus();
+      // The New package dialog moves focus into its name field on open.
+      await page
+        .getByRole("button", { name: "New package", exact: true })
+        .click();
+      await page.waitForSelector("#package-management-create-name");
+      assert(
+        await page
+          .locator("#package-management-create-name")
+          .evaluate((field) => document.activeElement === field),
+        "The dialog did not focus its name field.",
+      );
       assert(
         !(await nav.isVisible()),
         "Navigation stays on screen while a text field has focus on a touch phone.",

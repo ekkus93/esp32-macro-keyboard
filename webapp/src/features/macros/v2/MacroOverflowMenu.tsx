@@ -1,10 +1,8 @@
-import { useCallback, useRef, useState } from "react";
-import { Dialog } from "../../../components/Dialog";
-import { FormActions } from "../../../components/FormActions";
+import { useState } from "react";
+import { ConfirmDialog } from "../../../components/ConfirmDialog";
 import { Menu } from "../../../components/m3/Menu";
 import type { MenuItem } from "../../../components/m3/Menu";
 import type { RepositoryMacro } from "../../../v2/repository";
-import { useFocusTrap } from "../../shell/v2/useFocusTrap";
 import type { MoveAction } from "./macroSendStatus";
 
 /**
@@ -37,16 +35,9 @@ export function MacroOverflowMenu({
   onDelete: () => void;
 }): React.JSX.Element {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const dialogRef = useRef<HTMLDivElement>(null);
-
-  const cancelDelete = useCallback((): void => {
+  const cancelDelete = (): void => {
     setConfirmingDelete(false);
-  }, []);
-  useFocusTrap({
-    active: confirmingDelete,
-    containerRef: dialogRef,
-    onClose: cancelDelete,
-  });
+  };
 
   const isFirst = index === 0;
   const isLast = index === macroCount - 1;
@@ -118,33 +109,21 @@ export function MacroOverflowMenu({
         triggerLabel={`More actions for ${macro.name}`}
       />
       {confirmingDelete ? (
-        <Dialog
-          aria-labelledby={`delete-macro-title-${macro.id}`}
-          containerRef={dialogRef}
-          heading={<h2 id={`delete-macro-title-${macro.id}`}>Delete macro?</h2>}
-          role="alertdialog"
-          tone="danger"
+        <ConfirmDialog
+          confirmLabel="Delete macro"
+          id={`delete-macro-title-${macro.id}`}
+          onCancel={cancelDelete}
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            onDelete();
+          }}
+          title="Delete macro?"
         >
           <p>
             <strong>{macro.name}</strong> will be removed from this package.
             This cannot be undone once the working copy is saved.
           </p>
-          <FormActions>
-            <button onClick={cancelDelete} type="button">
-              Cancel
-            </button>
-            <button
-              className="danger"
-              onClick={() => {
-                setConfirmingDelete(false);
-                onDelete();
-              }}
-              type="button"
-            >
-              Delete macro
-            </button>
-          </FormActions>
-        </Dialog>
+        </ConfirmDialog>
       ) : null}
     </>
   );

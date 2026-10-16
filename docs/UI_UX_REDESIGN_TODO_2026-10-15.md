@@ -301,34 +301,45 @@ the picker at six viewports.
 
 ### UXR-050 — Redesign package selection and management
 
-- [ ] Make the current package and selection state easy to scan.
-- [ ] Create focused management flows for add, rename, reorder, duplicate, and
+- [x] Make the current package and selection state easy to scan.
+- [x] Create focused management flows for add, rename, reorder, duplicate, and
       delete as supported.
-- [ ] Provide accessible move controls in addition to any drag interaction.
-- [ ] Preserve package preference and repository dirty-state rules.
+- [x] Provide accessible move controls in addition to any drag interaction.
+- [x] Preserve package preference and repository dirty-state rules.
 
 ### UXR-051 — Redesign snapshots
 
-- [ ] Create a clear snapshot list and focused save/load/delete flows.
-- [ ] Show useful metadata without exposing repository contents or sensitive
+- [x] Create a clear snapshot list and focused save/load/delete flows.
+- [x] Show useful metadata without exposing repository contents or sensitive
       macro source.
-- [ ] Keep retention target advisory and deletion manual.
+- [x] Keep retention target advisory and deletion manual.
 - [ ] Add distinct empty, saving, loading, invalid, full-storage, and failure
-      states.
-- [ ] Protect dirty work before replacement/load/delete as specified.
+      states. (Empty, saving, loading, invalid-snapshot and failure states are
+      designed and tested. A storage-full condition has no state of its own: it
+      surfaces as the device's error message in the save error banner.)
+- [x] Protect dirty work before replacement/load/delete as specified.
 
 ### UXR-052 — Redesign import/export
 
-- [ ] Separate routine snapshot management from file import/export when that
+- [x] Separate routine snapshot management from file import/export when that
       reduces cognitive load.
 - [ ] Design file selection, validation, progress, replacement confirmation,
-      success, and failure states.
-- [ ] Preserve gzip/schema/size rules and avoid browser-persistent repository
+      success, and failure states. (All but success: a completed import lands on
+      Macros with "Unsaved changes" showing, but there is no explicit success
+      message until the snackbar primitive arrives in UXR-062.)
+- [x] Preserve gzip/schema/size rules and avoid browser-persistent repository
       storage.
+
+**Phase 5 evidence** (2026-10-15): `PackageManagementPage.tsx`,
+`SnapshotRow.tsx`, `SnapshotsPage.tsx` (list and files screens), `ConfirmDialog`,
+`m3/Menu`, `routingV2.ts` (`snapshotsViewFromHash`); unit tests
+`v2-package-management-page`, `v2-snapshots-page-*`, `v2-routing`; Chrome
+workflows for package CRUD, snapshots, import/export and the six-viewport
+visible-controls table (Packages, Snapshots, Import and export).
 
 **Phase 5 exit gate**
 
-- [ ] Package, snapshot, and file workflows pass their existing contracts and
+- [x] Package, snapshot, and file workflows pass their existing contracts and
       tests; all consequential actions are clear and reversible where possible.
 
 ## Phase 6 — Settings, diagnostics, dialogs, and system feedback

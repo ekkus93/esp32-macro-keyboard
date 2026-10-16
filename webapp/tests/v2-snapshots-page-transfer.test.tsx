@@ -12,11 +12,21 @@ import {
   otherPackageId,
   packageId,
   renamedRepository,
-  renderPage,
+  renderPage as renderSnapshotsPage,
   repository,
   twoPackageRepository,
   waitUntil,
 } from "./snapshotsPageHarness";
+
+/**
+ * Import and export live on their own screen (`?view=files`); every test in
+ * this file exercises that screen, so it renders it by default.
+ */
+function renderPage(
+  overrides: Parameters<typeof renderSnapshotsPage>[0] = {},
+): ReturnType<typeof renderSnapshotsPage> {
+  return renderSnapshotsPage({ view: "files", ...overrides });
+}
 
 describe("SnapshotsPage — V2-115 export", () => {
   test("Export working copy downloads the .emk-repository.json.gz gzip bytes without any network/upload call", async () => {
@@ -442,6 +452,8 @@ describe("SnapshotsPage — H8 durable package-selection resolution", () => {
     } = await renderPage({
       deps: { loadSnapshotIntoWorkingCopy, persistSelectedPackageId },
       persistedPackageId: otherPackageId,
+      // Loading a snapshot is a list-screen action.
+      view: "list",
     });
 
     await waitUntil(

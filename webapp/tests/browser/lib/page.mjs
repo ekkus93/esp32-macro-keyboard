@@ -253,3 +253,12 @@ export async function chooseMacroMenuItem(page, macroName, itemLabel) {
   await page.locator(`[aria-label="More actions for ${macroName}"]`).click();
   await page.locator(`[aria-label="${itemLabel}"]`).click();
 }
+
+/**
+ * Opens a row's "More actions" menu (by the row's name) and clicks one of its
+ * items (by accessible name). Works for macro rows and package rows alike.
+ */
+export async function chooseMenuItem(page, rowName, itemLabel) {
+  await page.locator(`[aria-label="More actions for ${rowName}"]`).click();
+  await page.locator(`[aria-label="${itemLabel}"]`).click();
+}

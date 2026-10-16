@@ -38,6 +38,9 @@ const CARD_CLASS = {
   default: `${CARD_SHAPE} my-3 bg-surface-container [&_p]:text-on-surface-variant`,
   /* A row inside a `gap`-managed list: the list owns the spacing. */
   flush: `${CARD_SHAPE} bg-surface-container [&_p]:text-on-surface-variant`,
+  /* The row that is the current choice (the open package). Colour is not the
+     only cue: the row also carries a "Selected" chip with a check. */
+  selected: `${CARD_SHAPE} bg-primary-container text-on-primary-container [&_p]:text-on-primary-container`,
   /* "This permanently deletes something" — the error container, with a
      wider top gap. Text colour is spelled out for the whole container so no
      two colour utilities ever meet on one element. */

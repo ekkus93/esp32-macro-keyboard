@@ -31,9 +31,13 @@ describe("SnapshotsPage — V2-111 Snapshot management", () => {
       () => container.textContent?.includes("200 bytes") === true,
       "blob list to render",
     );
-    expect(container.textContent).toContain("Snapshot 3 (loaded)");
-    expect(container.textContent).toContain("Snapshot 1");
-    expect(container.textContent).not.toContain("Snapshot 1 (loaded)");
+    const rowFor = (id: string): string | null | undefined =>
+      Array.from(container.querySelectorAll("article")).find(
+        (row) => row.querySelector("h3")?.textContent === `Snapshot ${id}`,
+      )?.textContent;
+    expect(rowFor("3")).toContain("Loaded");
+    expect(rowFor("1")).toBeDefined();
+    expect(rowFor("1")).not.toContain("Loaded");
     expect(container.textContent).toContain("500 bytes");
     const summary = container.querySelector(".storage-summary");
     expect(summary).not.toBeNull();
@@ -74,6 +78,13 @@ describe("SnapshotsPage — V2-111 Snapshot management", () => {
     expect(
       document.querySelector('[aria-label="Load snapshot 1"]'),
     ).not.toBeNull();
+    // Download, Replace and Delete are in the row's "More actions" menu.
+    await click(
+      requiredElement(
+        '[aria-label="More actions for snapshot 1"]',
+        HTMLButtonElement,
+      ),
+    );
     expect(
       document.querySelector('[aria-label="Download snapshot 1"]'),
     ).not.toBeNull();
@@ -298,6 +309,42 @@ describe("SnapshotsPage — V2-110/V2-111 manual load", () => {
       "onOpenPackages after load",
     );
     expect(onOpenMacros).not.toHaveBeenCalled();
+    await unmount();
+  });
+});
+
+describe("SnapshotsPage — UXR-051/052 two screens", () => {
+  test("the list screen offers Import or export and shows no file controls", async () => {
+    const { onOpenFiles, unmount } = await renderPage();
+    await waitUntil(
+      () => document.querySelector('[aria-label="Load snapshot 1"]') !== null,
+      "list to render",
+    );
+    expect(document.body.textContent).not.toContain("Export working copy");
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+    await click(buttonWithText("Import or export"));
+    expect(onOpenFiles).toHaveBeenCalledOnce();
+    await unmount();
+  });
+
+  test("the files screen shows export and import and no snapshot list", async () => {
+    const { unmount } = await renderPage({ view: "files" });
+    expect(buttonWithText("Export working copy")).toBeDefined();
+    expect(buttonWithText("Import repository…")).toBeDefined();
+    expect(document.querySelector('[aria-label="Load snapshot 1"]')).toBeNull();
+    await unmount();
+  });
+
+  test("storage numbers sit in a disclosure whose summary states count and target", async () => {
+    const { container, unmount } = await renderPage();
+    await waitUntil(
+      () => container.querySelector("details summary") !== null,
+      "storage disclosure",
+    );
+    expect(container.querySelector("details summary")?.textContent).toBe(
+      "1 stored · target 5",
+    );
+    expect(container.querySelector("details .storage-summary")).not.toBeNull();
     await unmount();
   });
 });

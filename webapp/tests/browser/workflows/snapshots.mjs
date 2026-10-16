@@ -4,6 +4,7 @@ import { gunzipSync } from "node:zlib";
 
 import { assert } from "../lib/http.mjs";
 import {
+  chooseMenuItem,
   clickButton,
   clickButtonByAriaLabel,
   evaluate,
@@ -112,10 +113,11 @@ export async function runSnapshotsWorkflows(page, application, fixtures) {
     () => document.body.innerText.includes("Snapshot 1"),
     "The Snapshots page did not render before export.",
   );
+  await clickButton(page, "Import or export");
   await waitFor(
     page,
-    () => document.body.innerText.includes("Import and export"),
-    "The Import/export section did not render before export.",
+    () => document.body.innerText.includes("Export working copy"),
+    "The Import and export screen did not open before export.",
   );
   const downloadPromise = page.waitForEvent("download");
   await clickButton(page, "Export working copy");
@@ -167,7 +169,7 @@ export async function runSnapshotsWorkflows(page, application, fixtures) {
     () => document.body.innerText.includes("Snapshot 2"),
     "The Snapshots page did not render before delete.",
   );
-  await clickButtonByAriaLabel(page, "Delete snapshot 2");
+  await chooseMenuItem(page, "snapshot 2", "Delete snapshot 2");
   await waitFor(
     page,
     () => document.querySelector("#snapshot-delete-confirm-2") !== null,
@@ -178,7 +180,7 @@ export async function runSnapshotsWorkflows(page, application, fixtures) {
   // real `input`/`change` events, exactly like the manual setter dispatch it
   // replaces.
   await page.locator("#snapshot-delete-confirm-2").fill("2");
-  await clickButton(page, "Confirm delete");
+  await clickButton(page, "Delete snapshot");
   await waitFor(
     page,
     () => !document.body.innerText.includes("Snapshot 2"),

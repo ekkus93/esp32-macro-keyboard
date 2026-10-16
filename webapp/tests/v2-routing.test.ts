@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
 import {
   macroEditorTargetFromHash,
+  navigateToSnapshotsFiles,
+  snapshotsViewFromHash,
   navigateToAddMacro,
   navigateToDiagnostics,
   navigateToEditMacro,
@@ -92,5 +94,26 @@ describe("v2 routing", () => {
     expect(window.location.hash).toBe("#/settings");
     navigateToDiagnostics();
     expect(window.location.hash).toBe("#/diagnostics");
+  });
+
+  test("snapshotsViewFromHash reads only view=files on the snapshots route", () => {
+    setHashSilently("/snapshots");
+    expect(snapshotsViewFromHash()).toBe("list");
+    setHashSilently("/snapshots?view=files");
+    expect(snapshotsViewFromHash()).toBe("files");
+    // Anything else, or the same query on another route, is the ordinary list.
+    setHashSilently("/snapshots?view=other");
+    expect(snapshotsViewFromHash()).toBe("list");
+    setHashSilently("/snapshots?view=");
+    expect(snapshotsViewFromHash()).toBe("list");
+    setHashSilently("/settings?view=files");
+    expect(snapshotsViewFromHash()).toBe("list");
+  });
+
+  test("navigateToSnapshotsFiles keeps the snapshots route and sets the files view", () => {
+    navigateToSnapshotsFiles();
+    expect(window.location.hash).toBe("#/snapshots?view=files");
+    expect(routeFromHashV2()).toBe("snapshots");
+    expect(snapshotsViewFromHash()).toBe("files");
   });
 });

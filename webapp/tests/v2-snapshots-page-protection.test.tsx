@@ -255,7 +255,13 @@ describe("SnapshotsPage — V2-114 unreadable snapshot recovery", () => {
     );
     expect(container.textContent).toContain("Snapshot 1 could not be opened");
     // The failed blob remains fully actionable — never silently dropped or
-    // replaced with a fallback.
+    // replaced with a fallback. Download and Delete are in its menu.
+    await click(
+      requiredElement(
+        '[aria-label="More actions for snapshot 1"]',
+        HTMLButtonElement,
+      ),
+    );
     expect(
       document.querySelector('[aria-label="Download snapshot 1"]'),
     ).not.toBeNull();

@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { DangerZone } from "../../../components/DangerZone";
-import { HeaderActions } from "../../../components/HeaderActions";
-import {
-  PAGE_HEADING_TITLE_CLASS,
-  PageHeading,
-} from "../../../components/PageHeading";
+import { Card } from "../../../components/Card";
+import { ConfirmDialog } from "../../../components/ConfirmDialog";
+import { Button } from "../../../components/m3/Button";
+import { Icon } from "../../../components/m3/Icon";
+import { LinearProgress } from "../../../components/m3/Progress";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { UnsavedChangesPrompt } from "../../shell/v2/UnsavedChangesPrompt";
@@ -17,7 +16,6 @@ import {
 import type { Repository } from "../../../v2/repository";
 import { saveBytesAsFile } from "../../../v2/saveFile";
 import { evaluateSnapshotRetention } from "../../../v2/snapshotRetention";
-import { useFocusTrap } from "../../shell/v2/useFocusTrap";
 import {
   deleteSnapshot as defaultDeleteSnapshot,
   downloadSnapshotBytes as defaultDownloadSnapshotBytes,
@@ -110,6 +108,10 @@ export interface SnapshotsPageProps {
   onSaveSnapshot: () => Promise<void>;
   saving: boolean;
   saveError: string | null;
+  /** Which of the two Snapshots screens is showing; defaults to the list. */
+  view?: "list" | "files";
+  /** Opens the Import and export screen. */
+  onOpenFiles?: () => void;
   dependencies?: SnapshotsPageDependencies;
 }
 
@@ -133,6 +135,8 @@ export function SnapshotsPage({
   onSaveSnapshot,
   saving,
   saveError,
+  view = "list",
+  onOpenFiles,
   dependencies,
 }: SnapshotsPageProps): React.JSX.Element {
   const deps = dependencies ?? defaultDependencies();
@@ -168,7 +172,6 @@ export function SnapshotsPage({
     blobId: string;
     message: string;
   } | null>(null);
-  const [advancedOpenId, setAdvancedOpenId] = useState<string | null>(null);
   const [pendingReplace, setPendingReplace] = useState<PendingReplace | null>(
     null,
   );
@@ -191,14 +194,6 @@ export function SnapshotsPage({
   const [confirmingImportWhileDirty, setConfirmingImportWhileDirty] =
     useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const importConfirmRef = useRef<HTMLDivElement>(null);
-  useFocusTrap({
-    active: importState.kind === "ready",
-    containerRef: importConfirmRef,
-    onClose: () => {
-      setImportState({ kind: "idle" });
-    },
-  });
 
   const exportWorkingCopy = async (): Promise<void> => {
     setExportingWorkingCopy(true);
@@ -394,203 +389,125 @@ export function SnapshotsPage({
     retentionTarget,
   );
 
-  return (
-    <section aria-labelledby="snapshots-title">
-      <PageHeading>
-        <div>
-          <h2 className={PAGE_HEADING_TITLE_CLASS} id="snapshots-title">
-            Snapshots
-          </h2>
-          {list.kind === "loaded" ? (
-            <dl
-              // storage-summary carries no CSS rule (styling is inline
-              // below); kept as a test hook only --
-              // webapp/tests/browser/workflows/snapshots.mjs:24.
-              className="storage-summary mt-2 grid [grid-template-columns:repeat(2,auto)] justify-start gap-x-5 gap-y-[0.15rem] text-[0.85rem] min-[26rem]:[grid-template-columns:repeat(4,auto)]"
-            >
-              <dt className="[grid-row:1]">Stored</dt>
-              <dd className="[grid-row:2] text-base font-bold">
-                {String(list.result.blobs.length)}
-              </dd>
-              <dt className="[grid-row:1]">Used</dt>
-              <dd className="[grid-row:2] text-base font-bold">
-                {formatBytes(list.result.usedBytes)}
-              </dd>
-              <dt className="[grid-row:1] max-[26rem]:[grid-row:3]">Free</dt>
-              <dd className="[grid-row:2] text-base font-bold max-[26rem]:[grid-row:4]">
-                {formatBytes(list.result.remainingBytes)}
-              </dd>
-              <dt className="[grid-row:1] max-[26rem]:[grid-row:3]">
-                Retention target
-              </dt>
-              <dd className="[grid-row:2] text-base font-bold max-[26rem]:[grid-row:4]">
-                {String(retentionTarget)}
-              </dd>
-            </dl>
-          ) : null}
-        </div>
-        <HeaderActions>
-          <button
-            className="primary"
-            disabled={saving}
-            onClick={() => {
-              void onSaveSnapshot();
-            }}
-            type="button"
-          >
-            {saving ? "Saving…" : "Save current snapshot"}
-          </button>
-        </HeaderActions>
-      </PageHeading>
+  const unsavedLoadPrompt =
+    pendingLoad === null ? null : (
+      <UnsavedChangesPrompt
+        actionLabel={`load snapshot ${pendingLoad}, replacing your working copy`}
+        discardLabel="Discard changes and load"
+        exporting={exportingWorkingCopy}
+        onCancel={() => {
+          setPendingLoad(null);
+        }}
+        onDiscard={() => {
+          const id = pendingLoad;
+          store.discardChanges();
+          setPendingLoad(null);
+          void performLoad(id);
+        }}
+        onExport={() => {
+          void exportWorkingCopy();
+        }}
+        onSaveSnapshot={() => {
+          void saveThenLoad();
+        }}
+        saving={saving}
+      />
+    );
 
-      <ErrorBanner message={saveError} />
-      <ErrorBanner message={rowError} />
-      <ErrorBanner message={exportError} />
-
-      {retention.overTarget ? (
-        <p role="status">
-          {String(retention.count)} snapshots are stored, above the retention
-          target of {String(retention.target)}. This is advisory only — nothing
-          is deleted automatically. Choose any snapshots below to delete if you
-          want to clean up.
-        </p>
-      ) : null}
-
-      {list.kind === "loading" ? <p role="status">Loading snapshots…</p> : null}
-      {list.kind === "error" ? (
-        <div>
-          <ErrorBanner message={list.message} />
-          <button onClick={refreshList} type="button">
-            Retry
-          </button>
-        </div>
-      ) : null}
-      {list.kind === "loaded" && list.result.blobs.length === 0 ? (
-        <p role="status">No snapshots are stored on this device yet.</p>
-      ) : null}
-      {list.kind === "loaded" ? (
-        <div aria-label="Snapshot list">
-          {list.result.blobs.map((blob) => (
-            <SnapshotRow
-              advancedOpen={advancedOpenId === blob.id}
-              busy={rowBusy?.id === blob.id ? rowBusy.action : null}
-              id={blob.id}
-              isLoaded={loadedBlobId === blob.id}
-              key={blob.id}
-              loadErrorMessage={
-                loadError?.blobId === blob.id ? loadError.message : null
-              }
-              onDelete={() => {
-                void deleteRow(blob.id);
-              }}
-              onDownload={() => {
-                void download(blob.id);
-              }}
-              onLoad={() => {
-                requestLoad(blob.id);
-              }}
-              onReplace={() => {
-                void replaceRow(blob.id);
-              }}
-              onToggleAdvanced={() => {
-                setAdvancedOpenId((current) =>
-                  current === blob.id ? null : blob.id,
-                );
-              }}
-              replaceBusy={
-                pendingReplace?.id === blob.id ? pendingReplace.busy : false
-              }
-              replaceResult={
-                pendingReplace?.id === blob.id ? pendingReplace.result : null
-              }
-              sizeBytes={blob.sizeBytes}
-            />
-          ))}
-        </div>
-      ) : null}
-
-      {pendingLoad !== null ? (
-        <UnsavedChangesPrompt
-          actionLabel={`load snapshot ${pendingLoad}, replacing your working copy`}
-          discardLabel="Discard changes and load"
-          exporting={exportingWorkingCopy}
-          onCancel={() => {
-            setPendingLoad(null);
-          }}
-          onDiscard={() => {
-            const id = pendingLoad;
-            store.discardChanges();
-            setPendingLoad(null);
-            void performLoad(id);
-          }}
-          onExport={() => {
-            void exportWorkingCopy();
-          }}
-          onSaveSnapshot={() => {
-            void saveThenLoad();
-          }}
-          saving={saving}
-        />
-      ) : null}
-
+  if (view === "files") {
+    return (
       <section aria-labelledby="import-export-title">
-        <h3 id="import-export-title">Import and export</h3>
-        <button
-          disabled={exportingWorkingCopy}
-          onClick={() => {
-            void exportWorkingCopy();
-          }}
-          type="button"
-        >
-          {exportingWorkingCopy ? "Exporting…" : "Export working copy"}
-        </button>
-        <input
-          accept=".gz,application/gzip"
-          hidden
-          onChange={(event) => {
-            void onFileChosen(event);
-          }}
-          ref={fileInputRef}
-          type="file"
-        />
-        <button
-          disabled={importState.kind === "reading"}
-          onClick={chooseFile}
-          type="button"
-        >
-          {importState.kind === "reading" ? "Reading…" : "Import repository…"}
-        </button>
+        <h2 className="sr-only" id="import-export-title">
+          Import and export
+        </h2>
+        <ErrorBanner message={saveError} />
+        <ErrorBanner message={exportError} />
 
-        {importState.kind === "error" ? (
-          <ErrorBanner message={importState.message} />
-        ) : null}
+        <div className="grid gap-4">
+          <Card variant="flush">
+            <div className="min-w-0">
+              <h3>Export</h3>
+              <p>
+                Download your working copy as a file. The file contains your
+                macros.
+              </p>
+            </div>
+            <div>
+              <Button
+                disabled={exportingWorkingCopy}
+                icon="download"
+                onClick={() => {
+                  void exportWorkingCopy();
+                }}
+                variant="tonal"
+              >
+                {exportingWorkingCopy ? "Exporting…" : "Export working copy"}
+              </Button>
+            </div>
+          </Card>
 
-        {importState.kind === "ready" ? (
-          <DangerZone containerRef={importConfirmRef} role="alertdialog">
+          <Card variant="flush">
+            <div className="min-w-0">
+              <h3>Import</h3>
+              <p>
+                Choose a repository file. Nothing changes until you confirm, and
+                nothing is uploaded to the device until you save a snapshot.
+              </p>
+              {importState.kind === "reading" ? (
+                <div className="mt-3">
+                  <LinearProgress label="Reading file" />
+                </div>
+              ) : null}
+              {importState.kind === "error" ? (
+                <div className="mt-3">
+                  <ErrorBanner message={importState.message} />
+                </div>
+              ) : null}
+            </div>
+            <div>
+              <input
+                accept=".gz,application/gzip"
+                hidden
+                onChange={(event) => {
+                  void onFileChosen(event);
+                }}
+                ref={fileInputRef}
+                type="file"
+              />
+              <Button
+                disabled={importState.kind === "reading"}
+                icon="upload"
+                onClick={chooseFile}
+                variant="filled"
+              >
+                {importState.kind === "reading"
+                  ? "Reading…"
+                  : "Import repository…"}
+              </Button>
+            </div>
+          </Card>
+        </div>
+
+        {importState.kind === "ready" && !confirmingImportWhileDirty ? (
+          <ConfirmDialog
+            confirmLabel="Replace working copy with this import"
+            id="import-replace-title"
+            onCancel={() => {
+              setImportState({ kind: "idle" });
+            }}
+            onConfirm={() => {
+              confirmImport(importState.repository);
+            }}
+            title="Replace your working copy?"
+            tone="panel"
+          >
             <p>
               This file contains {String(importState.packageCount)} packages and{" "}
               {String(importState.macroCount)} macros. Importing replaces your
               entire working copy and marks it unsaved — nothing uploads to the
-              device until you Save snapshot.
+              device until you save a snapshot.
             </p>
-            <button
-              className="primary"
-              onClick={() => {
-                confirmImport(importState.repository);
-              }}
-              type="button"
-            >
-              Replace working copy with this import
-            </button>
-            <button
-              onClick={() => {
-                setImportState({ kind: "idle" });
-              }}
-              type="button"
-            >
-              Cancel
-            </button>
-          </DangerZone>
+          </ConfirmDialog>
         ) : null}
 
         {confirmingImportWhileDirty && importState.kind === "ready" ? (
@@ -614,7 +531,159 @@ export function SnapshotsPage({
             saving={saving}
           />
         ) : null}
+        {unsavedLoadPrompt}
       </section>
+    );
+  }
+
+  return (
+    <section aria-labelledby="snapshots-title">
+      {/* The app bar's title is "Snapshots"; this heading names the region
+          for assistive technology without repeating it on screen. */}
+      <h2 className="sr-only" id="snapshots-title">
+        Snapshots
+      </h2>
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+        <Button
+          disabled={onOpenFiles === undefined}
+          icon="upload"
+          onClick={() => {
+            onOpenFiles?.();
+          }}
+          variant="text"
+        >
+          Import or export
+        </Button>
+        <Button
+          disabled={saving}
+          icon="save"
+          onClick={() => {
+            void onSaveSnapshot();
+          }}
+          variant="filled"
+        >
+          {saving ? "Saving…" : "Save current snapshot"}
+        </Button>
+      </div>
+
+      {list.kind === "loaded" ? (
+        // Storage is reference information, not the task: one line says how
+        // many are stored against the target, and the numbers open on demand.
+        // The `storage-summary` hook is a test hook only --
+        // webapp/tests/browser/workflows/snapshots.mjs:24.
+        <details className="mt-0 mb-4">
+          <summary>
+            {String(list.result.blobs.length)} stored · target{" "}
+            {String(retentionTarget)}
+          </summary>
+          <dl className="storage-summary mt-3 grid [grid-template-columns:repeat(2,auto)] justify-start gap-x-6 gap-y-1 text-body-md min-[26rem]:[grid-template-columns:repeat(4,auto)]">
+            <dt className="[grid-row:1]">Stored</dt>
+            <dd className="[grid-row:2] text-title-md">
+              {String(list.result.blobs.length)}
+            </dd>
+            <dt className="[grid-row:1]">Used</dt>
+            <dd className="[grid-row:2] text-title-md">
+              {formatBytes(list.result.usedBytes)}
+            </dd>
+            <dt className="[grid-row:1] max-[26rem]:[grid-row:3]">Free</dt>
+            <dd className="[grid-row:2] text-title-md max-[26rem]:[grid-row:4]">
+              {formatBytes(list.result.remainingBytes)}
+            </dd>
+            <dt className="[grid-row:1] max-[26rem]:[grid-row:3]">
+              Retention target
+            </dt>
+            <dd className="[grid-row:2] text-title-md max-[26rem]:[grid-row:4]">
+              {String(retentionTarget)}
+            </dd>
+          </dl>
+        </details>
+      ) : null}
+
+      <ErrorBanner message={saveError} />
+      <ErrorBanner message={rowError} />
+      <ErrorBanner message={exportError} />
+
+      {retention.overTarget ? (
+        <p
+          className="mb-4 flex items-start gap-3 rounded-shape-md bg-warning-container px-4 py-3 text-body-md text-on-warning-container"
+          role="status"
+        >
+          <Icon name="info" size={20} />
+          <span>
+            {String(retention.count)} snapshots are stored, above the retention
+            target of {String(retention.target)}. This is advisory only —
+            nothing is deleted automatically. Delete any you no longer need.
+          </span>
+        </p>
+      ) : null}
+
+      {list.kind === "loading" ? (
+        <div role="status">
+          <LinearProgress label="Loading snapshots" />
+          <p>Loading snapshots…</p>
+        </div>
+      ) : null}
+      {list.kind === "error" ? (
+        <div className="grid gap-3">
+          <ErrorBanner message={list.message} />
+          <div>
+            <button onClick={refreshList} type="button">
+              Retry
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {list.kind === "loaded" && list.result.blobs.length === 0 ? (
+        <div
+          className="grid justify-items-start gap-3 rounded-shape-lg bg-surface-container p-6"
+          role="status"
+        >
+          <h3 className="m-0">No snapshots yet</h3>
+          <p className="m-0 text-on-surface-variant">
+            No snapshots are stored on this device yet. Save one to keep your
+            macros.
+          </p>
+        </div>
+      ) : null}
+      {list.kind === "loaded" ? (
+        <div aria-label="Snapshot list" className="grid gap-3">
+          {list.result.blobs.map((blob) => (
+            <SnapshotRow
+              busy={rowBusy?.id === blob.id ? rowBusy.action : null}
+              id={blob.id}
+              isLoaded={loadedBlobId === blob.id}
+              key={blob.id}
+              loadErrorMessage={
+                loadError?.blobId === blob.id ? loadError.message : null
+              }
+              onDelete={() => {
+                void deleteRow(blob.id);
+              }}
+              onDownload={() => {
+                void download(blob.id);
+              }}
+              onLoad={() => {
+                requestLoad(blob.id);
+              }}
+              onReplace={() => {
+                void replaceRow(blob.id);
+              }}
+              onReplaceDismiss={() => {
+                setPendingReplace(null);
+              }}
+              replaceBusy={
+                pendingReplace?.id === blob.id ? pendingReplace.busy : false
+              }
+              replaceResult={
+                pendingReplace?.id === blob.id ? pendingReplace.result : null
+              }
+              sizeBytes={blob.sizeBytes}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {unsavedLoadPrompt}
     </section>
   );
 }

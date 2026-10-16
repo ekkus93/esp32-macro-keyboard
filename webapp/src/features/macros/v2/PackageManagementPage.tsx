@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { DangerZone } from "../../../components/DangerZone";
-import {
-  PAGE_HEADING_TITLE_CLASS,
-  PageHeading,
-} from "../../../components/PageHeading";
+import { ConfirmDialog } from "../../../components/ConfirmDialog";
+import { Dialog } from "../../../components/Dialog";
+import { Button } from "../../../components/m3/Button";
+import { Icon } from "../../../components/m3/Icon";
+import { Menu } from "../../../components/m3/Menu";
+import type { MenuItem } from "../../../components/m3/Menu";
 import { FieldHelp } from "../../../components/FieldHelp";
 import { FormActions } from "../../../components/FormActions";
 import { Card } from "../../../components/Card";
@@ -76,47 +77,84 @@ function validPackageName(name: string): boolean {
   );
 }
 
-interface CreatePackageFormProps {
-  onCreate: (name: string) => void;
+/**
+ * Packages above this count get a search field. With a handful, the whole
+ * list is already on screen and a search box is only clutter.
+ */
+const SEARCH_MIN_PACKAGES = 6;
+
+interface PackageNameDialogProps {
+  confirmLabel: string;
+  /** The text field's id (kept stable for tests and label association). */
+  inputId: string;
+  initialName: string;
+  label: string;
+  onCancel: () => void;
+  onSubmit: (name: string) => void;
+  title: string;
 }
 
-function CreatePackageForm({
-  onCreate,
-}: CreatePackageFormProps): React.JSX.Element {
-  const [name, setName] = useState("");
+/**
+ * The focused flow for naming a package -- used for both New package and
+ * Rename. A modal dialog (`useFocusTrap`: Tab stays inside, Escape cancels,
+ * focus returns to what opened it) holding one field with the same byte
+ * counter the rest of the app uses.
+ */
+function PackageNameDialog({
+  confirmLabel,
+  inputId,
+  initialName,
+  label,
+  onCancel,
+  onSubmit,
+  title,
+}: PackageNameDialogProps): React.JSX.Element {
+  const [name, setName] = useState(initialName);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useFocusTrap({ active: true, containerRef, onClose: onCancel });
   const nameBytes = utf8ByteLength(name);
   const valid = validPackageName(name);
 
   return (
-    <form
-      className="grid gap-[0.85rem]"
-      onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (!valid) {
-          return;
-        }
-        onCreate(name);
-        setName("");
-      }}
+    <Dialog
+      aria-labelledby={`dialog-title-${inputId}`}
+      containerRef={containerRef}
+      heading={<h2 id={`dialog-title-${inputId}`}>{title}</h2>}
+      role="dialog"
     >
-      <label htmlFor="package-management-create-name">
-        New package name
-        <input
-          id="package-management-create-name"
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-            setName(event.currentTarget.value);
-          }}
-          value={name}
-        />
-        <FieldHelp exceeded={nameBytes > v2Limits.packageNameMaxBytes}>
-          {String(nameBytes)} / {String(v2Limits.packageNameMaxBytes)} UTF-8
-          bytes
-        </FieldHelp>
-      </label>
-      <button className="primary" disabled={!valid} type="submit">
-        Create package
-      </button>
-    </form>
+      <form
+        className="grid gap-4"
+        onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
+          event.preventDefault();
+          if (valid) {
+            onSubmit(name);
+          }
+        }}
+      >
+        <div>
+          <label htmlFor={inputId}>{label}</label>
+          <input
+            id={inputId}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              setName(event.currentTarget.value);
+            }}
+            value={name}
+          />
+          <FieldHelp exceeded={nameBytes > v2Limits.packageNameMaxBytes}>
+            {String(nameBytes)} / {String(v2Limits.packageNameMaxBytes)} UTF-8
+            bytes
+          </FieldHelp>
+        </div>
+        <FormActions>
+          <button onClick={onCancel} type="button">
+            Cancel
+          </button>
+          <button className="primary" disabled={!valid} type="submit">
+            {confirmLabel}
+          </button>
+        </FormActions>
+      </form>
+    </Dialog>
   );
 }
 
@@ -132,6 +170,12 @@ interface PackageRowProps {
   onMove: (action: MoveAction) => void;
 }
 
+/**
+ * One package: its name and size, a "Selected" mark when it is the open
+ * package, a prominent Open, and a "More actions" menu for rename, duplicate,
+ * reorder and delete (UXR-050; the same pattern as a macro row). Rename and
+ * delete each open a focused dialog.
+ */
 function PackageRow({
   pkg,
   index,
@@ -144,187 +188,154 @@ function PackageRow({
   onMove,
 }: PackageRowProps): React.JSX.Element {
   const [renaming, setRenaming] = useState(false);
-  const [draftName, setDraftName] = useState(pkg.name);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const draftValid = validPackageName(draftName);
-  const confirmRef = useRef<HTMLDivElement>(null);
-  // See `MacroOverflowMenu`'s identical `deleteButtonRef` for why an
-  // explicit `restoreFocusRef` is needed: the "Delete" trigger is unmounted
-  // (replaced by the confirmation panel) the same render that activates the
-  // trap.
-  const deleteButtonRef = useRef<HTMLButtonElement>(null);
-  useFocusTrap({
-    active: confirmingDelete,
-    containerRef: confirmRef,
-    onClose: () => {
-      setConfirmingDelete(false);
+
+  const isFirst = index === 0;
+  const isLast = index === packageCount - 1;
+  const items: readonly MenuItem[] = [
+    {
+      key: "rename",
+      label: "Rename",
+      ariaLabel: `Rename ${pkg.name}`,
+      icon: "edit",
+      onSelect: () => {
+        setRenaming(true);
+      },
     },
-    restoreFocusRef: deleteButtonRef,
-  });
+    {
+      key: "duplicate",
+      label: "Duplicate",
+      ariaLabel: `Duplicate ${pkg.name}`,
+      icon: "copy",
+      onSelect: onDuplicate,
+    },
+    {
+      key: "up",
+      label: "Move up",
+      ariaLabel: `Move ${pkg.name} up`,
+      icon: "arrowUp",
+      disabled: isFirst,
+      onSelect: () => {
+        onMove("up");
+      },
+    },
+    {
+      key: "down",
+      label: "Move down",
+      ariaLabel: `Move ${pkg.name} down`,
+      icon: "arrowDown",
+      disabled: isLast,
+      onSelect: () => {
+        onMove("down");
+      },
+    },
+    {
+      key: "first",
+      label: "Move to top",
+      ariaLabel: `Move ${pkg.name} to first`,
+      icon: "arrowUp",
+      disabled: isFirst,
+      onSelect: () => {
+        onMove("first");
+      },
+    },
+    {
+      key: "last",
+      label: "Move to bottom",
+      ariaLabel: `Move ${pkg.name} to last`,
+      icon: "arrowDown",
+      disabled: isLast,
+      onSelect: () => {
+        onMove("last");
+      },
+    },
+    {
+      key: "delete",
+      label: "Delete",
+      ariaLabel: `Delete ${pkg.name}`,
+      icon: "trash",
+      tone: "danger",
+      onSelect: () => {
+        setConfirmingDelete(true);
+      },
+    },
+  ];
 
   return (
-    <Card variant="flush">
+    <Card variant={isSelected ? "selected" : "flush"}>
       <div className="min-w-0">
-        <h3>
-          {pkg.name}
-          {isSelected ? " (selected)" : ""}
-        </h3>
-        <p>{String(pkg.macros.length)} macros</p>
-        {renaming ? (
-          <form
-            className="grid gap-[0.85rem]"
-            onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
-              event.preventDefault();
-              if (!draftValid) {
-                return;
-              }
-              onRename(draftName);
-              setRenaming(false);
-            }}
-          >
-            <label htmlFor={`package-rename-${pkg.id}`}>
-              Package name
-              <input
-                id={`package-rename-${pkg.id}`}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                  setDraftName(event.currentTarget.value);
-                }}
-                value={draftName}
-              />
-            </label>
-            <FormActions>
-              <button className="primary" disabled={!draftValid} type="submit">
-                Save name
-              </button>
-              <button
-                onClick={() => {
-                  setDraftName(pkg.name);
-                  setRenaming(false);
-                }}
-                type="button"
-              >
-                Cancel
-              </button>
-            </FormActions>
-          </form>
-        ) : null}
+        <h3>{pkg.name}</h3>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {String(pkg.macros.length)} macros
+          {isSelected ? (
+            <span className="inline-flex items-center gap-1 font-semibold">
+              <Icon name="check" size={16} />
+              Selected
+            </span>
+          ) : null}
+        </p>
       </div>
-      <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full">
+      <div className="flex items-center gap-2">
         <button
           aria-label={`Open ${pkg.name}`}
-          className="primary"
+          className={
+            isSelected
+              ? "flex-1 min-[34rem]:flex-none"
+              : "primary flex-1 min-[34rem]:flex-none"
+          }
           onClick={onOpen}
           type="button"
         >
           Open
         </button>
-        {renaming ? null : (
-          <button
-            aria-label={`Rename ${pkg.name}`}
-            onClick={() => {
-              setDraftName(pkg.name);
-              setRenaming(true);
-            }}
-            type="button"
-          >
-            Rename
-          </button>
-        )}
-        <button
-          aria-label={`Duplicate ${pkg.name}`}
-          onClick={onDuplicate}
-          type="button"
-        >
-          Duplicate
-        </button>
-        <div className="grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1">
-          <button
-            aria-label={`Move ${pkg.name} to first`}
-            disabled={index === 0}
-            onClick={() => {
-              onMove("first");
-            }}
-            type="button"
-          >
-            Move first
-          </button>
-          <button
-            aria-label={`Move ${pkg.name} up`}
-            disabled={index === 0}
-            onClick={() => {
-              onMove("up");
-            }}
-            type="button"
-          >
-            Move up
-          </button>
-          <button
-            aria-label={`Move ${pkg.name} down`}
-            disabled={index === packageCount - 1}
-            onClick={() => {
-              onMove("down");
-            }}
-            type="button"
-          >
-            Move down
-          </button>
-          <button
-            aria-label={`Move ${pkg.name} to last`}
-            disabled={index === packageCount - 1}
-            onClick={() => {
-              onMove("last");
-            }}
-            type="button"
-          >
-            Move last
-          </button>
-        </div>
-        {confirmingDelete ? (
-          <DangerZone containerRef={confirmRef} role="alertdialog">
-            <p>
-              Delete <strong>{pkg.name}</strong> and all{" "}
-              {String(pkg.macros.length)} of its macros? This cannot be undone
-              once the working copy is saved.
-            </p>
-            {isSelected ? (
-              <p>
-                This is your currently selected package — another package must
-                be selected afterward.
-              </p>
-            ) : null}
-            <button
-              className="danger"
-              onClick={() => {
-                setConfirmingDelete(false);
-                onDelete();
-              }}
-              type="button"
-            >
-              Confirm delete
-            </button>
-            <button
-              onClick={() => {
-                setConfirmingDelete(false);
-              }}
-              type="button"
-            >
-              Cancel
-            </button>
-          </DangerZone>
-        ) : (
-          <button
-            aria-label={`Delete ${pkg.name}`}
-            className="danger"
-            onClick={() => {
-              setConfirmingDelete(true);
-            }}
-            ref={deleteButtonRef}
-            type="button"
-          >
-            Delete
-          </button>
-        )}
+        <Menu
+          items={items}
+          menuLabel={`Actions for ${pkg.name}`}
+          triggerLabel={`More actions for ${pkg.name}`}
+        />
       </div>
+      {renaming ? (
+        <PackageNameDialog
+          confirmLabel="Save name"
+          initialName={pkg.name}
+          inputId={`package-rename-${pkg.id}`}
+          label="Package name"
+          onCancel={() => {
+            setRenaming(false);
+          }}
+          onSubmit={(name) => {
+            setRenaming(false);
+            onRename(name);
+          }}
+          title="Rename package"
+        />
+      ) : null}
+      {confirmingDelete ? (
+        <ConfirmDialog
+          confirmLabel="Delete package"
+          id={`delete-package-title-${pkg.id}`}
+          onCancel={() => {
+            setConfirmingDelete(false);
+          }}
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            onDelete();
+          }}
+          title="Delete package?"
+        >
+          <p>
+            Delete <strong>{pkg.name}</strong> and all{" "}
+            {String(pkg.macros.length)} of its macros? This cannot be undone
+            once the working copy is saved.
+          </p>
+          {isSelected ? (
+            <p>
+              This is your currently selected package — another package must be
+              selected afterward.
+            </p>
+          ) : null}
+        </ConfirmDialog>
+      ) : null}
     </Card>
   );
 }
@@ -345,6 +356,7 @@ export function PackageManagementPage({
   const repository = snapshot.repository;
 
   const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const filtered = repository.packages.filter((pkg) =>
     pkg.name.toLowerCase().includes(search.trim().toLowerCase()),
@@ -449,34 +461,37 @@ export function PackageManagementPage({
 
   return (
     <section aria-labelledby="package-management-title">
-      <PageHeading>
-        <div>
-          <h2
-            className={PAGE_HEADING_TITLE_CLASS}
-            id="package-management-title"
-          >
-            Packages
-          </h2>
-          <p>{String(repository.packages.length)} packages</p>
-        </div>
-      </PageHeading>
-
-      <CreatePackageForm onCreate={createPackage} />
-
-      {/* `block`: `<label>` is inline by default and this section carries
-          no flex/grid className, so nothing else blockifies it -- full
-          rationale at MacroEditorPage.tsx's Name label. */}
-      <label className="block" htmlFor="package-management-search">
-        Search packages
-        <input
-          id="package-management-search"
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-            setSearch(event.currentTarget.value);
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2
+          className="m-0 min-w-[8rem] flex-1 text-title-lg"
+          id="package-management-title"
+        >
+          {String(repository.packages.length)} packages
+        </h2>
+        <Button
+          icon="add"
+          onClick={() => {
+            setCreating(true);
           }}
-          type="search"
-          value={search}
-        />
-      </label>
+          variant="filled"
+        >
+          New package
+        </Button>
+      </div>
+
+      {repository.packages.length >= SEARCH_MIN_PACKAGES ? (
+        <div className="mb-4">
+          <label htmlFor="package-management-search">Search packages</label>
+          <input
+            id="package-management-search"
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              setSearch(event.currentTarget.value);
+            }}
+            type="search"
+            value={search}
+          />
+        </div>
+      ) : null}
 
       {filtered.length === 0 ? (
         <p role="status">No packages match this search.</p>
@@ -514,6 +529,23 @@ export function PackageManagementPage({
           })}
         </ul>
       )}
+
+      {creating ? (
+        <PackageNameDialog
+          confirmLabel="Create package"
+          initialName=""
+          inputId="package-management-create-name"
+          label="New package name"
+          onCancel={() => {
+            setCreating(false);
+          }}
+          onSubmit={(name) => {
+            setCreating(false);
+            createPackage(name);
+          }}
+          title="New package"
+        />
+      ) : null}
     </section>
   );
 }

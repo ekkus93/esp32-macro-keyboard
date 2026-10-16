@@ -9,6 +9,7 @@ import { startH4RecoveryFixture } from "../fixtures/h4RecoveryFixture.mjs";
 import { repositoryGzip } from "../fixtures/data.mjs";
 import { importFixtureRepository } from "../workflows/macroEditing.mjs";
 import {
+  chooseMenuItem,
   clickButton,
   clickButtonByAriaLabel,
   waitFor,
@@ -270,7 +271,7 @@ export const SCENARIOS = [
       await clickButton(page, "Packages");
       await waitFor(
         page,
-        () => document.body.innerText.includes("Create package"),
+        () => document.body.innerText.includes("New package"),
         "The Packages page did not render.",
       );
       return captureScenario(page);
@@ -284,9 +285,10 @@ export const SCENARIOS = [
         await clickButton(page, "Packages");
         await waitFor(
           page,
-          () => document.body.innerText.includes("Create package"),
+          () => document.body.innerText.includes("New package"),
           "The Packages page did not render.",
         );
+        await clickButton(page, "New package");
         await page
           .locator("#package-management-create-name")
           .fill("x".repeat(65));
@@ -303,10 +305,14 @@ export const SCENARIOS = [
       await clickButton(page, "Packages");
       await waitFor(
         page,
-        () => document.body.innerText.includes("Create package"),
+        () => document.body.innerText.includes("New package"),
         "The Packages page did not render.",
       );
-      await clickButtonByAriaLabel(page, "Rename Lab bench workflow");
+      await chooseMenuItem(
+        page,
+        "Lab bench workflow",
+        "Rename Lab bench workflow",
+      );
       await waitFor(
         page,
         () => document.querySelector("form input") !== null,
@@ -320,10 +326,14 @@ export const SCENARIOS = [
       await clickButton(page, "Packages");
       await waitFor(
         page,
-        () => document.body.innerText.includes("Create package"),
+        () => document.body.innerText.includes("New package"),
         "The Packages page did not render.",
       );
-      await clickButtonByAriaLabel(page, "Delete Lab bench workflow");
+      await chooseMenuItem(
+        page,
+        "Lab bench workflow",
+        "Delete Lab bench workflow",
+      );
       await waitFor(
         page,
         () => document.body.innerText.includes("and all"),
@@ -371,14 +381,15 @@ export const SCENARIOS = [
         () => document.body.innerText.toUpperCase().includes("STORED"),
         "The Snapshots page did not render.",
       );
-      await clickButtonByAriaLabel(
+      await chooseMenuItem(
         page,
-        "Show advanced options for snapshot 1",
+        "snapshot 1",
+        "Replace snapshot 1 with current working copy",
       );
       await waitFor(
         page,
-        () => document.body.innerText.includes("Replace"),
-        "The Advanced panel did not open.",
+        () => document.body.innerText.includes("Replace snapshot?"),
+        "The replace confirmation did not open.",
       );
       return captureScenario(page);
     }),
@@ -394,7 +405,7 @@ export const SCENARIOS = [
           () => document.body.innerText.toUpperCase().includes("STORED"),
           "The Snapshots page did not render.",
         );
-        await clickButtonByAriaLabel(page, "Delete snapshot 1");
+        await chooseMenuItem(page, "snapshot 1", "Delete snapshot 1");
         await waitFor(
           page,
           () => document.body.innerText.includes("This permanently deletes"),
@@ -410,6 +421,12 @@ export const SCENARIOS = [
         page,
         () => document.body.innerText.toUpperCase().includes("STORED"),
         "The Snapshots page did not render.",
+      );
+      await clickButton(page, "Import or export");
+      await waitFor(
+        page,
+        () => document.body.innerText.includes("Export working copy"),
+        "The Import and export screen did not open.",
       );
       const path = await importFixturePath();
       await page.setInputFiles('input[type="file"]', path);

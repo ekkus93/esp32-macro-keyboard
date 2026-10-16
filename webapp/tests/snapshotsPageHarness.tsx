@@ -5,7 +5,7 @@ import type { Repository } from "../src/v2/repository";
 import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
 import type { RepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
 import type { SnapshotListResult } from "../src/v2/snapshotClient";
-import { flushReact, render } from "./render";
+import { click, flushReact, render, requiredElement } from "./render";
 
 export const packageId = "550e8400-e29b-41d4-a716-446655440000";
 export const otherPackageId = "550e8400-e29b-41d4-a716-446655440001";
@@ -53,6 +53,8 @@ export interface Overrides {
   deps?: Partial<SnapshotsPageDependencies>;
   saving?: boolean;
   saveError?: string | null;
+  /** Which Snapshots screen to render; the list unless a test says otherwise. */
+  view?: "list" | "files";
 }
 
 export function makeDependencies(
@@ -82,6 +84,7 @@ export async function renderPage(overrides: Overrides = {}) {
   const onSelectionPersistenceSuccess = vi.fn();
   const onOpenMacros = vi.fn();
   const onOpenPackages = vi.fn();
+  const onOpenFiles = vi.fn();
   const onWorkingCopyOriginChanged = vi.fn();
   const onSaveSnapshot = vi.fn().mockResolvedValue(undefined);
   const persistedPackageId =
@@ -93,6 +96,7 @@ export async function renderPage(overrides: Overrides = {}) {
     <SnapshotsPage
       dependencies={deps}
       loadedBlobId={overrides.loadedBlobId ?? "1"}
+      onOpenFiles={onOpenFiles}
       onOpenMacros={onOpenMacros}
       onOpenPackages={onOpenPackages}
       onSaveSnapshot={onSaveSnapshot}
@@ -105,6 +109,7 @@ export async function renderPage(overrides: Overrides = {}) {
       saveError={overrides.saveError ?? null}
       saving={overrides.saving ?? false}
       store={store}
+      view={overrides.view ?? "list"}
     />,
   );
   await flushReact();
@@ -117,6 +122,7 @@ export async function renderPage(overrides: Overrides = {}) {
     onSelectionPersistenceSuccess,
     onOpenMacros,
     onOpenPackages,
+    onOpenFiles,
     onWorkingCopyOriginChanged,
     onSaveSnapshot,
   };
@@ -133,4 +139,23 @@ export async function waitUntil(
     await flushReact();
   }
   throw new Error(`Timed out waiting for: ${description}`);
+}
+
+/**
+ * Opens a snapshot row's "More actions" menu and chooses one of its items
+ * (Download, Replace, Delete live there; Load is on the row itself).
+ */
+export async function chooseSnapshotItem(
+  snapshotId: string,
+  itemLabel: string,
+): Promise<void> {
+  await click(
+    requiredElement(
+      `[aria-label="More actions for snapshot ${snapshotId}"]`,
+      HTMLButtonElement,
+    ),
+  );
+  await click(
+    requiredElement(`[aria-label="${itemLabel}"]`, HTMLButtonElement),
+  );
 }

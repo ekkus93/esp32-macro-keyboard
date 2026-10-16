@@ -2,6 +2,7 @@ import { packageId } from "../fixtures/data.mjs";
 import { startStartupFixtureServer } from "../fixtures/startupFixtureServer.mjs";
 import { assert } from "../lib/http.mjs";
 import {
+  chooseMenuItem,
   clickButton,
   clickButtonByAriaLabel,
   evaluate,
@@ -177,8 +178,14 @@ export async function runMacroEditingWorkflows(browser) {
     await clickButton(page, "Packages");
     await waitFor(
       page,
-      () => document.querySelector("#package-management-create-name") !== null,
+      () => document.body.innerText.includes("New package"),
       "The Packages page did not render.",
+    );
+    await clickButton(page, "New package");
+    await waitFor(
+      page,
+      () => document.querySelector("#package-management-create-name") !== null,
+      "New package did not open its dialog.",
     );
     await page
       .locator("#package-management-create-name")
@@ -190,11 +197,15 @@ export async function runMacroEditingWorkflows(browser) {
       "Create package did not add a new package.",
     );
 
-    await clickButtonByAriaLabel(page, "Rename Second bench package");
+    await chooseMenuItem(
+      page,
+      "Second bench package",
+      "Rename Second bench package",
+    );
     await waitFor(
       page,
       () => document.querySelector('[id^="package-rename-"]') !== null,
-      "Rename did not open its inline form.",
+      "Rename did not open its dialog.",
     );
     await page
       .locator('[id^="package-rename-"]')
@@ -206,8 +217,9 @@ export async function runMacroEditingWorkflows(browser) {
       "Renaming the package did not take effect.",
     );
 
-    await clickButtonByAriaLabel(
+    await chooseMenuItem(
       page,
+      "Second bench package (renamed)",
       "Duplicate Second bench package (renamed)",
     );
     await waitFor(
@@ -217,9 +229,11 @@ export async function runMacroEditingWorkflows(browser) {
       "Duplicate did not create a copy.",
     );
 
-    await page
-      .locator('[aria-label="Move Second bench package (renamed) copy up"]')
-      .press("Enter");
+    await chooseMenuItem(
+      page,
+      "Second bench package (renamed) copy",
+      "Move Second bench package (renamed) copy up",
+    );
     assert(
       await evaluate(page, () =>
         document.body.innerText.includes("Second bench package (renamed) copy"),
@@ -227,8 +241,9 @@ export async function runMacroEditingWorkflows(browser) {
       "Reordering the duplicated package lost it from the list.",
     );
 
-    await clickButtonByAriaLabel(
+    await chooseMenuItem(
       page,
+      "Second bench package (renamed) copy",
       "Delete Second bench package (renamed) copy",
     );
     await waitFor(
@@ -236,7 +251,7 @@ export async function runMacroEditingWorkflows(browser) {
       () => document.querySelector('[role="alertdialog"]') !== null,
       "Delete did not show its name-bearing confirmation.",
     );
-    await clickButton(page, "Confirm delete");
+    await clickButton(page, "Delete package");
     await waitFor(
       page,
       () =>

@@ -61,12 +61,13 @@ describe("AppV2 — Phase 10 wiring (macro editor and Packages, TODO_V2 V2-100/V
     const view = await signIn();
 
     await click(buttonWithText("Packages"));
-    await waitUntil(() => bodyIncludes("Create package"), "the Packages page");
+    await waitUntil(() => bodyIncludes("New package"), "the Packages page");
     expect(bodyIncludes("My First Package")).toBe(true);
 
     // A second package to actually switch to — opening the package that is
     // already selected would never call the settings PUT at all
     // (`persistSelectedPackageId` short-circuits on a no-op selection).
+    await click(buttonWithText("New package"));
     await setInputValue(
       requiredElement("#package-management-create-name", HTMLInputElement),
       "Second Package",

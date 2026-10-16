@@ -9,7 +9,11 @@ import {
   requiredElement,
   setInputValue,
 } from "./render";
-import { renderPage, waitUntil } from "./snapshotsPageHarness";
+import {
+  chooseSnapshotItem,
+  renderPage,
+  waitUntil,
+} from "./snapshotsPageHarness";
 
 describe("SnapshotsPage — V2-111 download and delete", () => {
   test("Download saves the raw stored bytes without any decompression or validation call", async () => {
@@ -22,12 +26,11 @@ describe("SnapshotsPage — V2-111 download and delete", () => {
     });
     await waitUntil(
       () =>
-        document.querySelector('[aria-label="Download snapshot 1"]') !== null,
+        document.querySelector('[aria-label="More actions for snapshot 1"]') !==
+        null,
       "row to render",
     );
-    await click(
-      requiredElement('[aria-label="Download snapshot 1"]', HTMLButtonElement),
-    );
+    await chooseSnapshotItem("1", "Download snapshot 1");
     await waitUntil(() => saveAsFile.mock.calls.length > 0, "download to save");
     expect(downloadSnapshotBytes).toHaveBeenCalledWith("1");
     expect(saveAsFile).toHaveBeenCalledWith(
@@ -45,16 +48,16 @@ describe("SnapshotsPage — V2-111 download and delete", () => {
       deps: { deleteSnapshot },
     });
     await waitUntil(
-      () => document.querySelector('[aria-label="Delete snapshot 1"]') !== null,
+      () =>
+        document.querySelector('[aria-label="More actions for snapshot 1"]') !==
+        null,
       "row to render",
     );
-    await click(
-      requiredElement('[aria-label="Delete snapshot 1"]', HTMLButtonElement),
-    );
+    await chooseSnapshotItem("1", "Delete snapshot 1");
     await flushReact();
     expect(container.textContent).toContain("permanently deletes snapshot");
     expect(container.textContent).toContain("cannot be undone");
-    const confirmButton = buttonWithText("Confirm delete");
+    const confirmButton = buttonWithText("Delete snapshot");
     expect(confirmButton.disabled).toBe(true);
 
     const idInput = requiredElement(
@@ -62,11 +65,11 @@ describe("SnapshotsPage — V2-111 download and delete", () => {
       HTMLInputElement,
     );
     await setInputValue(idInput, "wrong-id");
-    expect(buttonWithText("Confirm delete").disabled).toBe(true);
+    expect(buttonWithText("Delete snapshot").disabled).toBe(true);
 
     await setInputValue(idInput, "1");
-    expect(buttonWithText("Confirm delete").disabled).toBe(false);
-    await click(buttonWithText("Confirm delete"));
+    expect(buttonWithText("Delete snapshot").disabled).toBe(false);
+    await click(buttonWithText("Delete snapshot"));
     await waitUntil(
       () => deleteSnapshot.mock.calls.length > 0,
       "delete to run",
@@ -84,12 +87,12 @@ describe("SnapshotsPage — V2-111 download and delete", () => {
     const deleteSnapshot = vi.fn();
     const { unmount } = await renderPage({ deps: { deleteSnapshot } });
     await waitUntil(
-      () => document.querySelector('[aria-label="Delete snapshot 1"]') !== null,
+      () =>
+        document.querySelector('[aria-label="More actions for snapshot 1"]') !==
+        null,
       "row to render",
     );
-    await click(
-      requiredElement('[aria-label="Delete snapshot 1"]', HTMLButtonElement),
-    );
+    await chooseSnapshotItem("1", "Delete snapshot 1");
     await flushReact();
     const dialog = requiredElement('[role="alertdialog"]', HTMLDivElement);
     expect(dialog.contains(document.activeElement)).toBe(true);
@@ -107,7 +110,10 @@ describe("SnapshotsPage — V2-111 download and delete", () => {
     expect(document.querySelector('[role="alertdialog"]')).toBeNull();
     expect(deleteSnapshot).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(
-      requiredElement('[aria-label="Delete snapshot 1"]', HTMLButtonElement),
+      requiredElement(
+        '[aria-label="More actions for snapshot 1"]',
+        HTMLButtonElement,
+      ),
     );
     await unmount();
   });
@@ -119,18 +125,18 @@ describe("SnapshotsPage — V2-111 download and delete", () => {
       loadedBlobId: "1",
     });
     await waitUntil(
-      () => document.querySelector('[aria-label="Delete snapshot 1"]') !== null,
+      () =>
+        document.querySelector('[aria-label="More actions for snapshot 1"]') !==
+        null,
       "row to render",
     );
-    await click(
-      requiredElement('[aria-label="Delete snapshot 1"]', HTMLButtonElement),
-    );
+    await chooseSnapshotItem("1", "Delete snapshot 1");
     await flushReact();
     await setInputValue(
       requiredElement("#snapshot-delete-confirm-1", HTMLInputElement),
       "1",
     );
-    await click(buttonWithText("Confirm delete"));
+    await click(buttonWithText("Delete snapshot"));
     await waitUntil(
       () => onWorkingCopyOriginChanged.mock.calls.length > 0,
       "origin change after delete",
@@ -162,26 +168,16 @@ describe("SnapshotsPage — V2-116 advanced non-atomic replace", () => {
     );
     await waitUntil(
       () =>
-        document.querySelector(
-          '[aria-label="Show advanced options for snapshot 1"]',
-        ) !== null,
+        document.querySelector('[aria-label="More actions for snapshot 1"]') !==
+        null,
       "row to render",
     );
-    await click(
-      requiredElement(
-        '[aria-label="Show advanced options for snapshot 1"]',
-        HTMLButtonElement,
-      ),
+    await chooseSnapshotItem(
+      "1",
+      "Replace snapshot 1 with current working copy",
     );
     await flushReact();
-    await click(
-      requiredElement(
-        '[aria-label="Replace snapshot 1 with current working copy"]',
-        HTMLButtonElement,
-      ),
-    );
-    await flushReact();
-    expect(container.textContent).toContain("no atomic replace");
+    expect(container.textContent).toContain("stays deleted");
     await click(
       requiredElement(
         '[aria-label="Confirm replace snapshot 1"]',
@@ -211,23 +207,13 @@ describe("SnapshotsPage — V2-116 advanced non-atomic replace", () => {
     });
     await waitUntil(
       () =>
-        document.querySelector(
-          '[aria-label="Show advanced options for snapshot 1"]',
-        ) !== null,
+        document.querySelector('[aria-label="More actions for snapshot 1"]') !==
+        null,
       "row to render",
     );
-    await click(
-      requiredElement(
-        '[aria-label="Show advanced options for snapshot 1"]',
-        HTMLButtonElement,
-      ),
-    );
-    await flushReact();
-    await click(
-      requiredElement(
-        '[aria-label="Replace snapshot 1 with current working copy"]',
-        HTMLButtonElement,
-      ),
+    await chooseSnapshotItem(
+      "1",
+      "Replace snapshot 1 with current working copy",
     );
     await flushReact();
     await click(
@@ -260,23 +246,13 @@ describe("SnapshotsPage — V2-116 advanced non-atomic replace", () => {
     });
     await waitUntil(
       () =>
-        document.querySelector(
-          '[aria-label="Show advanced options for snapshot 1"]',
-        ) !== null,
+        document.querySelector('[aria-label="More actions for snapshot 1"]') !==
+        null,
       "row to render",
     );
-    await click(
-      requiredElement(
-        '[aria-label="Show advanced options for snapshot 1"]',
-        HTMLButtonElement,
-      ),
-    );
-    await flushReact();
-    await click(
-      requiredElement(
-        '[aria-label="Replace snapshot 1 with current working copy"]',
-        HTMLButtonElement,
-      ),
+    await chooseSnapshotItem(
+      "1",
+      "Replace snapshot 1 with current working copy",
     );
     await flushReact();
     await click(

@@ -21,8 +21,7 @@ unknown or malformed queries fall back to the parent screen:
 | `#/diagnostics` | Unchanged; highlights Settings |
 | `#/snapshots` | Snapshot list |
 | `#/snapshots?view=files` | Import and export |
-| `#/packages` | Package list (selection) |
-| `#/packages?view=manage` | Create, rename, reorder, duplicate, delete |
+| `#/packages` | Package list: choose, and manage through each row's menu and focused dialogs (no separate manage route) |
 | `#/macro-editor[?macroId=]` | Unchanged editor route |
 
 The key and combo picker is **not** a route. It is a view inside the editor
@@ -68,8 +67,7 @@ what may scroll, and whether it needs a subpage.
 | Macros | Run and manage macros | Send (per row); Add macro | Package, USB readiness, send state | Edit | macro list | no |
 | Macro editor | Write one macro | Save | Name and source validity, byte counts | Insert keys, Cancel | source field | key picker view |
 | Key picker | Insert special keys, modifiers, combos, delay, escapes | Insert | Generated syntax preview | Back to editor | key groups | in-editor view |
-| Packages | Choose the open package | Tap a package to open | Current package marked | Manage | package list | `?view=manage` |
-| Manage packages | Create, rename, reorder, duplicate, delete | Create package | Names, counts | Back | package list | yes |
+| Packages | Choose the open package; create, rename, reorder, duplicate, delete | Open (per row); New package | Current package marked | Row menu | package list | dialogs for naming and deleting |
 | Snapshots | Save and restore versions | Save snapshot | Dirty state, loaded snapshot, storage | Load, Delete | snapshot list | `?view=files` |
 | Import and export | Move a repository file in or out | Export / choose file | Validation result, replacement consequence | Back | no | yes |
 | Settings | Reach a group | Tap a group | Group summaries | none | no | five groups |
@@ -98,3 +96,13 @@ what may scroll, and whether it needs a subpage.
   line, not hide it.
 - Settings controls that do not exist today (sending behavior, source preview)
   are not added by the redesign.
+
+## Changes made while implementing (2026-10-15)
+
+- Packages are one screen. Management is each row's "More actions" menu plus
+  focused dialogs (New package, Rename, Delete), so `#/packages?view=manage`
+  was not added.
+- The macro editor hides the phone bottom bar and shows a Back control in the
+  app bar. Import and export does the same, via `#/snapshots?view=files`.
+- The app bar title is the route name; the package name is shown by the
+  Macros page itself, once.

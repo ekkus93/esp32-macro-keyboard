@@ -39,8 +39,10 @@ import {
   navigateToEditMacro,
   navigateToMacros,
   navigateToSettings,
+  navigateToSnapshotsFiles,
   navigateV2,
   routeFromHashV2,
+  snapshotsViewFromHash,
 } from "./v2/routingV2";
 import type { ScreenV2 } from "./v2/routingV2";
 import type { SendStatusResponse, SettingsResponse } from "./v2/apiTypes";
@@ -73,7 +75,9 @@ function routeTitle(route: ScreenV2): string {
     case "packages":
       return "Packages";
     case "snapshots":
-      return "Snapshots";
+      return snapshotsViewFromHash() === "files"
+        ? "Import and export"
+        : "Snapshots";
     case "settings":
       return "Settings";
     case "diagnostics":
@@ -182,9 +186,14 @@ export function AuthenticatedShell({
   };
 
   const [route, setRoute] = useState<ScreenV2>(() => routeFromHashV2());
+  // A hash change that only alters the query (Snapshots list <-> Import and
+  // export) leaves `route` equal, so React would skip the render; this counter
+  // makes it re-render so the view and title are read again.
+  const [, setHashChanges] = useState(0);
   useEffect(() => {
     const onHashChange = (): void => {
       setRoute(routeFromHashV2());
+      setHashChanges((count) => count + 1);
     };
     window.addEventListener("hashchange", onHashChange);
     return () => {
@@ -398,6 +407,7 @@ export function AuthenticatedShell({
             onOpenPackages={() => {
               navigateV2("packages");
             }}
+            onOpenFiles={navigateToSnapshotsFiles}
             onSaveSnapshot={saveSnapshot}
             onSelectionChange={setPackageId}
             onSelectionPersistenceFailure={selectionPersistenceFailed}
@@ -408,6 +418,7 @@ export function AuthenticatedShell({
             saveError={saveError}
             saving={saving}
             store={store}
+            view={snapshotsViewFromHash()}
           />
         );
       case "settings":
@@ -444,7 +455,16 @@ export function AuthenticatedShell({
           }}
           {...(route === "macro-editor"
             ? { back: { label: "Back to macros", onBack: navigateToMacros } }
-            : {})}
+            : route === "snapshots" && snapshotsViewFromHash() === "files"
+              ? {
+                  back: {
+                    label: "Back to snapshots",
+                    onBack: () => {
+                      navigateV2("snapshots");
+                    },
+                  },
+                }
+              : {})}
           title={routeTitle(route)}
           route={route}
           saveError={saveError}

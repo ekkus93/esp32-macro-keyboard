@@ -1,8 +1,10 @@
-import { useRef, useState } from "react";
-import { DangerZone } from "../../../components/DangerZone";
+import { useEffect, useState } from "react";
 import { Card } from "../../../components/Card";
+import { ConfirmDialog } from "../../../components/ConfirmDialog";
+import { Icon } from "../../../components/m3/Icon";
+import { Menu } from "../../../components/m3/Menu";
+import type { MenuItem } from "../../../components/m3/Menu";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
-import { useFocusTrap } from "../../shell/v2/useFocusTrap";
 import { formatBytes } from "./snapshotMessages";
 import type { ReplaceSnapshotResult } from "../../../v2/snapshotClient";
 
@@ -11,207 +13,197 @@ interface SnapshotRowProps {
   sizeBytes: number;
   isLoaded: boolean;
   busy: "load" | "download" | "delete" | null;
-  advancedOpen: boolean;
   loadErrorMessage: string | null;
   onLoad: () => void;
   onDownload: () => void;
   onDelete: () => void;
-  onToggleAdvanced: () => void;
   onReplace: () => void;
+  /** Called when the replace dialog closes, so the page can forget its result. */
+  onReplaceDismiss: () => void;
   replaceBusy: boolean;
   replaceResult: ReplaceSnapshotResult | null;
 }
 
+/**
+ * One stored snapshot: its ID and size, a "Loaded" mark when the working copy
+ * came from it, a prominent Load, and a "More actions" menu for Download,
+ * Replace, and Delete (UXR-051). Delete asks for the exact snapshot ID
+ * (SPEC_V2 §10; V2-111); Replace explains that it is not atomic. Both are
+ * modal confirmations that name the snapshot and the consequence.
+ */
 export function SnapshotRow({
   id,
   sizeBytes,
   isLoaded,
   busy,
-  advancedOpen,
   loadErrorMessage,
   onLoad,
   onDownload,
   onDelete,
-  onToggleAdvanced,
   onReplace,
+  onReplaceDismiss,
   replaceBusy,
   replaceResult,
 }: SnapshotRowProps): React.JSX.Element {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [typedId, setTypedId] = useState("");
-  const [confirmingReplace, setConfirmingReplace] = useState(false);
+  const [replaceOpen, setReplaceOpen] = useState(false);
   const anyBusy = busy !== null;
-  const deleteConfirmRef = useRef<HTMLDivElement>(null);
-  // See `MacroOverflowMenu`'s identical `deleteButtonRef` (MacrosPage.tsx)
-  // for why an explicit `restoreFocusRef` is needed here.
-  const deleteButtonRef = useRef<HTMLButtonElement>(null);
-  useFocusTrap({
-    active: confirmingDelete,
-    containerRef: deleteConfirmRef,
-    onClose: () => {
-      setConfirmingDelete(false);
-      setTypedId("");
+
+  // A successful replace is finished: close its dialog. A failed one stays
+  // open so the person reads what happened to their snapshot.
+  useEffect(() => {
+    if (replaceResult?.ok === true) {
+      setReplaceOpen(false);
+      onReplaceDismiss();
+    }
+  }, [onReplaceDismiss, replaceResult]);
+
+  const closeDelete = (): void => {
+    setConfirmingDelete(false);
+    setTypedId("");
+  };
+  const closeReplace = (): void => {
+    setReplaceOpen(false);
+    onReplaceDismiss();
+  };
+
+  const items: readonly MenuItem[] = [
+    {
+      key: "download",
+      label: "Download",
+      ariaLabel: `Download snapshot ${id}`,
+      icon: "download",
+      disabled: anyBusy,
+      onSelect: onDownload,
     },
-    restoreFocusRef: deleteButtonRef,
-  });
+    {
+      key: "replace",
+      label: "Replace with working copy",
+      ariaLabel: `Replace snapshot ${id} with current working copy`,
+      icon: "save",
+      disabled: anyBusy,
+      onSelect: () => {
+        setReplaceOpen(true);
+      },
+    },
+    {
+      key: "delete",
+      label: "Delete",
+      ariaLabel: `Delete snapshot ${id}`,
+      icon: "trash",
+      tone: "danger",
+      disabled: anyBusy,
+      onSelect: () => {
+        setConfirmingDelete(true);
+      },
+    },
+  ];
 
   return (
-    <Card variant="flush">
+    <Card variant={isLoaded ? "selected" : "flush"}>
       <div className="min-w-0">
-        <h3>
-          Snapshot {id}
-          {isLoaded ? " (loaded)" : ""}
-        </h3>
-        <p>{formatBytes(sizeBytes)}</p>
+        <h3>Snapshot {id}</h3>
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {formatBytes(sizeBytes)}
+          {isLoaded ? (
+            <span className="inline-flex items-center gap-1 font-semibold">
+              <Icon name="check" size={16} />
+              Loaded
+            </span>
+          ) : null}
+        </p>
         {loadErrorMessage !== null ? (
           <p role="alert">
-            Snapshot {id} could not be opened: {loadErrorMessage}. It remains
-            stored — download it, delete it, or choose another snapshot.
+            Snapshot {id} could not be opened: {loadErrorMessage} It stays
+            stored — you can download it, delete it, or load another snapshot.
           </p>
         ) : null}
       </div>
-      <div className="flex flex-wrap content-start gap-[0.4rem] [&_button]:flex-initial [@media(width<=32rem)]:w-full">
+      <div className="flex items-center gap-2">
         <button
           aria-label={`Load snapshot ${id}`}
-          className="primary"
+          className="primary flex-1 min-[34rem]:flex-none"
           disabled={anyBusy}
           onClick={onLoad}
           type="button"
         >
           {busy === "load" ? "Loading…" : "Load"}
         </button>
-        <button
-          aria-label={`Download snapshot ${id}`}
-          disabled={anyBusy}
-          onClick={onDownload}
-          type="button"
-        >
-          {busy === "download" ? "Downloading…" : "Download"}
-        </button>
-        {confirmingDelete ? (
-          <DangerZone containerRef={deleteConfirmRef} role="alertdialog">
-            <p>
-              This permanently deletes snapshot <strong>{id}</strong> (
-              {formatBytes(sizeBytes)}). This cannot be undone. Type the
-              snapshot ID to confirm.
-            </p>
-            {/* `block`: `<label>` is inline by default and DangerZone's root
-                is a plain div, not flex/grid, so nothing else blockifies it
-                -- full rationale at MacroEditorPage.tsx's Name label. */}
-            <label className="block" htmlFor={`snapshot-delete-confirm-${id}`}>
-              Snapshot ID
-              <input
-                id={`snapshot-delete-confirm-${id}`}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                  setTypedId(event.currentTarget.value);
-                }}
-                value={typedId}
-              />
-            </label>
-            <button
-              className="danger"
-              disabled={typedId !== id || anyBusy}
-              onClick={() => {
-                setConfirmingDelete(false);
-                setTypedId("");
-                onDelete();
-              }}
-              type="button"
-            >
-              {busy === "delete" ? "Deleting…" : "Confirm delete"}
-            </button>
-            <button
-              onClick={() => {
-                setConfirmingDelete(false);
-                setTypedId("");
-              }}
-              type="button"
-            >
-              Cancel
-            </button>
-          </DangerZone>
-        ) : (
-          <button
-            aria-label={`Delete snapshot ${id}`}
-            className="danger"
-            disabled={anyBusy}
-            onClick={() => {
-              setConfirmingDelete(true);
-            }}
-            ref={deleteButtonRef}
-            type="button"
-          >
-            Delete
-          </button>
-        )}
-        <button
-          aria-expanded={advancedOpen}
-          aria-label={`Show advanced options for snapshot ${id}`}
-          onClick={onToggleAdvanced}
-          type="button"
-        >
-          Advanced
-        </button>
-        {advancedOpen ? (
-          <DangerZone>
-            {confirmingReplace ? (
-              <>
-                <p>
-                  This deletes snapshot {id} first, then uploads the current
-                  working copy as a new blob. There is no atomic replace
-                  (SPEC_V2 §10.6): if the upload fails after the delete
-                  succeeds, snapshot {id} stays deleted and is{" "}
-                  <strong>not</strong> restored.
-                </p>
-                <button
-                  aria-label={`Confirm replace snapshot ${id}`}
-                  className="danger"
-                  disabled={replaceBusy}
-                  onClick={() => {
-                    setConfirmingReplace(false);
-                    onReplace();
-                  }}
-                  type="button"
-                >
-                  {replaceBusy ? "Replacing…" : "Confirm replace"}
-                </button>
-                <button
-                  onClick={() => {
-                    setConfirmingReplace(false);
-                  }}
-                  type="button"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                aria-label={`Replace snapshot ${id} with current working copy`}
-                onClick={() => {
-                  setConfirmingReplace(true);
-                }}
-                type="button"
-              >
-                Replace with current working copy
-              </button>
-            )}
-            {replaceResult?.ok === false && replaceResult.stage === "add" ? (
-              <p role="alert">
-                Snapshot {id} was deleted, but uploading the replacement failed:{" "}
-                {v2ErrorText(replaceResult.error)}. The deleted snapshot was{" "}
-                <strong>not</strong> restored. Your working copy is still
-                unsaved — use Save snapshot to store it as a new snapshot.
-              </p>
-            ) : null}
-            {replaceResult?.ok === false && replaceResult.stage === "delete" ? (
-              <p role="alert">
-                Could not delete snapshot {id}:{" "}
-                {v2ErrorText(replaceResult.error)}. Nothing was changed.
-              </p>
-            ) : null}
-          </DangerZone>
-        ) : null}
+        <Menu
+          items={items}
+          menuLabel={`Actions for snapshot ${id}`}
+          triggerLabel={`More actions for snapshot ${id}`}
+        />
       </div>
+
+      {confirmingDelete ? (
+        <ConfirmDialog
+          confirmDisabled={typedId !== id || anyBusy}
+          confirmLabel={busy === "delete" ? "Deleting…" : "Delete snapshot"}
+          id={`delete-snapshot-title-${id}`}
+          onCancel={closeDelete}
+          onConfirm={() => {
+            closeDelete();
+            onDelete();
+          }}
+          title="Delete snapshot?"
+        >
+          <p>
+            This permanently deletes snapshot <strong>{id}</strong> (
+            {formatBytes(sizeBytes)}). This cannot be undone. Type the snapshot
+            ID to confirm.
+          </p>
+          <label
+            className="mt-3 block"
+            htmlFor={`snapshot-delete-confirm-${id}`}
+          >
+            Snapshot ID
+            <input
+              autoComplete="off"
+              id={`snapshot-delete-confirm-${id}`}
+              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                setTypedId(event.currentTarget.value);
+              }}
+              value={typedId}
+            />
+          </label>
+        </ConfirmDialog>
+      ) : null}
+
+      {replaceOpen ? (
+        <ConfirmDialog
+          confirmAriaLabel={`Confirm replace snapshot ${id}`}
+          confirmDisabled={replaceBusy || replaceResult?.ok === false}
+          confirmLabel={replaceBusy ? "Replacing…" : "Replace snapshot"}
+          id={`replace-snapshot-title-${id}`}
+          onCancel={closeReplace}
+          onConfirm={() => {
+            onReplace();
+          }}
+          title="Replace snapshot?"
+        >
+          <p>
+            This deletes snapshot {id} first, then uploads your current working
+            copy as a new snapshot. If the upload fails after the delete,
+            snapshot {id} stays deleted and is <strong>not</strong> restored.
+          </p>
+          {replaceResult?.ok === false && replaceResult.stage === "add" ? (
+            <p role="alert">
+              Snapshot {id} was deleted, but uploading the replacement failed:{" "}
+              {v2ErrorText(replaceResult.error)}. The deleted snapshot was{" "}
+              <strong>not</strong> restored. Your working copy is still unsaved
+              — use Save snapshot to store it as a new snapshot.
+            </p>
+          ) : null}
+          {replaceResult?.ok === false && replaceResult.stage === "delete" ? (
+            <p role="alert">
+              Could not delete snapshot {id}: {v2ErrorText(replaceResult.error)}
+              . Nothing was changed.
+            </p>
+          ) : null}
+        </ConfirmDialog>
+      ) : null}
     </Card>
   );
 }
