@@ -2,15 +2,28 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- interactive-widget=resizes-content: when the on-screen keyboard
+         opens, the layout viewport shrinks with it (so the shell's h-dvh
+         does too) instead of the keyboard covering the bottom of the page and
+         whatever field has focus. Browsers that do not support it ignore it. -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
-    <!-- Matches --color-legend, the .app-header background this sits directly
-         above, so a phone's browser chrome continues the header instead of
-         butting a stock slate against it. Kept in sync by hand: index.html
-         is outside the stylesheet, so @theme cannot reach it. -->
-    <meta name="theme-color" content="#211e1a" />
+    <!-- Match --color-surface in the light and dark schemes so a phone's
+         browser chrome continues the app bar instead of butting a stock
+         colour against it. Kept in sync by hand: index.html is outside the
+         stylesheet, so @theme cannot reach it. -->
+    <meta
+      name="theme-color"
+      content="#fef7ff"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#141218"
+      media="(prefers-color-scheme: dark)"
+    />
     <title>ESP32 Macro Keyboard</title>
   </head>
   <body>

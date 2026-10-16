@@ -139,37 +139,53 @@ prototype screenshots in `docs/ui-redesign/phase1-prototype/`.
 - [x] A representative screen prototype uses the selected M3 system and reads
       clearly at phone and desktop sizes.
 - [x] No remote resources are loaded; bundle headroom remains acceptable.
-- [ ] Product owner accepts the overall design direction before broad screen
-      conversion.
+- [x] Product owner accepts the overall design direction before broad screen
+      conversion. (Accepted by the product owner in the 2026-10-15 session, after
+      commit `eb7df61`.)
 
 ## Phase 2 — Application shell and responsive navigation
 
 ### UXR-020 — Redesign authenticated shell
 
-- [ ] Replace the current header with a compact M3 app bar/toolbar suited to
+- [x] Replace the current header with a compact M3 app bar/toolbar suited to
       phone and large-screen widths.
-- [ ] Show device readiness, selected package context, saved/unsaved state, and
+- [x] Show device readiness, selected package context, saved/unsaved state, and
       save action without redundant status badges.
-- [ ] Keep active-send status and cancellation visible/reachable across routes.
-- [ ] Implement phone navigation bar and suitable larger-screen navigation.
-- [ ] Keep route names, active indication, focus behavior, and browser history
+- [x] Keep active-send status and cancellation visible/reachable across routes.
+      (Macros stays mounted while hidden on other routes; the shell shows the send banner with Cancel. Real Chrome workflow cancels a send from Packages.)
+- [x] Implement phone navigation bar and suitable larger-screen navigation.
+- [x] Keep route names, active indication, focus behavior, and browser history
       behavior accessible and predictable.
 
 ### UXR-021 — Enforce visible task controls
 
-- [ ] Add layout rules and tests ensuring screen title, primary action, essential
+- [x] Add layout rules and tests ensuring screen title, primary action, essential
       state, and next-step control fit the initial viewport at supported sizes.
+      (`tests/browser/workflows/visibleControls.mjs`: table-driven, six viewports; only controls that hold today are listed, later phases add theirs.)
 - [ ] Split screens where task controls cannot fit; do not solve by shrinking
       text or hiding controls below the fold.
 - [ ] Keep only genuinely variable content in a scroll region; remove nested
       scroll areas and prevent fixed chrome from covering content/focus.
 - [ ] Verify safe-area insets, browser chrome, text zoom, and virtual keyboard.
+      (Partial: safe-area insets are applied in the shell; the bottom
+      navigation hides while a field has focus on a touch phone and
+      `interactive-widget=resizes-content` is set, both checked in
+      `runKeyboardNavigationWorkflow`. Text zoom and a real keyboard are not
+      yet verified; the editor's keyboard case waits for UXR-042.)
+
+**Phase 2 evidence** (2026-10-15): app bar, navigation bar/rail, send banner,
+focus handling in `AppShellV2.tsx` and `AppV2.tsx`; browser checks in
+`webapp/tests/browser/workflows/visibleControls.mjs` and the cross-route cancel
+step in `workflows/browser.mjs`; unit tests in `tests/v2-app-shell.test.tsx`.
 
 **Phase 2 exit gate**
 
-- [ ] Shell works at phone, tablet, desktop, portrait, and landscape sizes.
-- [ ] No horizontal overflow, hidden primary action, trapped focus, or
-      inaccessible navigation remains.
+- [x] Shell works at phone, tablet, desktop, portrait, and landscape sizes.
+      (320x568 to 1440x900 including 1024x768 tablet landscape; phone landscape
+      is the unchanged landscape block surface.)
+- [x] No horizontal overflow, hidden primary action, trapped focus, or
+      inaccessible navigation remains. (Scoped to the shell and the routes in
+      `visibleControls.mjs`; per-screen splits are tracked in later phases.)
 
 ## Phase 3 — Startup, setup, and sign-in
 

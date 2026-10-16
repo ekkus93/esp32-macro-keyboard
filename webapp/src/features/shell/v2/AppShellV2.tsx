@@ -1,11 +1,14 @@
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { Eyebrow } from "../../../components/Eyebrow";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { Icon } from "../../../components/m3/Icon";
 import type { IconName } from "../../../components/m3/Icon";
+import { SendStatus } from "../../../components/SendStatus";
 import { StatusBadge } from "../../../components/StatusBadge";
 import type { ScreenV2 } from "../../../v2/routingV2";
 import type { UsbState } from "../../../v2/apiTypes";
+import type { ActiveSendSummary } from "./activeSendSummary";
 import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
 
 /**
@@ -32,6 +35,11 @@ export interface AppShellV2Props {
   onSaveSnapshot: () => void;
   saving: boolean;
   saveError: string | null;
+  /**
+   * A send in progress that the current route does not display itself. The
+   * Macros route shows its own status, so the caller passes `null` there.
+   */
+  activeSend?: ActiveSendSummary | null;
 }
 
 const navigation = [
@@ -81,8 +89,23 @@ export function AppShellV2({
   onSaveSnapshot,
   saving,
   saveError,
+  activeSend = null,
 }: AppShellV2Props): React.JSX.Element {
   useBeforeUnloadGuard(dirty);
+
+  // A hash route change swaps the content under a focused nav button, so
+  // without this a screen-reader or keyboard user is left on the button with
+  // no signal that anything changed. Move focus to the content region on
+  // every route change after the first render.
+  const mainRef = useRef<HTMLElement>(null);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    mainRef.current?.focus({ preventScroll: true });
+  }, [route]);
 
   return (
     // Locked to the viewport: the app bar and navigation are fixed chrome and
@@ -97,10 +120,19 @@ export function AppShellV2({
     // navigation is a bottom bar (`order-last`), at and above it a left rail.
     // The nav is first in the DOM so keyboard order matches the rail's visual
     // order on larger screens.
-    <div className="app-shell flex h-dvh w-full flex-col bg-surface min-[37.5rem]:flex-row">
+    <div className="app-shell group/shell flex h-dvh w-full flex-col bg-surface min-[37.5rem]:flex-row">
+      <button
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50"
+        onClick={() => {
+          mainRef.current?.focus();
+        }}
+        type="button"
+      >
+        Skip to main content
+      </button>
       <nav
         aria-label="Primary navigation"
-        className="order-last grid grid-cols-4 gap-1 bg-surface-container px-2 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] min-[37.5rem]:order-none min-[37.5rem]:flex min-[37.5rem]:w-20 min-[37.5rem]:shrink-0 min-[37.5rem]:flex-col min-[37.5rem]:items-center min-[37.5rem]:gap-3 min-[37.5rem]:px-0 min-[37.5rem]:pt-[calc(1.5rem+env(safe-area-inset-top))]"
+        className="order-last grid grid-cols-4 gap-1 bg-surface-container px-2 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] min-[37.5rem]:order-none min-[37.5rem]:flex min-[37.5rem]:w-20 min-[37.5rem]:shrink-0 min-[37.5rem]:flex-col min-[37.5rem]:items-center min-[37.5rem]:gap-3 min-[37.5rem]:px-0 min-[37.5rem]:pt-[calc(1.5rem+env(safe-area-inset-top))] [@media(pointer:coarse)_and_(width<37.5rem)]:group-has-[:is(input,textarea,select):focus]/shell:hidden"
       >
         {navigation.map(([target, label, icon]) => {
           const active = navigationActive(route, target);
@@ -179,7 +211,23 @@ export function AppShellV2({
             <ErrorBanner message={saveError} />
           </div>
         )}
-        <main id="main-content" tabIndex={-1}>
+        {activeSend === null ? null : (
+          <div className="px-4">
+            <SendStatus role="status">
+              <p>{activeSend.statusText}</p>
+              {activeSend.onCancel === null ? null : (
+                <button
+                  className="danger"
+                  onClick={activeSend.onCancel}
+                  type="button"
+                >
+                  Cancel and release all keys
+                </button>
+              )}
+            </SendStatus>
+          </div>
+        )}
+        <main id="main-content" ref={mainRef} tabIndex={-1}>
           <div className="mx-auto w-full max-w-[52rem]">{children}</div>
         </main>
       </div>

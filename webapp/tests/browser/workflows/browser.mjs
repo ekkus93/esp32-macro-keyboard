@@ -179,6 +179,57 @@ export async function runBrowserWorkflows(page, serverState) {
     "Dismiss did not clear the cancellation banner.",
   );
 
+  // UI_UX_SPEC_MATERIAL_3_EXPRESSIVE §4.4 / UXR-020: send status and Cancel
+  // stay reachable on every route. Start a send that waits for confirmation,
+  // leave the Macros page, and cancel it from the shell banner on Packages.
+  await clickButtonByAriaLabel(page, "Send Confirm before typing");
+  await waitFor(
+    page,
+    () => document.body.innerText.includes("Waiting for confirmation"),
+    "The confirmation wait did not start before navigating away.",
+  );
+  await clickButton(page, "Packages");
+  await waitFor(
+    page,
+    () =>
+      window.location.hash === "#/packages" &&
+      Array.from(document.querySelectorAll('[role="status"]')).some(
+        (element) =>
+          element instanceof HTMLElement &&
+          element.offsetParent !== null &&
+          element.closest("#main-content") === null &&
+          element.innerText.includes("Confirm before typing"),
+      ),
+    "The active send was not shown outside the Macros route.",
+  );
+  // Outside #main-content: the shell banner, not the Macros page's own
+  // status block (which is still visible for one render after the hash
+  // changes).
+  await page
+    .locator('[role="status"]:not(#main-content *) button', {
+      hasText: "Cancel and release all keys",
+    })
+    .click();
+  await waitFor(
+    page,
+    () =>
+      !Array.from(document.querySelectorAll('[role="status"]')).some(
+        (element) =>
+          element instanceof HTMLElement &&
+          element.offsetParent !== null &&
+          element.closest("#main-content") === null &&
+          element.innerText.includes("Confirm before typing"),
+      ),
+    "The shell send banner did not clear after cancelling from another route.",
+  );
+  await clickButton(page, "Macros");
+  await waitFor(
+    page,
+    () => document.body.innerText.includes("was cancelled."),
+    "Cancelling from another route did not leave the cancelled acknowledgement on Macros.",
+  );
+  await clickButton(page, "Dismiss");
+
   // Failure, with the exact error and a persistent banner until dismissed.
   await clickButtonByAriaLabel(page, "Send Trigger failure");
   await waitFor(

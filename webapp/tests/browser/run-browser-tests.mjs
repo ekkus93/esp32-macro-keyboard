@@ -18,6 +18,10 @@ import {
 } from "./workflows/settings.mjs";
 import { runSnapshotsWorkflows } from "./workflows/snapshots.mjs";
 import { runStartupWorkflows } from "./workflows/startup.mjs";
+import {
+  runKeyboardNavigationWorkflow,
+  runVisibleControlsWorkflow,
+} from "./workflows/visibleControls.mjs";
 
 async function main() {
   const browserExchangeBase = await mkdtemp(
@@ -81,6 +85,11 @@ async function main() {
     await runMacroEditingWorkflows(browser);
     console.log(
       "Real Chrome v2 macro-editing/package-management workflows passed.",
+    );
+    await runVisibleControlsWorkflow(browser);
+    await runKeyboardNavigationWorkflow(browser);
+    console.log(
+      "Real Chrome v2 visible-controls checks (320x568 to 1440x900, axe at 320 and 1440) passed.",
     );
   } finally {
     await context.close();

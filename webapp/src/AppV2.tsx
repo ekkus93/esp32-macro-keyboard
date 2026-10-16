@@ -311,25 +311,34 @@ export function AuthenticatedShell({
     );
   }
 
+  // UI_UX_SPEC_MATERIAL_3_EXPRESSIVE §4.4: active-send status and Cancel stay
+  // reachable on every route. The Macros page is the only owner of send
+  // tracking, so it stays mounted (hidden, not unmounted) while another route
+  // is showing -- its polling, lifecycle and Cancel keep working, and the
+  // shell reports the summary through the banner under the app bar.
+  const macrosPage = (
+    <MacrosPage
+      initialSend={sendHandoff}
+      onActiveSendChange={setActiveSend}
+      onChangePackage={() => {
+        navigateV2("packages");
+      }}
+      onOpenAddMacro={navigateToAddMacro}
+      onOpenEditMacro={(macroId) => {
+        navigateToEditMacro(macroId);
+      }}
+      packageId={packageId}
+      store={store}
+      usbState={trustedUsbState}
+    />
+  );
+
   const content = (() => {
     switch (route) {
       case "macros":
-        return (
-          <MacrosPage
-            initialSend={sendHandoff}
-            onActiveSendChange={setActiveSend}
-            onChangePackage={() => {
-              navigateV2("packages");
-            }}
-            onOpenAddMacro={navigateToAddMacro}
-            onOpenEditMacro={(macroId) => {
-              navigateToEditMacro(macroId);
-            }}
-            packageId={packageId}
-            store={store}
-            usbState={trustedUsbState}
-          />
-        );
+        // Mounted outside this switch (see `macrosPage` below) so a send in
+        // flight keeps being tracked, and stays cancellable, on every route.
+        return null;
       case "macro-editor": {
         const target = macroEditorTargetFromHash();
         if (target.kind === "invalid") {
@@ -422,6 +431,7 @@ export function AuthenticatedShell({
           saveError={saveError}
           saving={saving}
           usbState={usbStatus.usbState}
+          activeSend={route === "macros" ? null : activeSend}
         >
           {usbStatus.degraded ? (
             <ErrorBanner
@@ -466,6 +476,7 @@ export function AuthenticatedShell({
               </button>
             </div>
           ) : null}
+          <div hidden={route !== "macros"}>{macrosPage}</div>
           {content}
         </AppShellV2>
       </div>
