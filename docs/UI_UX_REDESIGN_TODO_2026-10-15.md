@@ -88,26 +88,31 @@ screen is mapped to `SPEC_V2.md` sections during its own task.
 
 ### UXR-010 — Establish the redesign screen map
 
-- [ ] Define the navigation and screen map for startup, sign-in, macros,
+- [x] Define the navigation and screen map for startup, sign-in, macros,
       macro editing, package selection/management, snapshots, import/export,
       settings, diagnostics, recovery, and active send.
-- [ ] For each screen, state purpose, primary action, required visible state,
+- [x] For each screen, state purpose, primary action, required visible state,
       next action, scrollable data, and whether a dedicated subpage is needed.
-- [ ] Make the phone, tablet, and desktop navigation patterns explicit.
-- [ ] Preserve phone portrait-required behavior and desktop/tablet landscape use;
+- [x] Make the phone, tablet, and desktop navigation patterns explicit.
+- [x] Preserve phone portrait-required behavior and desktop/tablet landscape use;
       document active-send access during phone-landscape blocking.
 - [ ] Review proposed screen map against all existing behavior requirements.
+      (Partial: `UXR_010_SCREEN_MAP_2026-10-15.md` lists the behavior checks it
+      relies on; a section-by-section `SPEC_V2.md` review is still open.)
 
 ### UXR-011 — Select and document implementation approach
 
-- [ ] Evaluate an M3 Expressive implementation compatible with React 19 and the
+- [x] Evaluate an M3 Expressive implementation compatible with React 19 and the
       existing webapp stack. Compare a locally bundled component library with
       an in-repo M3 token/component layer.
 - [ ] Measure package size, build/runtime compatibility, accessibility support,
       license, supported-browser compatibility, and firmware web-asset impact.
-- [ ] Choose one approach and record rationale. Do not add multiple overlapping
+      (Partial: size, license and web-asset impact measured in
+      `UXR_011_M3_IMPLEMENTATION_APPROACH_2026-10-15.md`; accessibility and
+      cross-browser support were not measured for the library options.)
+- [x] Choose one approach and record rationale. Do not add multiple overlapping
       component systems.
-- [ ] Confirm every dependency and asset is available offline after device
+- [x] Confirm every dependency and asset is available offline after device
       flash.
 
 ### UXR-012 — Build design tokens and primitives
