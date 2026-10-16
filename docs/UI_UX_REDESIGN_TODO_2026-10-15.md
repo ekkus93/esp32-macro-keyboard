@@ -189,8 +189,9 @@ prototype screenshots in `docs/ui-redesign/phase1-prototype/`.
       area behavior remains unverified.
       `interactive-widget=resizes-content` was tried and rejected: it would
       shrink the layout viewport and make a narrow phone with its keyboard open
-      match the landscape-block media query. Physical-device behavior and text
-      zoom are not yet verified.)
+      match the landscape-block media query. Firefox 200% browser zoom is
+      verified; physical-device behavior and text-only enlargement remain
+      unverified.)
 
 **Phase 2 evidence** (2026-10-15): app bar, navigation bar/rail, send banner,
 focus handling in `AppShellV2.tsx` and `AppV2.tsx`; browser checks in
@@ -441,8 +442,12 @@ visible-controls table (Packages, Snapshots, Import and export).
 
 **Phase 7 exit gate**
 
-- [ ] No major accessibility defect, clipping, overflow, or visual inconsistency
-      remains in reviewed viewports.
+- [x] No major accessibility defect, clipping, overflow, or visual inconsistency
+      remains in reviewed viewports. Current evidence: all 97 browser visual
+      captures match; the six-viewport visible-control workflow checks the
+      route titles, essential controls, viewport fit, phone touch targets, and
+      axe at the narrowest phone and widest desktop. Manual screen-reader and
+      final product-owner review remain separate open gates below.
 - [x] Screens communicate the task through layout and concise labels rather than
       long instructions.
 
@@ -627,3 +632,29 @@ visible-controls table (Packages, Snapshots, Import and export).
   screenshots; spoken screen-reader and full manual keyboard review; Apple
   Safari; and physical ESP32 offline/recovery/performance checks. These are not
   inferred from browser automation or build results.
+
+## 2026-10-16 full regression after scenario refactor
+
+- Code revision: `03db342` (`test(webapp): split visual scenarios by
+  workflow`), pushed to `master`. `webapp/tests/browser/visual/scenarios.mjs`
+  is now a 17-line ordered aggregator; its workflow modules are each under
+  800 lines.
+- Full repository command: source ESP-IDF v5.5.5, add `$HOME/go/bin` to `PATH`,
+  then run `./scripts/check-all.sh`; **passed, exit 0**. Webapp format,
+  typecheck, ESLint, stylelint, unit and coverage runs passed (706 tests across
+  67 files); Chrome browser and H4/H5 workflows passed; all 97 visual captures
+  matched; script and documentation checks passed; firmware and device-test-app
+  builds passed; host suite passed 63/63. `git diff --check` passed.
+- Release budget check reported one expected skip: runtime task stack margin
+  requires a stack report and cannot be measured from this build-only run. No
+  physical ESP32 was attached; `adb devices -l` showed only Android emulator
+  `emulator-5554`. The build, emulator, and browser checks do not close the
+  device-served offline, constrained-device performance, or spoken
+  screen-reader gates.
+- Remaining assistance: product-owner acceptance of the current palette,
+  typography, and representative screens; a human TalkBack/VoiceOver spoken
+  announcement review and complete keyboard-only route review; an installed or
+  edge-to-edge device mode for safe-area qualification; Apple Safari; and an
+  ESP32 target for offline route/recovery and constrained-serving performance
+  checks. Keep the relevant UXR-021, UXR-062, UXR-071, UXR-080, UXR-081, and
+  final acceptance checkboxes open until that evidence is available.
