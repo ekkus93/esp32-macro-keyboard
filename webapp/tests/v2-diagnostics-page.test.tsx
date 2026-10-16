@@ -58,6 +58,17 @@ describe("DiagnosticsPage (TODO_V2 V2-122)", () => {
     expect(container.textContent).toContain("3.gz.tmp");
     expect(container.textContent).toContain("No send has run since boot.");
     expect(container.textContent).toContain("storage: healthy");
+    expect(container.textContent).toContain(
+      "Export includes device status, memory, storage and send state. It excludes passwords and macro contents.",
+    );
+    const download = buttonWithText("Download diagnostics");
+    const firstDetail = container.querySelector("#diagnostics-firmware-title");
+    expect(firstDetail).not.toBeNull();
+    if (firstDetail !== null) {
+      expect(download.compareDocumentPosition(firstDetail)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+    }
     await unmount();
   });
 
@@ -95,6 +106,7 @@ describe("DiagnosticsPage (TODO_V2 V2-122)", () => {
     await click(buttonWithText("Copy diagnostics"));
     await Promise.resolve();
     expect(copyToClipboard).toHaveBeenCalledOnce();
+    expect(document.body.textContent).toContain("Diagnostics copied.");
     const [text] = copyToClipboard.mock.calls[0] as [string];
     expect(JSON.parse(text)).toEqual(diagnostics);
     await unmount();

@@ -6,6 +6,8 @@ import {
 } from "../../../components/PageHeading";
 import { Card } from "../../../components/Card";
 import { ErrorBanner } from "../../../components/ErrorBanner";
+import { Button } from "../../../components/m3/Button";
+import { Snackbar } from "../../../components/m3/Snackbar";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import { getDiagnostics as defaultGetDiagnostics } from "../../../v2/diagnosticsClient";
 import { buildDiagnosticsExportText } from "../../../v2/diagnosticsExport";
@@ -115,9 +117,9 @@ export function DiagnosticsPage({
           Diagnostics
         </h2>
         <HeaderActions>
-          <button onClick={onBack} type="button">
+          <Button icon="back" onClick={onBack} variant="text">
             Back to Settings
-          </button>
+          </Button>
         </HeaderActions>
       </PageHeading>
 
@@ -127,37 +129,51 @@ export function DiagnosticsPage({
       {state.kind === "error" ? (
         <div>
           <ErrorBanner message={state.message} />
-          <button onClick={load} type="button">
+          <Button icon="restart" onClick={load}>
             Retry
-          </button>
+          </Button>
         </div>
       ) : null}
 
       {state.kind === "loaded" ? (
         <>
+          <p className="mb-3 text-body-md text-on-surface-variant">
+            Export includes device status, memory, storage and send state. It
+            excludes passwords and macro contents.
+          </p>
           <HeaderActions>
-            <button
+            <Button
               disabled={copyState === "copying"}
+              icon="copy"
               onClick={() => {
                 void copy(state.diagnostics);
               }}
-              type="button"
+              variant="text"
             >
               {copyState === "copying"
                 ? "Copying…"
                 : copyState === "copied"
                   ? "Copied"
                   : "Copy diagnostics"}
-            </button>
-            <button
+            </Button>
+            <Button
+              icon="download"
               onClick={() => {
                 download(state.diagnostics);
               }}
-              type="button"
+              variant="filled"
             >
               Download diagnostics
-            </button>
+            </Button>
           </HeaderActions>
+          {copyState === "copied" ? (
+            <Snackbar
+              message="Diagnostics copied."
+              onDismiss={() => {
+                setCopyState("idle");
+              }}
+            />
+          ) : null}
           {copyState === "error" ? <ErrorBanner message={copyError} /> : null}
 
           <Card aria-labelledby="diagnostics-firmware-title">

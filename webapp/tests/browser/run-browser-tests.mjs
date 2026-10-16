@@ -74,7 +74,33 @@ async function main() {
     await runSettingsWorkflows(page);
     console.log("Real Chrome v2 Settings/Diagnostics workflows passed.");
     await runAccessibilityScan(page, "Settings page");
+    await page.emulateMedia({ colorScheme: "dark" });
+    await runAccessibilityScan(page, "Settings page, dark color scheme");
+    await page.emulateMedia({ colorScheme: "light" });
     console.log("Real Chrome axe-core accessibility scans passed.");
+
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const reducedMotionApplied = await page.evaluate(() => {
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        return false;
+      }
+      const probe = document.createElement("div");
+      probe.className = "animate-progress-slide transition";
+      document.body.append(probe);
+      const style = window.getComputedStyle(probe);
+      const reduced =
+        Number.parseFloat(style.animationDuration) <= 0.00001 &&
+        Number.parseFloat(style.transitionDuration) <= 0.00001;
+      probe.remove();
+      return reduced;
+    });
+    if (!reducedMotionApplied) {
+      throw new Error(
+        "Reduced-motion preference did not suppress animation and transition duration.",
+      );
+    }
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    console.log("Real Chrome reduced-motion behavior passed.");
 
     await runUsbUnavailableWorkflow(browser);
     console.log("Real Chrome v2 USB-unavailable workflow passed.");

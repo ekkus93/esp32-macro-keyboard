@@ -2,6 +2,7 @@ import { act } from "react";
 import { describe, expect, test, vi } from "vitest";
 import type { ReplaceSnapshotResult } from "../src/v2/snapshotClient";
 import type { BlobCreatedResponse } from "../src/v2/apiTypes";
+import { V2ApiError } from "../src/v2/apiClient";
 import {
   buttonWithText,
   click,
@@ -200,7 +201,10 @@ describe("SnapshotsPage — V2-116 advanced non-atomic replace", () => {
         ok: false,
         stage: "add",
         deletedId: "1",
-        error: new Error("storage_full: No space remains."),
+        error: new V2ApiError(507, {
+          code: "storage_full",
+          message: "insufficient blob storage",
+        }),
       });
     const { container, unmount } = await renderPage({
       deps: { replaceSnapshotWithWorkingCopy },
@@ -229,6 +233,9 @@ describe("SnapshotsPage — V2-116 advanced non-atomic replace", () => {
     );
     expect(container.textContent).toContain("not");
     expect(container.textContent).toContain("restored");
+    expect(container.textContent).toContain(
+      "Device storage is full. Delete an old snapshot, then try again.",
+    );
     await unmount();
   });
 

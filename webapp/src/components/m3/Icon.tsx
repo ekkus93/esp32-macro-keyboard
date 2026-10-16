@@ -9,6 +9,7 @@
  * control must therefore be built with `IconButton`, which requires a label.
  */
 const ICON_PATHS = {
+  activity: "M3 12h4l3-8 4 16 3-8h4",
   add: "M12 5v14M5 12h14",
   arrowDown: "M12 5v14M6 13l6 6 6-6",
   arrowUp: "M12 19V5M6 11l6-6 6 6",
@@ -32,13 +33,16 @@ const ICON_PATHS = {
   layers: "M12 3L3 8l9 5 9-5-9-5zM3 13l9 5 9-5",
   more: "M12 6h.01M12 12h.01M12 18h.01",
   play: "M8 5.5v13l11-6.5-11-6.5z",
+  restart: "M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5",
   save: "M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4zM8 4v5h7V4M8 20v-6h8v6",
   settings:
     "M4 7h9M17 7h3M4 17h3M11 17h9M15 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM9 19.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
+  shield: "M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6l8-3z",
   trash:
     "M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3",
   upload: "M12 16V5M7 9l5-5 5 5M5 20h14",
   usb: "M12 3v13M12 16a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM12 10l4-3v2M12 13l-4-3V8",
+  wifi: "M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5v.01",
   warning: "M12 4L2.5 20h19L12 4zM12 10v4.5M12 17.5v.01",
 } as const;
 

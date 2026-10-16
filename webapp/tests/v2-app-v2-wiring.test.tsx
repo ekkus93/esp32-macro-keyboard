@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { jsonResponse, planFetch } from "./fakeFetch";
 import {
+  buttonContaining,
   buttonWithText,
   click,
   requiredElement,
@@ -113,8 +114,8 @@ describe("AppV2 — Phase 12 wiring (Settings, Diagnostics, Sign Out, restart re
     const view = await signIn();
     await click(buttonWithText("Settings"));
     await waitUntil(
-      () => document.querySelector("#settings-device-name") !== null,
-      "the Settings page",
+      () => bodyIncludes("USB identity and confirmation"),
+      "the Settings list",
     );
 
     planFetch((call) => {
@@ -146,7 +147,7 @@ describe("AppV2 — Phase 12 wiring (Settings, Diagnostics, Sign Out, restart re
         subsystems: [],
       });
     });
-    await click(buttonWithText("View diagnostics"));
+    await click(buttonContaining("Diagnostics"));
     await waitUntil(() => bodyIncludes("git-abcdef0"), "the diagnostics page");
     // Diagnostics is reachable only from Settings, not its own bottom-nav
     // destination (UI_UX_SPEC_V2 §4/§11) — the fixed nav still shows exactly
@@ -163,8 +164,8 @@ describe("AppV2 — Phase 12 wiring (Settings, Diagnostics, Sign Out, restart re
 
     await click(buttonWithText("Back to Settings"));
     await waitUntil(
-      () => document.querySelector("#settings-device-name") !== null,
-      "back on the Settings page",
+      () => bodyIncludes("USB identity and confirmation"),
+      "back on the Settings list",
     );
     await view.unmount();
   });
@@ -188,8 +189,27 @@ describe("AppV2 — Phase 12 wiring (Settings, Diagnostics, Sign Out, restart re
 
     await click(buttonWithText("Settings"));
     await waitUntil(
-      () => document.querySelector("#settings-device-name") !== null,
-      "the Settings page",
+      () => bodyIncludes("USB identity and confirmation"),
+      "the Settings list",
+    );
+    await click(buttonContaining("Security"));
+    await waitUntil(() => bodyIncludes("Change password"), "Security options");
+    await click(buttonContaining("Change password"));
+    await waitUntil(
+      () => document.querySelector("#settings-new-password") !== null,
+      "the Security settings",
+    );
+    await click(
+      requiredElement(
+        '[aria-label="Back to security settings"]',
+        HTMLButtonElement,
+      ),
+    );
+    await waitUntil(() => bodyIncludes("Sign out"), "the Security options");
+    await click(buttonContaining("Sign out"));
+    await waitUntil(
+      () => document.querySelector("header h1")?.textContent === "Sign out",
+      "the Sign out screen",
     );
 
     await click(buttonWithText("Sign out"));
@@ -236,8 +256,8 @@ describe("AppV2 — Phase 12 wiring (Settings, Diagnostics, Sign Out, restart re
     );
     await submitForm();
     await waitUntil(
-      () => document.querySelector("#settings-device-name") !== null,
-      "back in the authenticated shell (still on the Settings route) after sign-out",
+      () => document.querySelector("header h1")?.textContent === "Sign out",
+      "back in the authenticated shell (still on the Sign out screen) after sign-out",
     );
     expect(bodyIncludes("Sign in")).toBe(false);
     await view.unmount();
@@ -248,8 +268,18 @@ describe("AppV2 — Phase 12 wiring (Settings, Diagnostics, Sign Out, restart re
 
     await click(buttonWithText("Settings"));
     await waitUntil(
-      () => document.querySelector("#settings-device-name") !== null,
-      "the Settings page",
+      () => bodyIncludes("USB identity and confirmation"),
+      "the Settings list",
+    );
+    await click(buttonContaining("Restart and reset"));
+    await waitUntil(
+      () => bodyIncludes("Factory reset"),
+      "the Restart and reset settings",
+    );
+    await click(buttonWithText("Restart"));
+    await waitUntil(
+      () => document.querySelector("header h1")?.textContent === "Restart",
+      "the Restart screen",
     );
     await click(buttonWithText("Restart"));
     await waitUntil(

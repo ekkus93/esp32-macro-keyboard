@@ -35,6 +35,8 @@ export const REVIEW_SCENARIOS = [
   "first-run-review",
   "signin-error",
   "startup-no-blobs",
+  "startup-package-chooser",
+  "startup-settings-retry",
   "startup-empty-package",
   "startup-snapshot-recovery",
   "macros",

@@ -264,7 +264,7 @@ describe("v2 FirstRunSetupPage", () => {
     await flushReact();
 
     expect(requiredElement("[role='alert']", HTMLElement).textContent).toBe(
-      "invalid_field: Device name exceeds 32 UTF-8 bytes.",
+      "Device name exceeds 32 UTF-8 bytes.",
     );
     expect(onSetupComplete).not.toHaveBeenCalled();
     expect(buttonWithText("Back")).toBeDefined();

@@ -98,6 +98,8 @@ export interface SnapshotsPageProps {
   onOpenMacros: () => void;
   /** Navigates to the Package chooser when no package resolves after load/import. */
   onOpenPackages: () => void;
+  /** Shows transient feedback in the persistent authenticated shell. */
+  onNotify: (message: string) => void;
   /** `settings.snapshotRetentionTarget` (SPEC_V2 §10.8, default `5`). */
   retentionTarget: number;
   /** The blob ID the working copy currently reflects, if any (V2-111). */
@@ -129,6 +131,7 @@ export function SnapshotsPage({
   onSelectionPersistenceSuccess,
   onOpenMacros,
   onOpenPackages,
+  onNotify,
   retentionTarget,
   loadedBlobId,
   onWorkingCopyOriginChanged,
@@ -366,6 +369,7 @@ export function SnapshotsPage({
     onWorkingCopyOriginChanged(null);
     setImportState({ kind: "idle" });
     setConfirmingImportWhileDirty(false);
+    onNotify("Repository imported. Save a snapshot to keep these changes.");
     await afterWorkingCopyReplaced(repository);
   };
 
@@ -624,7 +628,7 @@ export function SnapshotsPage({
         </div>
       ) : null}
       {list.kind === "error" ? (
-        <div className="grid gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <ErrorBanner message={list.message} />
           <div>
             <button onClick={refreshList} type="button">
@@ -646,7 +650,7 @@ export function SnapshotsPage({
         </div>
       ) : null}
       {list.kind === "loaded" ? (
-        <div aria-label="Snapshot list" className="grid gap-3">
+        <div aria-label="Snapshot list" className="grid grid-cols-1 gap-3">
           {list.result.blobs.map((blob) => (
             <SnapshotRow
               busy={rowBusy?.id === blob.id ? rowBusy.action : null}

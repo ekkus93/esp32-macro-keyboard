@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 
 import { assert } from "../lib/http.mjs";
+import { runAccessibilityScan } from "../lib/accessibility.mjs";
 import {
   chooseMenuItem,
   clickButton,
@@ -161,6 +162,15 @@ export async function runSnapshotsWorkflows(page, application, fixtures) {
       document.body.innerText.includes("Add macro"),
     "Import did not replace the working copy, mark it dirty, and return to the Macros page.",
   );
+  assert(
+    await evaluate(page, () =>
+      document.body.innerText.includes(
+        "Repository imported. Save a snapshot to keep these changes.",
+      ),
+    ),
+    "A successful import did not explain that it is now unsaved.",
+  );
+  await runAccessibilityScan(page, "Import success snackbar");
 
   // Manual deletion (V2-111), confirmed by exact blob ID, never automatic.
   await clickButton(page, "Snapshots");

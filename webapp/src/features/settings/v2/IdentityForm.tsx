@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { CheckboxRow } from "../../../components/CheckboxRow";
 import { FieldHelp } from "../../../components/FieldHelp";
 import { FormActions } from "../../../components/FormActions";
 import { isSettingsUpdateRequest } from "../../../v2/apiContracts";
@@ -22,27 +21,18 @@ export function IdentityForm({
   onSubmit,
 }: IdentityFormProps): React.JSX.Element {
   const [deviceName, setDeviceName] = useState(settings.deviceName);
-  const [requireSerialConfirmation, setRequireSerialConfirmation] = useState(
-    settings.requireSerialConfirmation,
-  );
   const [snapshotRetentionTarget, setSnapshotRetentionTarget] = useState(
     String(settings.snapshotRetentionTarget),
   );
 
   useEffect(() => {
     setDeviceName(settings.deviceName);
-    setRequireSerialConfirmation(settings.requireSerialConfirmation);
     setSnapshotRetentionTarget(String(settings.snapshotRetentionTarget));
-  }, [
-    settings.deviceName,
-    settings.requireSerialConfirmation,
-    settings.snapshotRetentionTarget,
-  ]);
+  }, [settings.deviceName, settings.snapshotRetentionTarget]);
 
   const retentionTargetNumber = Number(snapshotRetentionTarget);
   const request: SettingsUpdateRequest = {
     deviceName,
-    requireSerialConfirmation,
     snapshotRetentionTarget: retentionTargetNumber,
   };
   const valid = isSettingsUpdateRequest(request);
@@ -72,19 +62,6 @@ export function IdentityForm({
       <FieldHelp as="p">
         {byteCountLabel(deviceName, deviceNameMaxBytes)}
       </FieldHelp>
-
-      <CheckboxRow htmlFor="settings-serial-confirmation">
-        <input
-          checked={requireSerialConfirmation}
-          disabled={busy}
-          id="settings-serial-confirmation"
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-            setRequireSerialConfirmation(event.currentTarget.checked);
-          }}
-          type="checkbox"
-        />
-        Require physical confirmation before typing
-      </CheckboxRow>
 
       <label htmlFor="settings-retention-target">
         Advisory snapshot retention target

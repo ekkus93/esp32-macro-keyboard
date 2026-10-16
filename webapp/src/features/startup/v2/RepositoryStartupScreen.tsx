@@ -302,7 +302,7 @@ function PackageChooserView({
   return (
     <StandaloneScreen>
       <h1>Choose a package</h1>
-      <ul className="m-0 grid list-none gap-2 p-0">
+      <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0">
         {repository.packages.map((pkg) => (
           <li key={pkg.id}>
             <ListItemButton
@@ -473,7 +473,7 @@ function SnapshotRecoveryView({
       ) : (
         <>
           <h2 className="mt-4">Open an earlier snapshot</h2>
-          <ul className="m-0 mb-4 grid list-none gap-2 p-0">
+          <ul className="m-0 mb-4 grid list-none grid-cols-1 gap-2 p-0">
             {candidates.map((blob) => (
               <li key={blob.id}>
                 <ListItemButton

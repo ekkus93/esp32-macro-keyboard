@@ -469,7 +469,7 @@ describe("MacrosPage — send tracker lifetime", () => {
     });
 
     expect(document.body.textContent).toContain(
-      "Send status tracking failed: network unavailable",
+      "Send status tracking failed: Could not reach the device. Check your Wi-Fi connection and try again.",
     );
     expect(() => buttonWithText("Cancel and release all keys")).not.toThrow();
     await unmount();

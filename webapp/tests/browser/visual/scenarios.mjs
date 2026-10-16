@@ -10,6 +10,8 @@ import { repositoryGzip } from "../fixtures/data.mjs";
 import { importFixtureRepository } from "../workflows/macroEditing.mjs";
 import {
   chooseMenuItem,
+  openDiagnostics,
+  openSettingsSection,
   clickButton,
   clickButtonByAriaLabel,
   waitFor,
@@ -466,20 +468,15 @@ export const SCENARIOS = [
       await clickButton(page, "Settings");
       await waitFor(
         page,
-        () => document.querySelector("#settings-device-name") !== null,
-        "The Settings page did not render.",
+        () => document.body.innerText.includes("USB identity and confirmation"),
+        "The Settings list did not render.",
       );
       return captureScenario(page);
     }),
   ),
   scenario("dialog-restart", STANDARD_VIEWPORTS, (browser, viewport) =>
     withApp(browser, viewport, async (page) => {
-      await clickButton(page, "Settings");
-      await waitFor(
-        page,
-        () => document.querySelector("#settings-device-name") !== null,
-        "The Settings page did not render.",
-      );
+      await openSettingsSection(page, "reset", "Restart");
       await clickButton(page, "Restart");
       await waitFor(
         page,
@@ -498,12 +495,7 @@ export const SCENARIOS = [
   // workflow") and so needs no separate fixture module.
   scenario("reconnect-waiting", STANDARD_VIEWPORTS, (browser, viewport) =>
     withStartup(browser, viewport, {}, "Lab bench workflow", async (page) => {
-      await clickButton(page, "Settings");
-      await waitFor(
-        page,
-        () => document.querySelector("#settings-device-name") !== null,
-        "The Settings page did not render.",
-      );
+      await openSettingsSection(page, "reset", "Restart");
       await clickButton(page, "Restart");
       await waitFor(
         page,
@@ -539,12 +531,7 @@ export const SCENARIOS = [
     ],
     (browser, viewport) =>
       withApp(browser, viewport, async (page) => {
-        await clickButton(page, "Settings");
-        await waitFor(
-          page,
-          () => document.querySelector("#settings-device-name") !== null,
-          "The Settings page did not render.",
-        );
+        await openSettingsSection(page, "reset", "Restart");
         await clickButton(page, "Restart");
         await waitFor(
           page,
@@ -559,12 +546,7 @@ export const SCENARIOS = [
     STANDARD_VIEWPORTS,
     (browser, viewport) =>
       withApp(browser, viewport, async (page) => {
-        await clickButton(page, "Settings");
-        await waitFor(
-          page,
-          () => document.querySelector("#settings-device-name") !== null,
-          "The Settings page did not render.",
-        );
+        await openSettingsSection(page, "reset", "Reset settings");
         await clickButton(page, "Reset settings");
         await waitFor(
           page,
@@ -576,13 +558,8 @@ export const SCENARIOS = [
   ),
   scenario("diagnostics", STANDARD_VIEWPORTS, (browser, viewport) =>
     withApp(browser, viewport, async (page) => {
-      await clickButton(page, "Settings");
-      await waitFor(
-        page,
-        () => document.querySelector("#settings-device-name") !== null,
-        "The Settings page did not render.",
-      );
-      await clickButton(page, "View diagnostics");
+      await openDiagnostics(page);
+
       await waitFor(
         page,
         () => document.body.innerText.includes("browser-fixture-abc123"),
@@ -791,6 +768,54 @@ export const SCENARIOS = [
       viewport,
       { blobs: [] },
       "Create Your First Repository",
+      (page) => captureScenario(page),
+    ),
+  ),
+  scenario(
+    "startup-package-chooser",
+    STANDARD_VIEWPORTS,
+    (browser, viewport) => {
+      const chooserRepository = {
+        format: "esp32-macro-keyboard-repository",
+        schemaVersion: 1,
+        packages: [
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Writing",
+            macros: [],
+          },
+          {
+            id: "22222222-2222-4222-8222-222222222222",
+            name: "Build tasks",
+            macros: [],
+          },
+        ],
+      };
+      return withStartup(
+        browser,
+        viewport,
+        {
+          lastSelectedPackageId: null,
+          blobs: [
+            {
+              id: "1",
+              bytes: gzipSync(
+                Buffer.from(JSON.stringify(chooserRepository), "utf8"),
+              ),
+            },
+          ],
+        },
+        "Choose a package",
+        (page) => captureScenario(page),
+      );
+    },
+  ),
+  scenario("startup-settings-retry", STANDARD_VIEWPORTS, (browser, viewport) =>
+    withStartup(
+      browser,
+      viewport,
+      { settingsFailures: 10 },
+      "Couldn't load device settings",
       (page) => captureScenario(page),
     ),
   ),

@@ -9,7 +9,11 @@ import {
   navigateToMacros,
   navigateToSettings,
   navigateV2,
+  navigateToSettingsGroup,
+  navigateToSettingsSection,
   routeFromHashV2,
+  settingsGroupFromHash,
+  settingsSectionFromHash,
 } from "../src/v2/routingV2";
 import { setHashSilently } from "./fakeLocation";
 
@@ -94,6 +98,51 @@ describe("v2 routing", () => {
     expect(window.location.hash).toBe("#/settings");
     navigateToDiagnostics();
     expect(window.location.hash).toBe("#/diagnostics");
+  });
+
+  test("settings groups round-trip through the settings route and reject unknown groups", () => {
+    for (const group of [
+      "device",
+      "network",
+      "security",
+      "usb",
+      "reset",
+    ] as const) {
+      navigateToSettingsGroup(group);
+      expect(routeFromHashV2()).toBe("settings");
+      expect(settingsGroupFromHash()).toBe(group);
+    }
+    setHashSilently("/settings?group=unknown");
+    expect(settingsGroupFromHash()).toBeNull();
+    setHashSilently("/macros?group=usb");
+    expect(settingsGroupFromHash()).toBeNull();
+  });
+
+  test("network settings sections round-trip and are ignored on other routes or groups", () => {
+    for (const section of [
+      "access-point",
+      "station",
+      "password",
+      "session",
+      "restart",
+      "reset-settings",
+      "factory-reset",
+    ] as const) {
+      navigateToSettingsSection(section);
+      expect(routeFromHashV2()).toBe("settings");
+      expect(settingsGroupFromHash()).toBe(
+        section === "access-point" || section === "station"
+          ? "network"
+          : section === "password" || section === "session"
+            ? "security"
+            : "reset",
+      );
+      expect(settingsSectionFromHash()).toBe(section);
+    }
+    setHashSilently("/settings?group=network&section=unknown");
+    expect(settingsSectionFromHash()).toBeNull();
+    setHashSilently("/settings?group=device&section=station");
+    expect(settingsSectionFromHash()).toBeNull();
   });
 
   test("snapshotsViewFromHash reads only view=files on the snapshots route", () => {

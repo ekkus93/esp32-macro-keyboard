@@ -1,13 +1,21 @@
 import { startStartupFixtureServer } from "../fixtures/startupFixtureServer.mjs";
+import { runAccessibilityScan } from "../lib/accessibility.mjs";
 import { assert } from "../lib/http.mjs";
-import { clickButton, evaluate, waitFor } from "../lib/page.mjs";
+import {
+  clickButton,
+  evaluate,
+  openDiagnostics,
+  openSettingsGroup,
+  openSettingsSection,
+  waitFor,
+} from "../lib/page.mjs";
 
 export async function runSettingsWorkflows(page) {
-  await clickButton(page, "Settings");
+  await openSettingsGroup(page, "device");
   await waitFor(
     page,
     () => document.querySelector("#settings-device-name") !== null,
-    "The Settings page did not render.",
+    "The Device settings did not render.",
   );
 
   await page
@@ -23,7 +31,30 @@ export async function runSettingsWorkflows(page) {
     "Saving the device name did not update the shell header.",
   );
 
-  await clickButton(page, "View diagnostics");
+  await clickButton(page, "Back to settings");
+  await openSettingsGroup(page, "usb");
+  await waitFor(
+    page,
+    () =>
+      document.body.innerText.includes(
+        "USB identity is fixed by the device firmware.",
+      ) && document.querySelector("#settings-serial-confirmation") !== null,
+    "The USB and sending settings did not render.",
+  );
+  assert(
+    (await page.locator("main").innerText()).includes(
+      "ESP32 Macro Keyboard Project",
+    ),
+    "The fixed USB manufacturer identity is not shown.",
+  );
+
+  await clickButton(page, "Back to settings");
+  await waitFor(
+    page,
+    () => document.body.innerText.includes("USB identity and confirmation"),
+    "Back did not return to the Settings list.",
+  );
+  await openDiagnostics(page);
   await waitFor(
     page,
     () => document.body.innerText.includes("browser-fixture-abc123"),
@@ -38,8 +69,49 @@ export async function runSettingsWorkflows(page) {
   await clickButton(page, "Back to Settings");
   await waitFor(
     page,
-    () => document.querySelector("#settings-device-name") !== null,
-    "Back to Settings did not return to the Settings page.",
+    () => document.body.innerText.includes("USB identity and confirmation"),
+    "Back to Settings did not return to the Settings list.",
+  );
+
+  await openSettingsSection(page, "reset", "Restart");
+  await clickButton(page, "Restart");
+  await waitFor(
+    page,
+    () => document.querySelector('[role="alertdialog"]') !== null,
+    "The restart confirmation did not open.",
+  );
+  await runAccessibilityScan(page, "Restart confirmation dialog");
+  await page.keyboard.press("Escape");
+  await waitFor(
+    page,
+    () => document.querySelector('[role="alertdialog"]') === null,
+    "Escape did not dismiss the restart confirmation.",
+  );
+
+  await clickButton(page, "Back to restart and reset");
+  await waitFor(
+    page,
+    () => document.body.innerText.includes("Restart and reset"),
+    "Back did not return to the reset actions.",
+  );
+  await clickButton(page, "Factory reset");
+  await waitFor(
+    page,
+    () => location.hash.includes("section=factory-reset"),
+    "Factory reset action screen did not open.",
+  );
+  await clickButton(page, "Factory reset");
+  await waitFor(
+    page,
+    () => document.querySelector('[role="alertdialog"]') !== null,
+    "The factory-reset confirmation did not open.",
+  );
+  await runAccessibilityScan(page, "Unsaved-work prompt before factory reset");
+  await page.keyboard.press("Escape");
+  await waitFor(
+    page,
+    () => document.querySelector('[role="alertdialog"]') === null,
+    "Escape did not dismiss the factory-reset confirmation.",
   );
 }
 

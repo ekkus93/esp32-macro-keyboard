@@ -262,3 +262,50 @@ export async function chooseMenuItem(page, rowName, itemLabel) {
   await page.locator(`[aria-label="More actions for ${rowName}"]`).click();
   await page.locator(`[aria-label="${itemLabel}"]`).click();
 }
+
+const SETTINGS_GROUP_TITLE = {
+  device: "Device identity",
+  network: "Network",
+  security: "Security",
+  usb: "USB identity and confirmation",
+  reset: "Restart and reset",
+};
+
+/** Goes to Settings and opens one group's screen (UXR-060). */
+export async function openSettingsGroup(page, group) {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.waitForFunction(() =>
+    document.body.innerText.includes("USB identity and confirmation"),
+  );
+  await page
+    .getByRole("button", {
+      name: new RegExp(`^${SETTINGS_GROUP_TITLE[group]}`),
+    })
+    .click();
+}
+
+/** Opens one focused action screen within a Settings group. */
+export async function openSettingsSection(page, group, sectionLabel) {
+  await openSettingsGroup(page, group);
+  await page.getByRole("button", { name: sectionLabel, exact: true }).click();
+  await page.waitForFunction(() => {
+    const query = location.hash.split("?")[1] ?? "";
+    return new URLSearchParams(query).has("section");
+  });
+}
+
+/** Opens one access-point or station subpage inside Network. */
+export async function openNetworkSection(page, section) {
+  await openSettingsGroup(page, "network");
+  const label = section === "access-point" ? "Access point" : "Station network";
+  await page.getByRole("button", { name: new RegExp(`^${label}`) }).click();
+}
+
+/** Goes to Settings and opens Diagnostics from the list. */
+export async function openDiagnostics(page) {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.waitForFunction(() =>
+    document.body.innerText.includes("USB identity and confirmation"),
+  );
+  await page.getByRole("button", { name: /^Diagnostics/ }).click();
+}

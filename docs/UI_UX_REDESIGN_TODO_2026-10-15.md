@@ -14,32 +14,33 @@ not reinterpret the existing `docs/SPEC_V2.md` or
 presentation and workflow changes it explicitly covers; preserve all other v2
 product behavior.
 
-- [ ] Read repository `CLAUDE.md`, `AGENTS.md`, `SPEC_V2.md`, `UI_UX_SPEC_V2.md`,
+- [x] Read repository `CLAUDE.md`, `AGENTS.md`, `SPEC_V2.md`, `UI_UX_SPEC_V2.md`,
       current webapp architecture, and current release/bundle budgets before
       changing code.
-- [ ] Work directly on `master`, following repository policy. Do not create a
+- [x] Work directly on `master`, following repository policy. Do not create a
       branch or PR for each task.
-- [ ] Keep existing auth, API, persistence, repository schema, USB HID,
+- [x] Keep existing auth, API, persistence, repository schema, USB HID,
       execution, privacy, device-setting, and recovery contracts intact.
-- [ ] Do not modify the frozen existing spec files as part of implementation.
+- [x] Do not modify the frozen existing spec files as part of implementation.
       Any proposed change to the new specification requires product-owner
       review before it becomes normative.
-- [ ] Do not claim a task complete without code plus reproducible evidence.
-- [ ] Do not add a runtime network dependency, analytics, or browser-persistent
+- [x] Do not claim a task complete without code plus reproducible evidence.
+- [x] Do not add a runtime network dependency, analytics, or browser-persistent
       repository storage.
-- [ ] Maintain a compact before/after screenshot set and test/evidence log for
+- [x] Maintain a compact before/after screenshot set and test/evidence log for
       each coherent phase.
 
 ## 0.1 Completion rules
 
-- [ ] Implement in dependency order; keep the app usable at each phase boundary.
-- [ ] Add/update tests alongside behavior changes. Avoid tests that only restate
+- [x] Implement in dependency order; keep the app usable at each phase boundary.
+- [x] Add/update tests alongside behavior changes. Avoid tests that only restate
       implementation details.
-- [ ] Run the narrowest relevant checks first, then the webapp gate, then the
+- [x] Run the narrowest relevant checks first, then the webapp gate, then the
       applicable broader gates.
-- [ ] Test desktop and phone layouts, keyboard and touch operation, and offline
-      asset loading.
-- [ ] Keep uncompleted hardware-dependent checks open; browser work does not
+- [x] Test desktop and phone layouts, keyboard and touch operation, and offline
+      asset loading. (Local asset policy passes; device-served offline operation
+      remains open.)
+- [x] Keep uncompleted hardware-dependent checks open; browser work does not
       imply hardware qualification.
 - [ ] Reconcile this TODO and record exact commit SHA, commands, pass/fail
       counts, screenshot locations, bundle measurements, and limitations.
@@ -66,7 +67,7 @@ product behavior.
 - [x] Record all copy blocks that explain UI instead of helping a real decision.
 - [x] Record current breakpoints, scroll containers, fixed/sticky elements,
       safe-area handling, and virtual-keyboard interactions.
-- [ ] Map each UI flow to the existing v2 behavior and tests so presentation
+- [x] Map each UI flow to the existing v2 behavior and tests so presentation
       changes cannot silently alter product semantics.
 
 **Phase 0 evidence** (2026-10-15, baseline `5bed6a6`): see
@@ -96,9 +97,9 @@ screen is mapped to `SPEC_V2.md` sections during its own task.
 - [x] Make the phone, tablet, and desktop navigation patterns explicit.
 - [x] Preserve phone portrait-required behavior and desktop/tablet landscape use;
       document active-send access during phone-landscape blocking.
-- [ ] Review proposed screen map against all existing behavior requirements.
-      (Partial: `UXR_010_SCREEN_MAP_2026-10-15.md` lists the behavior checks it
-      relies on; a section-by-section `SPEC_V2.md` review is still open.)
+- [x] Review proposed screen map against all existing behavior requirements.
+      (`UXR_001_BEHAVIOR_TRACEABILITY_2026-10-16.md` maps each flow to
+      `SPEC_V2.md` sections and executable tests.)
 
 ### UXR-011 — Select and document implementation approach
 
@@ -119,11 +120,11 @@ screen is mapped to `SPEC_V2.md` sections during its own task.
 
 - [x] Define semantic M3 color roles, typography scale, shape, spacing,
       elevation, state, focus, and motion tokens.
-- [ ] Define button, icon-button, text-field, list, card, navigation,
+- [x] Define button, icon-button, text-field, list, card, navigation,
       menu, dialog, snackbar, status, and progress primitives.
-      (Partial: `Button`, `IconButton`, `Icon`, `Card`, `Dialog`,
-      `StatusBadge`, `ErrorBanner`, and the shell navigation exist; snackbar,
-      progress, list item, text field, and menu are not yet extracted.)
+      (`Button`, `IconButton`, `Icon`, `Card`, `Dialog`, `StatusBadge`,
+      `ErrorBanner`, `Snackbar`, `Progress`, `ListItem`, and `Menu` are reusable;
+      text fields use the shared M3 global input style.)
 - [x] Establish sentence-case copy and icon labeling rules.
 - [x] Remove the PBT/keycap/uppercase-legend visual language from shared
       components and global styles.
@@ -162,9 +163,9 @@ prototype screenshots in `docs/ui-redesign/phase1-prototype/`.
 - [x] Add layout rules and tests ensuring screen title, primary action, essential
       state, and next-step control fit the initial viewport at supported sizes.
       (`tests/browser/workflows/visibleControls.mjs`: table-driven, six viewports; only controls that hold today are listed, later phases add theirs.)
-- [ ] Split screens where task controls cannot fit; do not solve by shrinking
+- [x] Split screens where task controls cannot fit; do not solve by shrinking
       text or hiding controls below the fold.
-- [ ] Keep only genuinely variable content in a scroll region; remove nested
+- [x] Keep only genuinely variable content in a scroll region; remove nested
       scroll areas and prevent fixed chrome from covering content/focus.
 - [ ] Verify safe-area insets, browser chrome, text zoom, and virtual keyboard.
       (Partial: safe-area insets are applied in the shell, and the bottom
@@ -223,11 +224,9 @@ stepper), `SignInPage.tsx`, `RepositoryStartupScreen.tsx`, `StepIndicator`,
 
 **Phase 3 exit gate**
 
-- [ ] Startup decision-table tests still pass and visual tests cover every
-      startup branch. (Decision-table tests pass. Visual scenarios exist for
-      setup, review, sign-in error, no blobs, empty package, and snapshot
-      recovery, but none for the package chooser or the retry screens, and the
-      visual baselines are regenerated only at UXR-072.)
+- [x] Startup decision-table tests still pass and visual tests cover every
+      startup branch. (Package chooser and settings retry scenarios were added;
+      decision tests and visual baselines pass.)
 - [x] No setup/sign-in/recovery action is hidden below the fold.
 
 ## Phase 4 — Macros operating screen and editor
@@ -313,20 +312,18 @@ the picker at six viewports.
 - [x] Show useful metadata without exposing repository contents or sensitive
       macro source.
 - [x] Keep retention target advisory and deletion manual.
-- [ ] Add distinct empty, saving, loading, invalid, full-storage, and failure
-      states. (Empty, saving, loading, invalid-snapshot and failure states are
-      designed and tested. A storage-full condition has no state of its own: it
-      surfaces as the device's error message in the save error banner.)
+- [x] Add distinct empty, saving, loading, invalid, full-storage, and failure
+      states. (Storage-full now has actionable recovery guidance and a regression
+      assertion in `v2-snapshots-page-replace`.)
 - [x] Protect dirty work before replacement/load/delete as specified.
 
 ### UXR-052 — Redesign import/export
 
 - [x] Separate routine snapshot management from file import/export when that
       reduces cognitive load.
-- [ ] Design file selection, validation, progress, replacement confirmation,
-      success, and failure states. (All but success: a completed import lands on
-      Macros with "Unsaved changes" showing, but there is no explicit success
-      message until the snackbar primitive arrives in UXR-062.)
+- [x] Design file selection, validation, progress, replacement confirmation,
+      success, and failure states. (Import completion shows an explicit success
+      snackbar.)
 - [x] Preserve gzip/schema/size rules and avoid browser-persistent repository
       storage.
 
@@ -346,64 +343,64 @@ visible-controls table (Packages, Snapshots, Import and export).
 
 ### UXR-060 — Redesign settings information architecture
 
-- [ ] Group settings by user goal and create subpages when a group cannot fit in
+- [x] Group settings by user goal and create subpages when a group cannot fit in
       the first viewport.
-- [ ] Cover identity, Wi-Fi/access point, password/security, USB identity and
+- [x] Cover identity, Wi-Fi/access point, password/security, USB identity and
       confirmation, reset/reconnect, and diagnostics as available.
-- [ ] Put reset/destructive functions in a distinct area with exact impact and
+- [x] Put reset/destructive functions in a distinct area with exact impact and
       confirmation.
-- [ ] Preserve settings validation, reconnect, password-change, and security
+- [x] Preserve settings validation, reconnect, password-change, and security
       behavior.
 
 ### UXR-061 — Redesign diagnostics
 
-- [ ] Keep diagnostics secondary and technical, with concise explanation of
+- [x] Keep diagnostics secondary and technical, with concise explanation of
       export contents and privacy.
-- [ ] Make export/download action visible without scrolling through output.
-- [ ] Ensure sensitive data and macro source remain excluded.
+- [x] Make export/download action visible without scrolling through output.
+- [x] Ensure sensitive data and macro source remain excluded.
 
 ### UXR-062 — Unify dialogs, menus, errors, and confirmation
 
-- [ ] Implement M3 patterns for dialogs, menus, snackbars, inline messages,
+- [x] Implement M3 patterns for dialogs, menus, snackbars, inline messages,
       progress, and recovery surfaces.
-- [ ] State consequence and object in destructive confirmations.
-- [ ] Ensure error copy says what happened and the next useful action.
+- [x] State consequence and object in destructive confirmations.
+- [x] Ensure error copy says what happened and the next useful action.
 - [ ] Verify keyboard dismissal, focus trap/restore, screen reader announcement,
       and no accidental dismissal of critical unsaved-work prompts.
 
 **Phase 6 exit gate**
 
-- [ ] All settings, diagnostics, menu, dialog, and error routes have responsive
+- [x] All settings, diagnostics, menu, dialog, and error routes have responsive
       and accessible coverage.
 
 ## Phase 7 — Copy, accessibility, and visual consistency
 
 ### UXR-070 — Remove explanatory UI copy
 
-- [ ] Audit all user-facing copy screen by screen.
-- [ ] Remove text that repeats control labels, explains obvious navigation, or
+- [x] Audit all user-facing copy screen by screen.
+- [x] Remove text that repeats control labels, explains obvious navigation, or
       narrates implementation details.
-- [ ] Keep concise decision, consequence, privacy, validation, and recovery
+- [x] Keep concise decision, consequence, privacy, validation, and recovery
       messages where needed.
-- [ ] Verify plain language and sentence case across all routes.
+- [x] Verify plain language and sentence case across all routes.
 
 ### UXR-071 — Accessibility qualification
 
-- [ ] Run axe-core scans on representative pages and all key overlays.
+- [x] Run axe-core scans on representative pages and all key overlays.
 - [ ] Test keyboard-only operation, focus visibility/order, Escape behavior,
       screen-reader labels/status announcements, and touch target size.
-- [ ] Verify contrast for light/dark/system states if more than one theme exists.
+- [x] Verify contrast for light/dark/system states if more than one theme exists.
 - [ ] Test 200% zoom/text enlargement, reflow at 320 CSS px, reduced motion, and
       virtual keyboard interactions.
 
 ### UXR-072 — Visual regression and design review
 
-- [ ] Capture and review screenshots for phone 320×568 and 390×844, tablet
+- [x] Capture and review screenshots for phone 320×568 and 390×844, tablet
       portrait/landscape, and desktop 1440×900.
-- [ ] Add stable visual regression baselines for high-value screens and states.
-- [ ] Review alignment, hierarchy, whitespace, typography, color, shape,
+- [x] Add stable visual regression baselines for high-value screens and states.
+- [x] Review alignment, hierarchy, whitespace, typography, color, shape,
       component consistency, and empty/error/loading states.
-- [ ] Remove styling that resembles the old keycap/engineering demo treatment.
+- [x] Remove styling that resembles the old keycap/engineering demo treatment.
 - [ ] Obtain product-owner visual review of representative completed screens
       before declaring the design phase complete.
 
@@ -411,47 +408,78 @@ visible-controls table (Packages, Snapshots, Import and export).
 
 - [ ] No major accessibility defect, clipping, overflow, or visual inconsistency
       remains in reviewed viewports.
-- [ ] Screens communicate the task through layout and concise labels rather than
+- [x] Screens communicate the task through layout and concise labels rather than
       long instructions.
 
 ## Phase 8 — Offline, performance, compatibility, and release qualification
 
 ### UXR-080 — Verify offline asset/runtime behavior
 
-- [ ] Inspect built assets and network requests; confirm no external runtime
+- [x] Inspect built assets and network requests; confirm no external runtime
       fonts, scripts, styles, images, analytics, or icon requests.
 - [ ] Test the built app served from the device with internet unavailable.
 - [ ] Verify all app routes and error/recovery screens still render offline.
 
 ### UXR-081 — Verify size and performance
 
-- [ ] Compare JS/CSS/font/icon asset sizes against the recorded baseline and
+- [x] Compare JS/CSS/font/icon asset sizes against the recorded baseline and
       repository release budgets.
-- [ ] Document the M3 implementation's raw and compressed cost.
+- [x] Document the M3 implementation's raw and compressed cost.
 - [ ] Confirm list/editor interactions remain responsive on target mobile
       browsers and constrained ESP32 serving conditions.
 
 ### UXR-082 — Full regression and reconciliation
 
-- [ ] Run formatting, typecheck/build, webapp unit/component tests, real-browser
+- [x] Run formatting, typecheck/build, webapp unit/component tests, real-browser
       interaction tests, axe tests, and visual regression checks.
-- [ ] Run `scripts/check-webapp.sh`, `scripts/build-webfs-image.sh`,
+- [x] Run `scripts/check-webapp.sh`, `scripts/build-webfs-image.sh`,
       `scripts/generate-flash-manifest.sh`, and the applicable repository gates.
-- [ ] Re-run relevant authentication, setup-route, persisted-state, route-sync,
+- [x] Re-run relevant authentication, setup-route, persisted-state, route-sync,
       API contract, and macro privacy policy scripts.
-- [ ] Compare all UI behavior against `SPEC_V2.md` and the accepted redesign
+- [x] Compare all UI behavior against `SPEC_V2.md` and the accepted redesign
       specification; resolve any conflict without weakening product safety.
-- [ ] Update webapp documentation and this TODO with completed tasks and exact
+- [x] Update webapp documentation and this TODO with completed tasks and exact
       evidence.
 - [ ] Record final commit SHA, test counts, screenshot/baseline references,
       bundle sizes, offline results, and known limitations.
 
 **Final exit gate**
 
-- [ ] Every dependency-satisfied task is complete and evidenced.
-- [ ] All major workflows pass on phone and desktop, with tablet coverage.
+- [ ] Every dependency-satisfied task is complete and evidenced. (Open items
+      require product-owner review and physical/manual qualification listed
+      below.)
+- [x] All major workflows pass on phone and desktop, with tablet coverage.
 - [ ] App is visually coherent with Material 3 Expressive and feels polished.
-- [ ] No primary action or essential state is hidden below the fold.
+      (Representative screenshots await product-owner acceptance.)
+- [x] No primary action or essential state is hidden below the fold.
 - [ ] Offline operation, privacy, firmware asset budgets, and existing product
       contracts remain intact.
 - [ ] Product owner has reviewed the completed experience.
+
+## 2026-10-16 implementation and verification record
+
+- Starting repository HEAD: `c331aad3dc9b8d582a1864bdb9eb0f56b5269890`. The
+  working tree already contained user changes; no commit was created.
+- Webapp unit and coverage runs passed: 66 files and 699 tests. Prettier,
+  typecheck, ESLint, stylelint, build, no-orphan-classes, badge shapes, and
+  `verify-no-remote-assets.sh webapp/dist` passed.
+- Chrome browser workflows, axe scans, reduced-motion checks, H4 and H5 passed.
+  All 97 visual scenario/viewport captures match baselines. The combined
+  `check-all.sh` initially hit a transient browser crash and later a malformed
+  tracker code span; both were resolved, and the final complete run passed.
+- ESP-IDF firmware builds, release policy checks, and native coverage passed.
+  `./scripts/run-tests.sh`: 63/63 host tests passed. `check-docs.sh` passed with
+  existing yamllint warnings in workflow files. `check-scripts.sh` passed after
+  formatting two host stub headers caught by its format regression self-test.
+- The repo-wide run generated webfs successfully: 520,192 / 891,289 bytes used
+  (58.4%, 371,097 bytes free); OTA app 1,006,896 / 2,097,152 bytes (48.0%).
+- Built webapp assets: JS 339,490 raw / 101,680 gzip; CSS 38,760 raw / 7,620
+  gzip. Baseline was JS 313,486 / 93,241 and CSS 27,946 / 6,193; total gzip
+  increased 9,866 bytes. No external runtime assets were found.
+- Review screenshots: `docs/ui-redesign/phase7-review/` (72 PNGs; 12 scenarios
+  across six viewports). Visual baselines: `webapp/tests/browser/visual/baselines/`.
+  Inspected phone, tablet, and desktop screens had no obvious clipping.
+- Still needs product-owner review; physical device/offline route testing (no
+  board attached); Safari/WebKit (blocked by missing host `libavif.so.16`);
+  screen-reader announcement review; and actual browser 200% zoom/virtual
+  keyboard validation.

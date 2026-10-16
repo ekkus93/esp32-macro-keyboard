@@ -4,8 +4,8 @@ Machine-written by `run-visual-tests.mjs --update-baselines`. Do not hand-edit.
 
 One JSON file per `<scenario>--<viewport>.json`, holding the
 `captureScenario()` result for that pair (`elements`, `pseudoElements`) minus
-its screenshot — see "JSON-only, deliberately" below. 79 files, ~14MB, one per
-`(scenario, viewport)` pair in `scenarios.mjs`.
+its screenshot — see "JSON-only, deliberately" below. There are 97 files,
+about 27 MB, one per `(scenario, viewport)` pair in `scenarios.mjs`.
 
 ## Updating a baseline
 
@@ -46,7 +46,7 @@ default, made while building the harness (T1-1/T1-2):
   for the properties this harness already tracks.
 - **Binary cost.** This is a firmware repository that also ships a flash
   image; PNG baselines at two viewports per scenario would roughly double
-  the ~14MB this directory already costs, and every future baseline update
+  the ~27 MB this directory already costs, and every future baseline update
   would add another full set of binaries to history permanently (git does
   not diff binaries incrementally the way it does text).
 - **Reviewability.** A `git diff` on these JSON files shows exactly which

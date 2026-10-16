@@ -624,7 +624,7 @@ export function MacrosPage({
           </button>
         </div>
       ) : (
-        <div aria-label="Macro list" className="grid gap-3">
+        <div aria-label="Macro list" className="grid grid-cols-1 gap-3">
           {activePackage.macros.map((macro, index) => (
             <MacroRow
               index={index}

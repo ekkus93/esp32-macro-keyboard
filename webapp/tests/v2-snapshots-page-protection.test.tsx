@@ -123,6 +123,7 @@ describe("SnapshotsPage — V2-113 dirty-work protection during load", () => {
         loadedBlobId={null}
         onOpenMacros={vi.fn()}
         onOpenPackages={vi.fn()}
+        onNotify={vi.fn()}
         onSaveSnapshot={onSaveSnapshot}
         onSelectionChange={vi.fn()}
         onSelectionPersistenceFailure={vi.fn()}

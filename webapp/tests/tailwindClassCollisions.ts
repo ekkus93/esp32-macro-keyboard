@@ -49,6 +49,7 @@
  */
 
 const SCOPE_PATTERNS = [
+  /^(sm|md|lg|xl|2xl):/,
   /^before:/,
   /^hover:/,
   /^short:/,
@@ -244,6 +245,21 @@ function classifyToken(base: string): string[] {
     return ["flex-basis"];
   }
 
+  // Screen-reader-only text is one visually-hidden treatment (it sets many
+  // properties at once); `not-sr-only` undoes all of them. Either only
+  // collides with itself.
+  if (base === "sr-only" || base === "not-sr-only") {
+    return ["visually-hidden"];
+  }
+
+  // Flex grow/shrink utilities, each its own property.
+  if (/^shrink(-\S+)?$/.test(base)) {
+    return ["flex-shrink"];
+  }
+  if (/^grow(-\S+)?$/.test(base)) {
+    return ["flex-grow"];
+  }
+
   // `size-*` sets width and height together.
   if (/^size-\S+$/.test(base)) {
     return ["width", "height"];
@@ -293,8 +309,10 @@ function classifyToken(base: string): string[] {
     [/^overscroll-y-\S+$/, "overscroll-behavior-y"],
     [/^bg-\S+$/, "background-color"],
     [/^text-\[[0-9.]+rem\]$/, "font-size"],
+    [/^text-(left|center|right|justify|start|end)$/, "text-align"],
     [/^text-(?!ellipsis$)\S+$/, "color"],
     [/^text-ellipsis$/, "text-overflow"],
+    [/^leading-\S+$/, "line-height"],
     [/^whitespace-\S+$/, "white-space"],
     [
       /^font-(thin|light|normal|medium|semibold|bold|extrabold|black)$/,
@@ -307,6 +325,7 @@ function classifyToken(base: string): string[] {
     [/^content-\[.*\]$/, "content"],
     [/^z-\S+$/, "z-index"],
     [/^list-\S+$/, "list-style-type"],
+    [/^line-clamp-\d+$/, "line-clamp"],
     [/^-?translate-[xy]-\S+$/, "transform"],
   ];
   for (const [pattern, family] of singleFamily) {

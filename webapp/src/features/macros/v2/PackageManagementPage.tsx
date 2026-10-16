@@ -496,7 +496,7 @@ export function PackageManagementPage({
       {filtered.length === 0 ? (
         <p role="status">No packages match this search.</p>
       ) : (
-        <ul className="my-4 grid list-none gap-3 p-0">
+        <ul className="my-4 grid list-none grid-cols-1 gap-3 p-0">
           {filtered.map((pkg) => {
             const index = repository.packages.findIndex(
               (candidate) => candidate.id === pkg.id,

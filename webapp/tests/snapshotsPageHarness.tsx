@@ -85,6 +85,7 @@ export async function renderPage(overrides: Overrides = {}) {
   const onOpenMacros = vi.fn();
   const onOpenPackages = vi.fn();
   const onOpenFiles = vi.fn();
+  const onNotify = vi.fn();
   const onWorkingCopyOriginChanged = vi.fn();
   const onSaveSnapshot = vi.fn().mockResolvedValue(undefined);
   const persistedPackageId =
@@ -99,6 +100,7 @@ export async function renderPage(overrides: Overrides = {}) {
       onOpenFiles={onOpenFiles}
       onOpenMacros={onOpenMacros}
       onOpenPackages={onOpenPackages}
+      onNotify={onNotify}
       onSaveSnapshot={onSaveSnapshot}
       onSelectionChange={onSelectionChange}
       onSelectionPersistenceFailure={onSelectionPersistenceFailure}
@@ -123,6 +125,7 @@ export async function renderPage(overrides: Overrides = {}) {
     onOpenMacros,
     onOpenPackages,
     onOpenFiles,
+    onNotify,
     onWorkingCopyOriginChanged,
     onSaveSnapshot,
   };

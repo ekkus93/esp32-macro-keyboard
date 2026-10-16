@@ -12,6 +12,7 @@ import { MacroEditorPage } from "./features/macros/v2/MacroEditorPage";
 import { MacrosPage } from "./features/macros/v2/MacrosPage";
 import { PackageManagementPage } from "./features/macros/v2/PackageManagementPage";
 import { SnapshotsPage } from "./features/snapshots/v2/SnapshotsPage";
+import { settingsGroupTitle } from "./features/settings/v2/settingsGroups";
 import { DeviceReconnectScreen } from "./features/settings/v2/DeviceReconnectScreen";
 import type { DeviceActionKind } from "./features/settings/v2/DeviceReconnectScreen";
 import { DiagnosticsPage } from "./features/settings/v2/DiagnosticsPage";
@@ -20,6 +21,7 @@ import { useDeviceReconnect } from "./features/settings/v2/useDeviceReconnect";
 import type { RepositoryStartupReady } from "./features/startup/v2/RepositoryStartupScreen";
 import { RepositoryStartupScreen } from "./features/startup/v2/RepositoryStartupScreen";
 import { ErrorBanner } from "./components/ErrorBanner";
+import { Snackbar } from "./components/m3/Snackbar";
 import { V2ApiError, subscribeUnauthorized, v2GetJson } from "./v2/apiClient";
 import { isSetupStateResponse } from "./v2/apiGuards";
 import { getSettings } from "./v2/settingsClient";
@@ -39,9 +41,13 @@ import {
   navigateToEditMacro,
   navigateToMacros,
   navigateToSettings,
+  navigateToSettingsGroup,
+  navigateToSettingsSection,
   navigateToSnapshotsFiles,
   navigateV2,
   routeFromHashV2,
+  settingsGroupFromHash,
+  settingsSectionFromHash,
   snapshotsViewFromHash,
 } from "./v2/routingV2";
 import type { ScreenV2 } from "./v2/routingV2";
@@ -78,8 +84,32 @@ function routeTitle(route: ScreenV2): string {
       return snapshotsViewFromHash() === "files"
         ? "Import and export"
         : "Snapshots";
-    case "settings":
-      return "Settings";
+    case "settings": {
+      const group = settingsGroupFromHash();
+      const section = settingsSectionFromHash();
+      if (section === "access-point") {
+        return "Access point";
+      }
+      if (section === "station") {
+        return "Station network";
+      }
+      if (section === "password") {
+        return "Change password";
+      }
+      if (section === "session") {
+        return "Sign out";
+      }
+      if (section === "restart") {
+        return "Restart";
+      }
+      if (section === "reset-settings") {
+        return "Reset settings";
+      }
+      if (section === "factory-reset") {
+        return "Factory reset";
+      }
+      return group === null ? "Settings" : settingsGroupTitle(group);
+    }
     case "diagnostics":
       return "Diagnostics";
   }
@@ -94,6 +124,7 @@ export function AuthenticatedShell({
 }: AuthenticatedShellProps): React.JSX.Element {
   const { store } = ready;
   const [snapshot, setSnapshot] = useState(() => store.getSnapshot());
+  const [notification, setNotification] = useState<string | null>(null);
   useEffect(() => store.subscribe(setSnapshot), [store]);
 
   // Mutable so the Packages page (TODO_V2 V2-102) can change the open
@@ -408,6 +439,7 @@ export function AuthenticatedShell({
               navigateV2("packages");
             }}
             onOpenFiles={navigateToSnapshotsFiles}
+            onNotify={setNotification}
             onSaveSnapshot={saveSnapshot}
             onSelectionChange={setPackageId}
             onSelectionPersistenceFailure={selectionPersistenceFailed}
@@ -425,7 +457,11 @@ export function AuthenticatedShell({
         return (
           <SettingsPage
             onDeviceActionStarted={setDeviceAction}
+            group={settingsGroupFromHash()}
+            section={settingsSectionFromHash()}
             onOpenDiagnostics={navigateToDiagnostics}
+            onOpenGroup={navigateToSettingsGroup}
+            onOpenSection={navigateToSettingsSection}
             onSaveSnapshot={saveSnapshot}
             onSettingsChanged={setSettings}
             saveError={saveError}
@@ -455,16 +491,40 @@ export function AuthenticatedShell({
           }}
           {...(route === "macro-editor"
             ? { back: { label: "Back to macros", onBack: navigateToMacros } }
-            : route === "snapshots" && snapshotsViewFromHash() === "files"
+            : route === "settings" && settingsSectionFromHash() !== null
               ? {
                   back: {
-                    label: "Back to snapshots",
+                    label:
+                      settingsGroupFromHash() === "network"
+                        ? "Back to network settings"
+                        : settingsGroupFromHash() === "security"
+                          ? "Back to security settings"
+                          : "Back to restart and reset",
                     onBack: () => {
-                      navigateV2("snapshots");
+                      const group = settingsGroupFromHash();
+                      if (group !== null) {
+                        navigateToSettingsGroup(group);
+                      }
                     },
                   },
                 }
-              : {})}
+              : route === "settings" && settingsGroupFromHash() !== null
+                ? {
+                    back: {
+                      label: "Back to settings",
+                      onBack: navigateToSettings,
+                    },
+                  }
+                : route === "snapshots" && snapshotsViewFromHash() === "files"
+                  ? {
+                      back: {
+                        label: "Back to snapshots",
+                        onBack: () => {
+                          navigateV2("snapshots");
+                        },
+                      },
+                    }
+                  : {})}
           title={routeTitle(route)}
           route={route}
           saveError={saveError}
@@ -518,6 +578,14 @@ export function AuthenticatedShell({
           <div hidden={route !== "macros"}>{macrosPage}</div>
           {content}
         </AppShellV2>
+        {notification === null ? null : (
+          <Snackbar
+            message={notification}
+            onDismiss={() => {
+              setNotification(null);
+            }}
+          />
+        )}
       </div>
       {landscapeBlocked ? (
         <LandscapeBlockSurface activeSend={activeSend} />

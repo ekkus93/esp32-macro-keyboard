@@ -1,4 +1,5 @@
 import { assert } from "../lib/http.mjs";
+import { runAccessibilityScan } from "../lib/accessibility.mjs";
 import {
   assertResponsiveLayout,
   assertTouchTargets,
@@ -22,6 +23,11 @@ export async function runBrowserWorkflows(page, serverState) {
   );
   await assertTouchTargets(page);
   await assertResponsiveLayout(page);
+
+  await page.locator('[aria-label="More actions for Open terminal"]').click();
+  await page.getByRole("menu").waitFor();
+  await runAccessibilityScan(page, "Macro actions menu");
+  await page.keyboard.press("Escape");
 
   // Accessible reordering (V2-091): a real keyboard Enter press on the
   // "Move down" control — not just a mouse click — actually reorders.

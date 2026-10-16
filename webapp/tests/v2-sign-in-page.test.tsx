@@ -87,7 +87,7 @@ describe("v2 SignInPage", () => {
     await flushReact();
 
     expect(requiredElement("[role='alert']", HTMLElement).textContent).toBe(
-      "internal_error: Unexpected failure.",
+      "Unexpected failure.",
     );
     expect(document.body.textContent).not.toContain("Administrator password");
 
@@ -190,7 +190,7 @@ describe("v2 SignInPage", () => {
     await flushReact();
 
     expect(requiredElement("[role='alert']", HTMLElement).textContent).toBe(
-      "invalid_credentials: Incorrect administrator password.",
+      "Incorrect administrator password.",
     );
     expect(onAuthenticated).not.toHaveBeenCalled();
     expect(buttonWithText("Sign in").disabled).toBe(false);
@@ -219,7 +219,7 @@ describe("v2 SignInPage", () => {
     await flushReact();
 
     expect(requiredElement("[role='alert']", HTMLElement).textContent).toBe(
-      "rate_limited: Too many attempts. Try again later.",
+      "Too many attempts. Try again later.",
     );
     await view.unmount();
   });

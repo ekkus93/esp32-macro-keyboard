@@ -96,6 +96,77 @@ export function snapshotsViewFromHash(): SnapshotsView {
   return parameters.get("view") === "files" ? "files" : "list";
 }
 
+export const settingsGroups = [
+  "device",
+  "network",
+  "security",
+  "usb",
+  "reset",
+] as const;
+export type SettingsGroup = (typeof settingsGroups)[number];
+
+export const settingsSections = [
+  "access-point",
+  "station",
+  "password",
+  "session",
+  "restart",
+  "reset-settings",
+  "factory-reset",
+] as const;
+export type SettingsSection = (typeof settingsSections)[number];
+
+/**
+ * Settings is a list of groups; each group is its own screen
+ * (`#/settings?group=network`). No group, or one that is not recognised, is
+ * the list, so a malformed hash can only land on the ordinary screen.
+ */
+export function settingsGroupFromHash(): SettingsGroup | null {
+  const [route, query] = hashRouteAndQuery();
+  if (route !== "settings") {
+    return null;
+  }
+  const group = new URLSearchParams(query).get("group");
+  return settingsGroups.find((candidate) => candidate === group) ?? null;
+}
+
+export function navigateToSettingsGroup(group: SettingsGroup): void {
+  window.location.hash = `/settings?group=${group}`;
+}
+
+export function settingsSectionFromHash(): SettingsSection | null {
+  const [route, query] = hashRouteAndQuery();
+  if (route !== "settings") {
+    return null;
+  }
+  const group = settingsGroupFromHash();
+  const section = new URLSearchParams(query).get("section");
+  if (group === "network") {
+    return section === "access-point" || section === "station" ? section : null;
+  }
+  if (group === "security") {
+    return section === "password" || section === "session" ? section : null;
+  }
+  if (group === "reset") {
+    return section === "restart" ||
+      section === "reset-settings" ||
+      section === "factory-reset"
+      ? section
+      : null;
+  }
+  return null;
+}
+
+export function navigateToSettingsSection(section: SettingsSection): void {
+  const group =
+    section === "access-point" || section === "station"
+      ? "network"
+      : section === "password" || section === "session"
+        ? "security"
+        : "reset";
+  window.location.hash = `/settings?group=${group}&section=${section}`;
+}
+
 export function navigateToSnapshotsFiles(): void {
   window.location.hash = "/snapshots?view=files";
 }

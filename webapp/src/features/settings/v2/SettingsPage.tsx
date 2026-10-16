@@ -1,14 +1,12 @@
 import { useRef, useState } from "react";
-import { Dialog } from "../../../components/Dialog";
-import {
-  PAGE_HEADING_TITLE_CLASS,
-  PageHeading,
-} from "../../../components/PageHeading";
-import { FormActions } from "../../../components/FormActions";
+import { ConfirmDialog } from "../../../components/ConfirmDialog";
+import { ListItemButton } from "../../../components/m3/ListItem";
 import { Card } from "../../../components/Card";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import type { DeviceActionKind } from "./DeviceReconnectScreen";
+import { settingsGroupInfo } from "./settingsGroups";
+import type { SettingsGroup, SettingsSection } from "../../../v2/routingV2";
 import { UnsavedChangesPrompt } from "../../shell/v2/UnsavedChangesPrompt";
 import { forceSessionEnded } from "../../../v2/apiClient";
 import { AccessPointForm } from "./AccessPointForm";
@@ -16,6 +14,7 @@ import { ConfirmPhraseDialog } from "./ConfirmPhraseDialog";
 import { IdentityForm } from "./IdentityForm";
 import { PasswordForm } from "./PasswordForm";
 import { StationForm } from "./StationForm";
+import { UsbConfirmationForm } from "./UsbConfirmationForm";
 import {
   factoryResetDevice as defaultFactoryResetDevice,
   resetDeviceSettings as defaultResetDeviceSettings,
@@ -23,7 +22,6 @@ import {
   signOut as defaultSignOut,
 } from "../../../v2/deviceActionsClient";
 import { saveBytesAsFile } from "../../../v2/saveFile";
-import { useFocusTrap } from "../../shell/v2/useFocusTrap";
 import {
   changePassword as defaultChangePassword,
   updateSettings as defaultUpdateSettings,
@@ -82,6 +80,14 @@ export interface SettingsPageProps {
   saving: boolean;
   saveError: string | null;
   onOpenDiagnostics: () => void;
+  /** The open group, or `null` for the list of groups (UXR-060). */
+  group?: SettingsGroup | null;
+  /** The selected network subsection, if one is open. */
+  section?: SettingsSection | null;
+  /** Opens one group's screen. */
+  onOpenGroup?: (group: SettingsGroup) => void;
+  /** Opens a network subsection. */
+  onOpenSection?: (section: SettingsSection) => void;
   /**
    * Restart/reset-settings/factory-reset all report `connectionWillClose:
    * true` (SPEC_V2 §13.12). This hands control of the "the device is
@@ -104,6 +110,10 @@ export function SettingsPage({
   saving,
   saveError,
   onOpenDiagnostics,
+  group = null,
+  section = null,
+  onOpenGroup = () => undefined,
+  onOpenSection = () => undefined,
   onDeviceActionStarted,
   dependencies,
 }: SettingsPageProps): React.JSX.Element {
@@ -120,6 +130,8 @@ export function SettingsPage({
   const [stationError, setStationError] = useState<string | null>(null);
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [usbBusy, setUsbBusy] = useState(false);
+  const [usbError, setUsbError] = useState<string | null>(null);
 
   const [pendingDirty, setPendingDirty] = useState<DirtyGuardedAction | null>(
     null,
@@ -133,14 +145,6 @@ export function SettingsPage({
     "sign-out" | "restart" | "reset-settings" | "factory-reset" | null
   >(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const restartConfirmRef = useRef<HTMLDivElement>(null);
-  useFocusTrap({
-    active: restartConfirming,
-    containerRef: restartConfirmRef,
-    onClose: () => {
-      setRestartConfirming(false);
-    },
-  });
 
   const applyUpdate = async (
     request: SettingsUpdateRequest,
@@ -297,154 +301,347 @@ export function SettingsPage({
     }
   };
 
+  const groupBody = (): React.JSX.Element => {
+    switch (group) {
+      case null:
+        return (
+          <>
+            <h2 className="sr-only" id="settings-title">
+              Settings
+            </h2>
+            <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 lg:grid-cols-3">
+              {settingsGroupInfo.map((info) => (
+                <li key={info.key}>
+                  <ListItemButton
+                    compact
+                    headline={info.title}
+                    leadingIcon={info.icon}
+                    onClick={() => {
+                      onOpenGroup(info.key);
+                    }}
+                  />
+                </li>
+              ))}
+              <li>
+                <ListItemButton
+                  compact
+                  headline="Diagnostics"
+                  leadingIcon="activity"
+                  onClick={onOpenDiagnostics}
+                />
+              </li>
+            </ul>
+          </>
+        );
+      case "device":
+        return (
+          <Card aria-labelledby="settings-identity-title">
+            <h2 className="sr-only" id="settings-identity-title">
+              Device
+            </h2>
+            <ErrorBanner message={identityError} />
+            <IdentityForm
+              busy={identityBusy}
+              onSubmit={submitIdentity}
+              settings={settings}
+            />
+          </Card>
+        );
+      case "network":
+        if (section === null) {
+          return (
+            <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0">
+              <li>
+                <ListItemButton
+                  compact
+                  headline="Access point"
+                  leadingIcon="wifi"
+                  onClick={() => {
+                    onOpenSection("access-point");
+                  }}
+                />
+              </li>
+              <li>
+                <ListItemButton
+                  compact
+                  headline="Station network"
+                  leadingIcon="wifi"
+                  onClick={() => {
+                    onOpenSection("station");
+                  }}
+                />
+              </li>
+            </ul>
+          );
+        }
+        if (section === "access-point") {
+          return (
+            <Card aria-labelledby="settings-ap-title">
+              <h2 className="sr-only" id="settings-ap-title">
+                Access point
+              </h2>
+              <ErrorBanner message={apError} />
+              <AccessPointForm
+                apSsid={settings.apSsid}
+                busy={apBusy}
+                onSubmit={submitAccessPoint}
+              />
+              {apNotice !== null ? (
+                <p role="status">
+                  Saved. A restart is required to apply the new access point
+                  network &quot;{apNotice}&quot;. Use Restart under Restart and
+                  reset, then reconnect this device&apos;s Wi-Fi to the new
+                  network and sign in again.
+                </p>
+              ) : null}
+            </Card>
+          );
+        }
+        return (
+          <Card aria-labelledby="settings-station-title">
+            <h2 className="sr-only" id="settings-station-title">
+              Station network
+            </h2>
+            <ErrorBanner message={stationError} />
+            <StationForm
+              busy={stationBusy}
+              onRemove={removeStation}
+              onSubmit={submitStation}
+              stationConfigured={settings.stationConfigured}
+              stationSsid={settings.stationSsid}
+            />
+          </Card>
+        );
+      case "security":
+        if (section === null) {
+          return (
+            <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0">
+              <li>
+                <ListItemButton
+                  compact
+                  headline="Change password"
+                  leadingIcon="shield"
+                  onClick={() => {
+                    onOpenSection("password");
+                  }}
+                />
+              </li>
+              <li>
+                <ListItemButton
+                  compact
+                  headline="Sign out"
+                  leadingIcon="back"
+                  onClick={() => {
+                    onOpenSection("session");
+                  }}
+                />
+              </li>
+            </ul>
+          );
+        }
+        if (section === "password") {
+          return (
+            <Card aria-labelledby="settings-password-title">
+              <h2 className="sr-only" id="settings-password-title">
+                Administrator password
+              </h2>
+              <ErrorBanner message={passwordError} />
+              <PasswordForm
+                busy={passwordBusy}
+                onSubmit={(currentPassword, newPassword) => {
+                  void submitPassword(currentPassword, newPassword);
+                }}
+              />
+            </Card>
+          );
+        }
+        return (
+          <Card aria-labelledby="settings-session-title">
+            <h2 className="sr-only" id="settings-session-title">
+              Session
+            </h2>
+            <ErrorBanner message={actionError} />
+            <div>
+              <button
+                disabled={actionBusy !== null}
+                onClick={() => {
+                  beginDestructive("sign-out");
+                }}
+                type="button"
+              >
+                {actionBusy === "sign-out" ? "Signing out…" : "Sign out"}
+              </button>
+            </div>
+          </Card>
+        );
+      case "usb":
+        return (
+          <>
+            <Card aria-labelledby="settings-usb-identity-title">
+              <h3 id="settings-usb-identity-title">USB keyboard identity</h3>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+                <dt>Manufacturer</dt>
+                <dd>ESP32 Macro Keyboard Project</dd>
+                <dt>Product</dt>
+                <dd>ESP32 Macro Keyboard</dd>
+              </dl>
+              <p className="text-body-md text-on-surface-variant">
+                USB identity is fixed by the device firmware.
+              </p>
+            </Card>
+            <Card aria-labelledby="settings-usb-confirmation-title">
+              <h3 id="settings-usb-confirmation-title">
+                Physical confirmation
+              </h3>
+              <ErrorBanner message={usbError} />
+              <UsbConfirmationForm
+                busy={usbBusy}
+                onSubmit={(request) => {
+                  void applyUpdate(request, setUsbBusy, setUsbError);
+                }}
+                settings={settings}
+              />
+            </Card>
+          </>
+        );
+      case "reset":
+        if (section === null) {
+          return (
+            <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0">
+              <li>
+                <ListItemButton
+                  compact
+                  headline="Restart"
+                  leadingIcon="restart"
+                  onClick={() => {
+                    onOpenSection("restart");
+                  }}
+                />
+              </li>
+              <li>
+                <ListItemButton
+                  compact
+                  headline="Reset settings"
+                  leadingIcon="settings"
+                  onClick={() => {
+                    onOpenSection("reset-settings");
+                  }}
+                />
+              </li>
+              <li>
+                <ListItemButton
+                  compact
+                  headline="Factory reset"
+                  leadingIcon="warning"
+                  onClick={() => {
+                    onOpenSection("factory-reset");
+                  }}
+                />
+              </li>
+            </ul>
+          );
+        }
+        if (section === "restart") {
+          return (
+            <>
+              <ErrorBanner message={actionError} />
+              <Card aria-labelledby="settings-restart-title">
+                <h2 className="sr-only" id="settings-restart-title">
+                  Restart
+                </h2>
+                <p>The device restarts and its Wi-Fi drops briefly.</p>
+                <button
+                  disabled={actionBusy !== null}
+                  onClick={() => {
+                    setRestartConfirming(true);
+                  }}
+                  type="button"
+                >
+                  Restart
+                </button>
+              </Card>
+            </>
+          );
+        }
+        if (section === "reset-settings") {
+          return (
+            <>
+              <ErrorBanner message={actionError} />
+              <Card aria-labelledby="settings-reset-title">
+                <h2 className="sr-only" id="settings-reset-title">
+                  Reset settings
+                </h2>
+                <p>
+                  Restores default settings and removes the station network.
+                  Keeps the access point, password and snapshots.
+                </p>
+                <button
+                  className="danger"
+                  disabled={actionBusy !== null}
+                  onClick={() => {
+                    beginDestructive("reset-settings");
+                  }}
+                  type="button"
+                >
+                  Reset settings
+                </button>
+              </Card>
+            </>
+          );
+        }
+        return (
+          <>
+            <ErrorBanner message={actionError} />
+            <Card aria-labelledby="settings-factory-title">
+              <h2 className="sr-only" id="settings-factory-title">
+                Factory reset
+              </h2>
+              <p>
+                Erases all settings, the password and every snapshot, then
+                restarts as a new device. This cannot be undone.
+              </p>
+              <button
+                className="danger"
+                disabled={actionBusy !== null}
+                onClick={() => {
+                  beginDestructive("factory-reset");
+                }}
+                type="button"
+              >
+                Factory reset
+              </button>
+            </Card>
+          </>
+        );
+    }
+  };
+
   return (
-    <section aria-labelledby="settings-title">
-      <PageHeading>
-        <h2 className={PAGE_HEADING_TITLE_CLASS} id="settings-title">
-          Settings
-        </h2>
-      </PageHeading>
-
-      <Card aria-labelledby="settings-identity-title">
-        <h3 id="settings-identity-title">Device</h3>
-        <ErrorBanner message={identityError} />
-        <IdentityForm
-          busy={identityBusy}
-          onSubmit={submitIdentity}
-          settings={settings}
-        />
-      </Card>
-
-      <Card aria-labelledby="settings-ap-title">
-        <h3 id="settings-ap-title">Access point network</h3>
-        <ErrorBanner message={apError} />
-        <AccessPointForm
-          apSsid={settings.apSsid}
-          busy={apBusy}
-          onSubmit={submitAccessPoint}
-        />
-        {apNotice !== null ? (
-          <p role="status">
-            Saved. A restart is required to apply the new access point network
-            &quot;{apNotice}&quot;. Use Restart below, then reconnect this
-            device&apos;s Wi-Fi to the new network and sign in again.
-          </p>
-        ) : null}
-      </Card>
-
-      <Card aria-labelledby="settings-station-title">
-        <h3 id="settings-station-title">Station network (optional)</h3>
-        <ErrorBanner message={stationError} />
-        <StationForm
-          busy={stationBusy}
-          onRemove={removeStation}
-          onSubmit={submitStation}
-          stationConfigured={settings.stationConfigured}
-          stationSsid={settings.stationSsid}
-        />
-      </Card>
-
-      <Card aria-labelledby="settings-password-title">
-        <h3 id="settings-password-title">Administrator password</h3>
-        <ErrorBanner message={passwordError} />
-        <PasswordForm
-          busy={passwordBusy}
-          onSubmit={(currentPassword, newPassword) => {
-            void submitPassword(currentPassword, newPassword);
-          }}
-        />
-      </Card>
-
-      <Card aria-labelledby="settings-diagnostics-title">
-        <h3 id="settings-diagnostics-title">Diagnostics</h3>
-        <button onClick={onOpenDiagnostics} type="button">
-          View diagnostics
-        </button>
-      </Card>
-
-      <Card aria-labelledby="settings-session-title">
-        <h3 id="settings-session-title">Session</h3>
-        <ErrorBanner message={actionError} />
-        <button
-          disabled={actionBusy !== null}
-          onClick={() => {
-            beginDestructive("sign-out");
-          }}
-          type="button"
-        >
-          {actionBusy === "sign-out" ? "Signing out…" : "Sign out"}
-        </button>
-      </Card>
-
-      <Card aria-labelledby="settings-danger-title" variant="danger">
-        <h3 id="settings-danger-title">Device actions</h3>
-        <FormActions>
-          <button
-            disabled={actionBusy !== null}
-            onClick={() => {
-              setRestartConfirming(true);
-            }}
-            type="button"
-          >
-            Restart
-          </button>
-          <button
-            className="danger"
-            disabled={actionBusy !== null}
-            onClick={() => {
-              beginDestructive("reset-settings");
-            }}
-            type="button"
-          >
-            Reset settings
-          </button>
-          <button
-            className="danger"
-            disabled={actionBusy !== null}
-            onClick={() => {
-              beginDestructive("factory-reset");
-            }}
-            type="button"
-          >
-            Factory reset
-          </button>
-        </FormActions>
-      </Card>
+    <section aria-label="Settings">
+      {groupBody()}
 
       {restartConfirming ? (
-        <Dialog
-          aria-labelledby="confirm-restart-title"
-          containerRef={restartConfirmRef}
-          heading={<h2 id="confirm-restart-title">Restart the device?</h2>}
-          role="alertdialog"
+        <ConfirmDialog
+          confirmDisabled={actionBusy !== null}
+          confirmLabel={
+            actionBusy === "restart" ? "Restarting…" : "Restart now"
+          }
+          id="confirm-restart-title"
+          onCancel={() => {
+            setRestartConfirming(false);
+          }}
+          onConfirm={() => {
+            void doRestart();
+          }}
+          title="Restart the device?"
+          tone="panel"
         >
           <p>
             The device restarts and its Wi-Fi access point briefly drops. This
             tab reconnects automatically and, once the device is back, asks you
             to sign in again — your unsaved work, if any, is preserved.
           </p>
-          <FormActions>
-            <button
-              disabled={actionBusy !== null}
-              onClick={() => {
-                setRestartConfirming(false);
-              }}
-              type="button"
-            >
-              Cancel
-            </button>
-            <button
-              className="danger"
-              disabled={actionBusy !== null}
-              onClick={() => {
-                void doRestart();
-              }}
-              type="button"
-            >
-              {actionBusy === "restart" ? "Restarting…" : "Restart now"}
-            </button>
-          </FormActions>
-        </Dialog>
+        </ConfirmDialog>
       ) : null}
 
       {confirmPhrase !== null ? (

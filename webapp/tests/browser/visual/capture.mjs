@@ -87,6 +87,12 @@ export async function capturePseudoElements(page) {
  * human inspection -- see run-visual-tests.mjs's `--diff-dir`.
  */
 export async function captureScenario(page, { screenshot = true } = {}) {
+  // Click-heavy scenarios leave the mouse over whatever control they last
+  // used. Clear hover state at a guaranteed empty page corner so CSS hover
+  // styles do not make geometry/style baselines depend on event timing, then
+  // let the outgoing hover transition settle before reading computed styles.
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(250);
   const elements = await captureDocument(page);
   const pseudoElements = await capturePseudoElements(page);
   const png = screenshot ? await page.screenshot({ fullPage: true }) : null;

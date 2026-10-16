@@ -230,6 +230,7 @@ describe("SnapshotsPage — V2-115 import", () => {
       container,
       store,
       onSaveSnapshot,
+      onNotify,
       onWorkingCopyOriginChanged,
       unmount,
     } = await renderPage({
@@ -248,6 +249,9 @@ describe("SnapshotsPage — V2-115 import", () => {
     );
     expect(store.getIsDirty()).toBe(true);
     expect(onSaveSnapshot).not.toHaveBeenCalled();
+    expect(onNotify).toHaveBeenCalledWith(
+      "Repository imported. Save a snapshot to keep these changes.",
+    );
     expect(onWorkingCopyOriginChanged).toHaveBeenCalledWith(null);
     await unmount();
   });

@@ -19,6 +19,8 @@ export async function startStartupFixtureServer(options = {}) {
     authenticated = true,
     blobs: initialBlobs = [{ id: blobId, bytes: repositoryGzip }],
     usbState: initialUsbState = "ready",
+    lastSelectedPackageId = settings.lastSelectedPackageId,
+    settingsFailures = 0,
   } = options;
 
   // Three levels up, not two: this module lives in tests/browser/fixtures/,
@@ -32,7 +34,8 @@ export async function startStartupFixtureServer(options = {}) {
     provisioned,
     authenticated,
     adminPassword,
-    settings: { ...settings },
+    settings: { ...settings, lastSelectedPackageId },
+    settingsFailuresRemaining: settingsFailures,
     blobs: initialBlobs.map((blob) => ({ ...blob })),
     nextBlobId:
       initialBlobs.reduce((max, blob) => Math.max(max, Number(blob.id)), 0) + 1,
@@ -141,6 +144,16 @@ export async function startStartupFixtureServer(options = {}) {
           return;
         }
         if (method === "GET" && url.pathname === "/api/v1/settings") {
+          if (state.settingsFailuresRemaining > 0) {
+            state.settingsFailuresRemaining -= 1;
+            sendError(
+              response,
+              503,
+              "temporarily_unavailable",
+              "Device settings are temporarily unavailable.",
+            );
+            return;
+          }
           sendJson(response, 200, state.settings);
           return;
         }

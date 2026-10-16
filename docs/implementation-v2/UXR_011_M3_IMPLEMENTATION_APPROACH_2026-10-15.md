@@ -1,6 +1,6 @@
 # UXR-011 — Material 3 implementation approach
 
-- **Date:** 2026-10-15
+- **Date:** 2026-10-15; qualification updated 2026-10-16
 - **Task:** UXR-011 in `docs/UI_UX_REDESIGN_TODO_2026-10-15.md`
 - **Decision:** build an **in-repo Material 3 Expressive token and component
   layer** on the existing React 19 / Tailwind 4 stack. Add no component-library
@@ -12,7 +12,7 @@
 | Criterion | In-repo token/component layer | `@material/web` 2.5.0 (Google, Apache-2.0) | `@mui/material` 9.5.0 (MIT) |
 | --- | --- | --- | --- |
 | Components needed by the spec | Built as needed: app bar, navigation bar and rail, buttons, fields, lists, cards, menus, dialogs, snackbar, progress | Has buttons, fields, dialog, list, menu, progress, chips, tabs, select. **No navigation bar, navigation rail, top app bar, snackbar or toolbar** (checked in the installed package) | Large set, Material You styling, not an Expressive implementation |
-| Measured size | Tokens and primitives are plain CSS and small React; measured at UXR-081 | 9 components bundled and minified: **175,074 bytes raw, 38,643 gzip** (before any missing component is hand-built) | 8.5 MB unpacked; tree-shaken cost not measured because the dependency tree (emotion, styled engine) is the larger concern |
+| Measured size | Tokens and primitives are plain CSS and small React; full app JS/CSS measured below | 9 components bundled and minified: **175,074 bytes raw, 38,643 gzip** (before any missing component is hand-built) | 8.5 MB unpacked; tree-shaken cost not measured because the dependency tree (emotion, styled engine) is the larger concern |
 | React 19 and strict lint | Plain function components under the existing `strictTypeChecked` ESLint | Lit web components; needs custom-element JSX typings and event wiring under the same lint rules | Supports React 19 |
 | Tailwind coexistence | Native: tokens live in `@theme` | Own CSS custom properties and shadow DOM; two token systems | Own styling engine; two systems |
 | Offline and no CDN | Trivially local | Local; ships no fonts by default | Local |
@@ -48,6 +48,21 @@
 
 - `@material/web` coverage was judged from the installed package's directory
   listing and a bundle measurement, not from a prototype of every component.
-- Supported-browser evidence for the in-repo layer is gathered at UXR-071
-  (axe, real Chrome) and UXR-081; other engines are not exercised by this
-  repository's browser tests.
+- Supported-browser evidence: real Chrome workflows, axe, reduced-motion and
+  six viewport sizes passed. A Firefox 153 smoke test passed at 320×568 with no
+  horizontal overflow. Playwright WebKit 26.5 could not launch because this
+  host lacks `libavif.so.16`; Safari is not qualified. Actual screen-reader,
+  browser zoom and physical-device performance checks remain open.
+
+## 2026-10-16 release measurements
+
+Production webapp build: JS **339,490 bytes raw / 101,680 gzip**; CSS
+**38,760 raw / 7,620 gzip**; no font or external runtime assets. Compared with
+the recorded baseline (JS 313,486 / 93,241 and CSS 27,946 / 6,193), total gzip
+increased by **9,866 bytes**. This is the whole redesign app delta, not an
+isolated component-library cost.
+
+`check-all.sh` produced a webfs image using **520,192 of 891,289 budget bytes**
+(58.4%, 371,097 bytes free); the OTA app used 1,006,896 of 2,097,152 bytes
+(48.0%). The 1 MiB generated LittleFS image is partition-sized; the manifest
+budget counts packed webfs content.

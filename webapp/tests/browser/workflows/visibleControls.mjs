@@ -157,7 +157,156 @@ export const SCREENS = [
       button("Import repository…"),
     ],
   },
-  { route: "settings", ready: "Settings", controls: [] },
+  {
+    route: "settings",
+    ready: "USB identity and confirmation",
+    controls: [
+      {
+        label: "settings group: Device identity",
+        find: (page) => page.getByRole("button", { name: /^Device identity/ }),
+      },
+      {
+        label: "settings group: Network",
+        find: (page) => page.getByRole("button", { name: /^Network/ }),
+      },
+      {
+        label: "settings group: Security",
+        find: (page) => page.getByRole("button", { name: /^Security/ }),
+      },
+      {
+        label: "settings group: USB identity and confirmation",
+        find: (page) =>
+          page.getByRole("button", { name: /^USB identity and confirmation/ }),
+      },
+      {
+        label: "settings group: Restart and reset",
+        find: (page) =>
+          page.getByRole("button", { name: /^Restart and reset/ }),
+      },
+      {
+        label: "settings group: Diagnostics",
+        find: (page) => page.getByRole("button", { name: /^Diagnostics/ }),
+      },
+    ],
+  },
+  {
+    route: "settings?group=device",
+    name: "device identity settings",
+    ready: "Device name",
+    focused: true,
+    controls: [
+      labelled("Device name"),
+      labelled("Advisory snapshot retention target"),
+      button("Save"),
+    ],
+  },
+  {
+    route: "settings?group=network",
+    name: "network settings",
+    ready: "Access point",
+    focused: true,
+    controls: [button("Access point"), button("Station network")],
+  },
+  {
+    route: "settings?group=network&section=access-point",
+    name: "access-point settings",
+    ready: "Access-point network name (SSID)",
+    focused: true,
+    controls: [
+      labelled("Back to network settings"),
+      labelled("Access-point network name (SSID)"),
+      labelled("New access-point passphrase"),
+      button("Update access point"),
+    ],
+  },
+  {
+    route: "settings?group=network&section=station",
+    name: "station network settings",
+    ready: "Network name (SSID)",
+    focused: true,
+    controls: [
+      labelled("Back to network settings"),
+      labelled("Network name (SSID)"),
+      labelled("Passphrase"),
+      button("Connect"),
+    ],
+  },
+  {
+    route: "settings?group=security",
+    name: "security settings",
+    ready: "Change password",
+    focused: true,
+    controls: [button("Change password"), button("Sign out")],
+  },
+  {
+    route: "settings?group=security&section=password",
+    name: "change password settings",
+    ready: "Current password",
+    focused: true,
+    controls: [
+      labelled("Back to security settings"),
+      labelled("Current password"),
+      labelled("New password"),
+      labelled("Confirm new password"),
+      button("Change password"),
+    ],
+  },
+  {
+    route: "settings?group=security&section=session",
+    name: "sign-out settings",
+    ready: "Sign out",
+    focused: true,
+    controls: [labelled("Back to security settings"), button("Sign out")],
+  },
+  {
+    route: "settings?group=usb",
+    name: "USB identity and confirmation",
+    ready: "USB keyboard identity",
+    focused: true,
+    controls: [
+      labelled("Require physical confirmation before typing"),
+      button("Save"),
+    ],
+  },
+  {
+    route: "settings?group=reset",
+    name: "restart and reset settings",
+    ready: "Factory reset",
+    focused: true,
+    controls: [
+      button("Restart"),
+      button("Reset settings"),
+      button("Factory reset"),
+    ],
+  },
+  {
+    route: "settings?group=reset&section=restart",
+    name: "restart settings",
+    ready: "The device restarts and its Wi-Fi drops briefly.",
+    focused: true,
+    controls: [labelled("Back to restart and reset"), button("Restart")],
+  },
+  {
+    route: "settings?group=reset&section=reset-settings",
+    name: "reset settings",
+    ready: "Restores default settings and removes the station network.",
+    focused: true,
+    controls: [labelled("Back to restart and reset"), button("Reset settings")],
+  },
+  {
+    route: "settings?group=reset&section=factory-reset",
+    name: "factory reset settings",
+    ready: "Erases all settings, the password and every snapshot",
+    focused: true,
+    controls: [labelled("Back to restart and reset"), button("Factory reset")],
+  },
+  {
+    route: "diagnostics",
+    name: "diagnostics",
+    ready: "Download diagnostics",
+    focused: true,
+    controls: [button("Download diagnostics"), button("Copy diagnostics")],
+  },
 ];
 
 async function assertVisibleInViewport(page, control, where) {
