@@ -6,6 +6,7 @@ artifact_dir="${UXR_FIREFOX_ZOOM_OUTPUT:-"${repo_root}/docs/ui-redesign/phase10-
 mkdir -p "${artifact_dir}"
 
 docker run --rm --init --interactive --network host \
+	--env UXR_FIREFOX_ZOOM_MODE \
 	--volume "${repo_root}:/repo:ro" \
 	--volume "${artifact_dir}:/artifacts" \
 	--workdir /repo/webapp \

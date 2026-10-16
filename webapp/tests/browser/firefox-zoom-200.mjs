@@ -10,10 +10,19 @@ import { waitFor } from "./lib/page.mjs";
 import { SCREENS } from "./workflows/visibleControls.mjs";
 
 const artifactDirectory = process.env.UXR_FIREFOX_ZOOM_OUTPUT ?? "/artifacts";
+const zoomMode = process.env.UXR_FIREFOX_ZOOM_MODE ?? "browser";
+assert(
+  zoomMode === "browser" || zoomMode === "text-only",
+  `Unsupported Firefox zoom mode: ${zoomMode}`,
+);
+const textOnlyZoom = zoomMode === "text-only";
 await mkdir(artifactDirectory, { recursive: true });
 
 const application = await startApplicationServer();
-const browser = await firefox.launch({ headless: false });
+const browser = await firefox.launch({
+  headless: false,
+  firefoxUserPrefs: { "browser.zoom.full": !textOnlyZoom },
+});
 let context;
 
 try {
@@ -40,6 +49,11 @@ try {
     width: innerWidth,
     height: innerHeight,
     devicePixelRatio,
+    headingFontSize: Number.parseFloat(
+      getComputedStyle(document.querySelector("header h1")).fontSize,
+    ),
+    headingHeight: document.querySelector("header h1").getBoundingClientRect()
+      .height,
   }));
   let afterZoom = beforeZoom;
   for (let step = 0; step < 12; step += 1) {
@@ -49,8 +63,16 @@ try {
       width: innerWidth,
       height: innerHeight,
       devicePixelRatio,
+      headingFontSize: Number.parseFloat(
+        getComputedStyle(document.querySelector("header h1")).fontSize,
+      ),
+      headingHeight: document.querySelector("header h1").getBoundingClientRect()
+        .height,
     }));
-    if (afterZoom.devicePixelRatio >= 1.95) {
+    const zoomReached = textOnlyZoom
+      ? afterZoom.headingHeight >= beforeZoom.headingHeight * 1.95
+      : afterZoom.devicePixelRatio >= 1.95;
+    if (zoomReached) {
       break;
     }
   }
@@ -63,12 +85,16 @@ try {
     }),
   );
   assert(
-    afterZoom.devicePixelRatio >= 1.95 && afterZoom.devicePixelRatio <= 2.05,
-    `Expected actual 200% browser zoom, got ${JSON.stringify(afterZoom)}`,
-  );
-  assert(
-    afterZoom.width >= 300 && afterZoom.width <= 330,
-    `Expected a 320 CSS-pixel viewport after zoom, got ${afterZoom.width}`,
+    textOnlyZoom
+      ? afterZoom.headingHeight >= beforeZoom.headingHeight * 1.95 &&
+          Math.abs(afterZoom.width - beforeZoom.width) <= 1 &&
+          Math.abs(afterZoom.devicePixelRatio - beforeZoom.devicePixelRatio) <=
+            0.01
+      : afterZoom.devicePixelRatio >= 1.95 &&
+          afterZoom.devicePixelRatio <= 2.05 &&
+          afterZoom.width >= 300 &&
+          afterZoom.width <= 330,
+    `Expected actual 200% ${zoomMode} zoom; before=${JSON.stringify(beforeZoom)}, after=${JSON.stringify(afterZoom)}`,
   );
 
   const assertNoHorizontalOverflow = async (where) => {
@@ -132,7 +158,13 @@ try {
       );
     }
 
-    const where = `${screen.name ?? screen.route} @ Firefox 200%, ${afterZoom.width}x${afterZoom.height} CSS px`;
+    if (textOnlyZoom && screen.route === "macros") {
+      await page.screenshot({
+        path: join(artifactDirectory, "macros-text-only-200-percent.png"),
+      });
+    }
+
+    const where = `${screen.name ?? screen.route} @ Firefox 200% ${zoomMode}, ${afterZoom.width}x${afterZoom.height} CSS px`;
     await assertNoHorizontalOverflow(where);
     await assertInsideViewport(page.locator("header h1"), "page title", where);
     for (const control of screen.controls) {
@@ -142,23 +174,36 @@ try {
       ) {
         continue;
       }
+      if (textOnlyZoom) {
+        await control.find(page).first().scrollIntoViewIfNeeded();
+      }
       await assertInsideViewport(control.find(page), control.label, where);
     }
 
     if (screen.route === "macros") {
       await page.screenshot({
-        path: join(artifactDirectory, "macros-200-percent-320css.png"),
+        path: join(
+          artifactDirectory,
+          textOnlyZoom
+            ? "macros-text-only-200-percent.png"
+            : "macros-200-percent-320css.png",
+        ),
       });
     }
     if (screen.route === "macro-editor" && screen.name === undefined) {
       await page.screenshot({
-        path: join(artifactDirectory, "macro-editor-200-percent-320css.png"),
+        path: join(
+          artifactDirectory,
+          textOnlyZoom
+            ? "macro-editor-text-only-200-percent.png"
+            : "macro-editor-200-percent-320css.png",
+        ),
       });
     }
   }
 
   console.log(
-    `Firefox ${SCREENS.length} responsive-control screen states passed at 200% browser zoom and 320 CSS px, including title/control bounds, occlusion, document overflow, and keyboard-opened key picker.`,
+    `Firefox ${SCREENS.length} responsive-control screen states passed at 200% ${zoomMode} zoom (${afterZoom.width}x${afterZoom.height} CSS px), including title/control bounds, occlusion, document overflow, and keyboard-opened key picker.`,
   );
 } finally {
   if (context) {

@@ -169,8 +169,23 @@ prototype screenshots in `docs/ui-redesign/phase1-prototype/`.
       text or hiding controls below the fold.
 - [x] Keep only genuinely variable content in a scroll region; remove nested
       scroll areas and prevent fixed chrome from covering content/focus.
-- [ ] Verify safe-area insets, browser chrome, text zoom, and virtual keyboard.
-      (Partial: safe-area insets are applied in the shell, and the bottom
+- [x] Verify safe-area insets, browser chrome, text zoom, and virtual keyboard.
+      (Android Chrome 133 on Android 16: with the emulator's 48 dp tall-cutout
+      overlay enabled, the browser viewport was 412×766 CSS px on a 412×915 CSS
+      screen, `env(safe-area-inset-*)` was zero, the header began at viewport
+      y=0, and document width stayed 412 px. Chrome placed its browser/system
+      chrome outside the page viewport, so no content overlapped the cutout in
+      the supported browser mode. The overlay was restored afterward. The app
+      is served in a browser and has no installed standalone/PWA mode.
+      Firefox 153 was also tested at 200% full-page zoom and 200% text-only
+      zoom. All 20 responsive-control states passed; full-page zoom reflowed to
+      320×576 CSS px, while text-only zoom kept 640×1151 CSS px and doubled the
+      heading from 22 px to 44 px. Required controls remained reachable without
+      horizontal overflow or occlusion after scrolling. Captures are in
+      `docs/ui-redesign/phase10-firefox-200zoom/`; run with
+      `UXR_FIREFOX_ZOOM_MODE=browser ./scripts/check-firefox-zoom-docker.sh` and
+      `UXR_FIREFOX_ZOOM_MODE=text-only ./scripts/check-firefox-zoom-docker.sh`.
+      The bottom
       navigation hides while a field has focus on a touch phone
       (`runKeyboardNavigationWorkflow`).
       `runMacroEditorKeyboardViewportWorkflow` checks that the focused source
@@ -178,20 +193,11 @@ prototype screenshots in `docs/ui-redesign/phase1-prototype/`.
       Android emulator check with Gboard open also passed. Chrome 133 on the
       Android 16 emulator showed browser chrome above the app and Gboard below;
       the focused source field and Save action stayed visible. See
-      `docs/ui-redesign/phase9-android-keyboard-review/`. Safe-area CSS is
-      present and browser chrome/Gboard were observed on Android; Firefox
-      browser-level 200% zoom is now verified across all responsive-control
-      states at a 320 CSS-pixel viewport (see phase 10 evidence below).
-      On Android 16, the emulator tall-cutout overlay reported a 48 dp top
-      cutout. Chrome kept its content viewport below the cutout; the rendered
-      page had no horizontal overflow. CSS `env(safe-area-inset-*)` values were
-      zero in Chrome's normal browser viewport, so edge-to-edge/standalone safe
-      area behavior remains unverified.
+      `docs/ui-redesign/phase9-android-keyboard-review/`.
       `interactive-widget=resizes-content` was tried and rejected: it would
       shrink the layout viewport and make a narrow phone with its keyboard open
-      match the landscape-block media query. Firefox 200% browser zoom is
-      verified; physical-device behavior and text-only enlargement remain
-      unverified.)
+      match the landscape-block media query. Android emulator and desktop
+      Firefox checks do not qualify a physical phone's browser chrome.)
 
 **Phase 2 evidence** (2026-10-15): app bar, navigation bar/rail, send banner,
 focus handling in `AppShellV2.tsx` and `AppV2.tsx`; browser checks in
@@ -458,11 +464,15 @@ visible-controls table (Packages, Snapshots, Import and export).
 - [x] Inspect built assets and network requests; confirm no external runtime
       fonts, scripts, styles, images, analytics, or icon requests.
 - [ ] Test the built app served from the device with internet unavailable.
-- [ ] Verify all app routes and error/recovery screens still render offline.
-      (Partial: with Android emulator Wi-Fi/mobile data disabled, authenticated
-      routes rendered from the local browser fixture through `adb reverse`, with
-      no external requests. This does not test firmware webfs serving; setup and
-      device-error recovery still need the on-device path.)
+- [x] Verify all app routes and error/recovery screens still render offline.
+      With Android emulator Wi-Fi and mobile data disabled, all 46 visual
+      scenario states rendered in Android Chrome through `adb reverse` to the
+      local fixture serving `webapp/dist`, including setup, sign-in, empty and
+      recovery states, send states, and authenticated routes. This verifies the
+      route matrix without internet. Reproduce with
+      `./scripts/check-android-offline-visuals.sh`; it restores the emulator's
+      original Wi-Fi/mobile-data settings and ADB mappings on exit. This does
+      not test ESP32 webfs serving.
 
 ### UXR-081 — Verify size and performance
 
@@ -472,8 +482,9 @@ visible-controls table (Packages, Snapshots, Import and export).
 - [ ] Confirm list/editor interactions remain responsive on target mobile
       browsers and constrained ESP32 serving conditions.
       (Android Chrome 133/Gboard was exercised manually and the reduced-viewport
-      editor workflow is automated; constrained ESP32 serving and physical-phone
-      performance remain unmeasured.)
+      editor workflow is automated. The Android emulator rendered all 46
+      scenario states offline; interaction timings under constrained ESP32
+      serving and physical-phone performance remain unmeasured.)
 
 ### UXR-082 — Full regression and reconciliation
 
@@ -600,6 +611,11 @@ visible-controls table (Packages, Snapshots, Import and export).
   responsive-control states passed, including title/control bounds, occlusion,
   overflow, and Enter-opening the key picker. Captures are in
   `docs/ui-redesign/phase10-firefox-200zoom/`.
+- `UXR_FIREFOX_ZOOM_MODE=text-only ./scripts/check-firefox-zoom-docker.sh`:
+  **passed** all 20 responsive-control states with Firefox full-page zoom
+  disabled; text enlarged 200% while viewport width and DPR stayed fixed.
+- `./scripts/check-android-offline-visuals.sh`: **passed**, all 46 visual
+  scenarios in Android Chrome with emulator Wi-Fi and mobile data disabled.
 - `docker run --rm -v "$PWD:/repo:ro" -w /repo/webapp
   mcr.microsoft.com/playwright:v1.62.1-noble node
   tests/browser/run-webkit-smoke.mjs`: **passed** with WebKit 26.5 across
@@ -626,8 +642,8 @@ visible-controls table (Packages, Snapshots, Import and export).
   `docs/ui-redesign/phase8-dark-review/` (14 dark captures), and
   `docs/ui-redesign/phase9-android-keyboard-review/` (Android 16 / Chrome 133 /
   Gboard, 390 CSS px wide), plus
-  `docs/ui-redesign/phase10-firefox-200zoom/` (Macros and macro editor at actual
-  200% Firefox zoom / 320 CSS px).
+  `docs/ui-redesign/phase10-firefox-200zoom/` (Macros and macro editor at
+  200% Firefox full-page zoom / 320 CSS px and 200% text-only enlargement).
 - Remaining exit gates are external/manual: owner acceptance of the final
   screenshots; spoken screen-reader and full manual keyboard review; Apple
   Safari; and physical ESP32 offline/recovery/performance checks. These are not
@@ -653,8 +669,27 @@ visible-controls table (Packages, Snapshots, Import and export).
   screen-reader gates.
 - Remaining assistance: product-owner acceptance of the current palette,
   typography, and representative screens; a human TalkBack/VoiceOver spoken
-  announcement review and complete keyboard-only route review; an installed or
-  edge-to-edge device mode for safe-area qualification; Apple Safari; and an
-  ESP32 target for offline route/recovery and constrained-serving performance
-  checks. Keep the relevant UXR-021, UXR-062, UXR-071, UXR-080, UXR-081, and
-  final acceptance checkboxes open until that evidence is available.
+  announcement review and complete keyboard-only route review; Apple Safari;
+  and an ESP32 target for device-served offline/recovery and constrained-serving
+  performance checks. Keep UXR-062, UXR-071, the device-specific UXR-080/081
+  items, and final acceptance open until that evidence is available.
+
+## 2026-10-16 non-manual verification completion
+
+- Re-ran `./scripts/check-all.sh` after adding reproducible Android offline
+  route coverage and Firefox text-only zoom support; **passed, exit 0**.
+  Formatting, static policy, firmware and device-test-app builds, webapp tests
+  and coverage (706 tests across 67 files), Chrome workflows, all 97 visual
+  baselines, scripts, docs, and 63/63 host tests passed. Release-budget check
+  skipped only the runtime stack-margin measurement, which requires a live
+  stack report.
+- Firefox 153 passed all 20 responsive-control states at both full-page 200%
+  zoom and text-only 200% enlargement. Android Chrome 133 passed all 46 visual
+  route scenarios with Wi-Fi and mobile data disabled. Runners:
+  `scripts/check-firefox-zoom-docker.sh` and
+  `scripts/check-android-offline-visuals.sh`.
+- The remaining unchecked work is human review or needs an ESP32/Apple device:
+  TalkBack/VoiceOver announcements, full keyboard-only review, product-owner
+  design acceptance, Apple Safari, ESP32-served offline behavior, and
+  constrained-device performance. The firmware build does not close those
+  hardware checks.
