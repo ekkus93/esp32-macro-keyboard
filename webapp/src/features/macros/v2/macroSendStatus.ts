@@ -42,15 +42,37 @@ export function terminalIssueReason(
   }
 }
 
+/**
+ * An active send's status split into the sentence that names what is
+ * happening and, while it is running, a progress counter. They are separate
+ * because they change at different rates: the sentence changes when the state
+ * does and is worth announcing; the counter changes on every poll and is not
+ * (UXR-041: "polling produces stable visuals and restrained live
+ * announcements"). The page renders the counter outside the live region.
+ */
+export function activeStatusParts(
+  status: SendStatusResponse,
+  macro: MacroIdentity | null,
+): { text: string; progress: string | null } {
+  const label = macro !== null ? ` ${macro.name}` : "";
+  if (status.state === "awaiting_confirmation") {
+    return {
+      text: `Waiting for confirmation on the device to send${label}… Run confirm in the device serial console to continue.`,
+      progress: null,
+    };
+  }
+  return {
+    text: `Sending${label}…`,
+    progress: `action ${String(status.actionIndex)} of ${String(status.actionCount)}`,
+  };
+}
+
 export function activeStatusText(
   status: SendStatusResponse,
   macro: MacroIdentity | null,
 ): string {
-  const label = macro !== null ? ` ${macro.name}` : "";
-  if (status.state === "awaiting_confirmation") {
-    return `Waiting for confirmation on the device to send${label}… Run confirm in the device serial console to continue.`;
-  }
-  return `Sending${label}… action ${String(status.actionIndex)} of ${String(status.actionCount)}`;
+  const { text, progress } = activeStatusParts(status, macro);
+  return progress === null ? text : `${text} ${progress}`;
 }
 
 export function terminalIssueText(

@@ -8,7 +8,12 @@ import { startStartupFixtureServer } from "../fixtures/startupFixtureServer.mjs"
 import { startH4RecoveryFixture } from "../fixtures/h4RecoveryFixture.mjs";
 import { repositoryGzip } from "../fixtures/data.mjs";
 import { importFixtureRepository } from "../workflows/macroEditing.mjs";
-import { clickButton, clickButtonByAriaLabel, waitFor } from "../lib/page.mjs";
+import {
+  clickButton,
+  clickButtonByAriaLabel,
+  waitFor,
+  moveMacroViaMenu,
+} from "../lib/page.mjs";
 import { completeSetupSteps } from "../workflows/startup.mjs";
 import { captureScenario } from "./capture.mjs";
 
@@ -201,9 +206,7 @@ export const SCENARIOS = [
   ),
   scenario("macros-dirty", STANDARD_VIEWPORTS, (browser, viewport) =>
     withApp(browser, viewport, async (page) => {
-      await page
-        .locator('[aria-label="Move Open terminal down"]')
-        .press("Enter");
+      await moveMacroViaMenu(page, "Open terminal", "down");
       await waitFor(
         page,
         () => document.body.innerText.includes("Unsaved changes"),
@@ -420,9 +423,7 @@ export const SCENARIOS = [
   ),
   scenario("unsaved-changes-prompt", STANDARD_VIEWPORTS, (browser, viewport) =>
     withApp(browser, viewport, async (page) => {
-      await page
-        .locator('[aria-label="Move Open terminal down"]')
-        .press("Enter");
+      await moveMacroViaMenu(page, "Open terminal", "down");
       await waitFor(
         page,
         () => document.body.innerText.includes("Unsaved changes"),
@@ -855,9 +856,7 @@ export const SCENARIOS = [
             document.body?.innerText.includes("H4 recovery package") ?? false,
           "The H4 fixture did not reach the Macros page.",
         );
-        await page
-          .locator('[aria-label="Move Recovery macro down"]')
-          .press("Enter");
+        await moveMacroViaMenu(page, "Recovery macro", "down");
         await waitFor(
           page,
           () => document.body.innerText.includes("Unsaved changes"),

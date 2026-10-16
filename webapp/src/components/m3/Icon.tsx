@@ -10,6 +10,8 @@
  */
 const ICON_PATHS = {
   add: "M12 5v14M5 12h14",
+  arrowDown: "M12 5v14M6 13l6 6 6-6",
+  arrowUp: "M12 19V5M6 11l6-6 6 6",
   archive:
     "M4 4h16a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zM5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4",
   back: "M15 5l-7 7 7 7",
@@ -17,6 +19,7 @@ const ICON_PATHS = {
   checkCircle: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12.5l3 3 5-6",
   chevronRight: "M9 5l7 7-7 7",
   close: "M6 6l12 12M18 6L6 18",
+  copy: "M9 9h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1zM16 9V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3",
   download: "M12 4v11M7 11l5 5 5-5M5 20h14",
   edit: "M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4",
   error: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7.5v5.5M12 16.5v.01",

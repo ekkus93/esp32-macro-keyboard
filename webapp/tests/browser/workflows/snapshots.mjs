@@ -8,6 +8,7 @@ import {
   clickButtonByAriaLabel,
   evaluate,
   waitFor,
+  moveMacroViaMenu,
 } from "../lib/page.mjs";
 
 export async function runSnapshotsWorkflows(page, application, fixtures) {
@@ -53,7 +54,7 @@ export async function runSnapshotsWorkflows(page, application, fixtures) {
     () => document.body.innerText.includes("Add macro"),
     "Did not return to the Macros page.",
   );
-  await page.locator('[aria-label="Move Open terminal down"]').press("Enter");
+  await moveMacroViaMenu(page, "Open terminal", "down");
   await waitFor(
     page,
     () => document.body.innerText.includes("Unsaved changes"),

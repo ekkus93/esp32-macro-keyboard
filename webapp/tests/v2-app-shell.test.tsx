@@ -15,7 +15,7 @@ function shellWith(
       dirty={false}
       navigate={vi.fn()}
       onSaveSnapshot={vi.fn()}
-      packageName="Build server login"
+      title="Macros"
       route={route}
       saveError={null}
       saving={false}
@@ -27,14 +27,14 @@ function shellWith(
 }
 
 describe("AppShellV2 — V2-090 application shell", () => {
-  test("shows device name, selected package, USB state, and repository state", async () => {
+  test("shows device name, page title, USB state, and repository state", async () => {
     const { container, unmount } = await render(
       <AppShellV2
         deviceName="Desk Macro Keyboard"
         dirty={false}
         navigate={vi.fn()}
         onSaveSnapshot={vi.fn()}
-        packageName="Build server login"
+        title="Macros"
         route="macros"
         saveError={null}
         saving={false}
@@ -44,30 +44,38 @@ describe("AppShellV2 — V2-090 application shell", () => {
       </AppShellV2>,
     );
     expect(container.textContent).toContain("Desk Macro Keyboard");
-    expect(container.textContent).toContain("Build server login");
+    expect(container.querySelector("h1")?.textContent).toBe("Macros");
     expect(container.textContent).toContain("USB ready");
     expect(container.textContent).toContain("Saved");
     expect(container.textContent).not.toContain("Save snapshot");
     await unmount();
   });
 
-  test('shows "No package selected" when there is none', async () => {
-    const { container, unmount } = await render(
+  test("offers a Back control only on a focused task screen", async () => {
+    const onBack = vi.fn();
+    const { container, rerender, unmount } = await render(
       <AppShellV2
+        back={{ label: "Back to macros", onBack }}
         deviceName="Desk Macro Keyboard"
         dirty={false}
         navigate={vi.fn()}
         onSaveSnapshot={vi.fn()}
-        packageName={null}
-        route="macros"
+        route="macro-editor"
         saveError={null}
         saving={false}
+        title="Edit macro"
         usbState="ready"
       >
         <p>content</p>
       </AppShellV2>,
     );
-    expect(container.textContent).toContain("No package selected");
+    expect(container.querySelector("h1")?.textContent).toBe("Edit macro");
+    await click(
+      requiredElement('[aria-label="Back to macros"]', HTMLButtonElement),
+    );
+    expect(onBack).toHaveBeenCalledOnce();
+    await rerender(shellWith(null, "macros"));
+    expect(container.querySelector('[aria-label="Back to macros"]')).toBeNull();
     await unmount();
   });
 
@@ -79,7 +87,7 @@ describe("AppShellV2 — V2-090 application shell", () => {
         dirty={true}
         navigate={vi.fn()}
         onSaveSnapshot={onSaveSnapshot}
-        packageName="Build server login"
+        title="Macros"
         route="macros"
         saveError={null}
         saving={false}
@@ -102,7 +110,7 @@ describe("AppShellV2 — V2-090 application shell", () => {
         dirty={false}
         navigate={navigate}
         onSaveSnapshot={vi.fn()}
-        packageName={null}
+        title="Macros"
         route="snapshots"
         saveError={null}
         saving={false}
@@ -135,7 +143,7 @@ describe("AppShellV2 — V2-090 application shell", () => {
         dirty={false}
         navigate={vi.fn()}
         onSaveSnapshot={vi.fn()}
-        packageName={null}
+        title="Macros"
         route="diagnostics"
         saveError={null}
         saving={false}

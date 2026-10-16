@@ -6,6 +6,7 @@ import {
   clickButtonByAriaLabel,
   evaluate,
   waitFor,
+  moveMacroViaMenu,
 } from "../lib/page.mjs";
 
 export async function runBrowserWorkflows(page, serverState) {
@@ -26,14 +27,14 @@ export async function runBrowserWorkflows(page, serverState) {
   // "Move down" control — not just a mouse click — actually reorders.
   // `locator.press()` focuses the element itself before dispatching the key,
   // matching the harness's previous explicit focus()-then-key sequence.
-  await page.locator('[aria-label="Move Open terminal down"]').press("Enter");
+  await moveMacroViaMenu(page, "Open terminal", "down");
   await waitFor(
     page,
     () =>
       document.body.innerText.includes("Moved Open terminal to position 2."),
     "Keyboard Enter on Move down did not reorder the macro list.",
   );
-  await page.locator('[aria-label="Move Open terminal up"]').press("Enter");
+  await moveMacroViaMenu(page, "Open terminal", "up");
   await waitFor(
     page,
     () =>
@@ -142,6 +143,21 @@ export async function runBrowserWorkflows(page, serverState) {
       })
       .count()) >= 1,
     "Cancel was not reachable while awaiting confirmation.",
+  );
+  // The status and Cancel stay in view while the macro list scrolls under
+  // them (UI_UX_SPEC_MATERIAL_3_EXPRESSIVE §5.2).
+  await evaluate(page, () => {
+    document.querySelector("#main-content")?.scrollTo(0, 100_000);
+  });
+  const cancelBox = await page
+    .getByRole("button", { name: "Cancel and release all keys", exact: true })
+    .first()
+    .boundingBox();
+  assert(
+    cancelBox !== null &&
+      cancelBox.y >= 0 &&
+      cancelBox.y + cancelBox.height <= (page.viewportSize()?.height ?? 0),
+    "Cancel scrolled out of view with the macro list while awaiting confirmation.",
   );
   await waitFor(
     page,

@@ -1,3 +1,4 @@
+import { moveMacroViaMenu } from "./lib/page.mjs";
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, normalize } from "node:path";
@@ -346,7 +347,7 @@ async function main() {
       "H5 fixture did not reach the Macros page.",
     );
 
-    await page.locator('[aria-label="Move Open terminal down"]').press("Enter");
+    await moveMacroViaMenu(page, "Open terminal", "down");
     await waitFor(
       page,
       () => document.body.innerText.includes("Unsaved changes"),

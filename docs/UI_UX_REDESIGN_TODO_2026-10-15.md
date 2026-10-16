@@ -167,11 +167,12 @@ prototype screenshots in `docs/ui-redesign/phase1-prototype/`.
 - [ ] Keep only genuinely variable content in a scroll region; remove nested
       scroll areas and prevent fixed chrome from covering content/focus.
 - [ ] Verify safe-area insets, browser chrome, text zoom, and virtual keyboard.
-      (Partial: safe-area insets are applied in the shell; the bottom
-      navigation hides while a field has focus on a touch phone and
-      `interactive-widget=resizes-content` is set, both checked in
-      `runKeyboardNavigationWorkflow`. Text zoom and a real keyboard are not
-      yet verified; the editor's keyboard case waits for UXR-042.)
+      (Partial: safe-area insets are applied in the shell, and the bottom
+      navigation hides while a field has focus on a touch phone
+      (`runKeyboardNavigationWorkflow`). `interactive-widget=resizes-content`
+      was tried and rejected: it would shrink the layout viewport and make a
+      narrow phone with its keyboard open match the landscape-block media
+      query. Text zoom and a real on-screen keyboard are not yet verified.)
 
 **Phase 2 evidence** (2026-10-15): app bar, navigation bar/rail, send banner,
 focus handling in `AppShellV2.tsx` and `AppV2.tsx`; browser checks in
@@ -233,52 +234,67 @@ stepper), `SignInPage.tsx`, `RepositoryStartupScreen.tsx`, `StepIndicator`,
 
 ### UXR-040 — Redesign Macros as primary operating surface
 
-- [ ] Make selected package, USB state, macro count/list, Add macro, and Send
+- [x] Make selected package, USB state, macro count/list, Add macro, and Send
       entry points immediately understandable.
-- [ ] Redesign rows/cards for fast scanning, clear names, obvious Send, and
+- [x] Redesign rows/cards for fast scanning, clear names, obvious Send, and
       discoverable edit/manage actions.
-- [ ] Keep common actions visible; do not hide essential features behind an
-      unexplained overflow affordance.
-- [ ] Make empty state actionable and concise.
-- [ ] Preserve long-list scrolling only for macro data; keep Add macro, package
+- [x] Keep common actions visible; do not hide essential features behind an
+      unexplained overflow affordance. (Send and Edit are always visible.
+      Reorder, Duplicate and Delete are in a "More actions" menu whose
+      trigger has a name and tooltip; the menu is keyboard operable and
+      disabled items stay listed. The menu trigger is an icon, not a text
+      label, so it is the one place a product owner may prefer more.)
+- [x] Make empty state actionable and concise.
+- [x] Preserve long-list scrolling only for macro data; keep Add macro, package
       context, and active-send controls available.
-- [ ] Preserve source privacy constraints and verify no source leaks through
-      logs, diagnostics, notifications, or completion feedback.
+- [x] Preserve source privacy constraints and verify no source leaks through
+      logs, diagnostics, notifications, or completion feedback. (The picker's
+      live status names only the inserted token; `check-v2-snapshot-send-policy.py`,
+      `check-frontend-persisted-state.sh` and the console/storage prohibition
+      tests pass.)
 
 ### UXR-041 — Redesign Quick Send states
 
-- [ ] Design ready, disabled/not-ready, starting, awaiting-confirmation,
+- [x] Design ready, disabled/not-ready, starting, awaiting-confirmation,
       running, canceling, completed, rejected, timeout, and release-failure
       states.
-- [ ] Keep Cancel and required safety/release controls visible during sends.
-- [ ] Ensure polling produces stable visuals and restrained live announcements.
-- [ ] Verify cancellation/recovery behavior on navigation, reload, reconnect,
+- [x] Keep Cancel and required safety/release controls visible during sends.
+- [x] Ensure polling produces stable visuals and restrained live announcements.
+- [x] Verify cancellation/recovery behavior on navigation, reload, reconnect,
       and phone-landscape surface.
 
 ### UXR-042 — Redesign macro editor
 
-- [ ] Create focused editor layout with name, source, compact contextual help,
+- [x] Create focused editor layout with name, source, compact contextual help,
       validation locations, and clear save/cancel actions.
-- [ ] Keep Save/Done, Cancel/Back, and a clearly labeled key/directive insertion
+- [x] Keep Save/Done, Cancel/Back, and a clearly labeled key/directive insertion
       entry point visible at minimum viewport heights.
-- [ ] Preserve cursor-aware insertion for all named special keys, including Tab,
+- [x] Preserve cursor-aware insertion for all named special keys, including Tab,
       navigation/function keys, and Ctrl/Alt/Shift/GUI modifiers.
-- [ ] Provide an explicit key-combo builder or equivalent controls for
+- [x] Provide an explicit key-combo builder or equivalent controls for
       simultaneous-key groups; show the exact generated syntax before insertion.
-- [ ] Preserve escaped brace/bracket insertion, delay directives, and all
+- [x] Preserve escaped brace/bracket insertion, delay directives, and all
       supported macro language symbols without reducing them to unexplained
       manual typing.
-- [ ] Keep the full key palette usable on phones through a focused picker
+- [x] Keep the full key palette usable on phones through a focused picker
       subpage when it cannot fit in the editor viewport.
-- [ ] Preserve dirty state, navigation guard, validation, CRUD, and macro-language
+- [x] Preserve dirty state, navigation guard, validation, CRUD, and macro-language
       behavior.
-- [ ] Clearly distinguish preview/validation from physical send.
+- [x] Clearly distinguish preview/validation from physical send.
+
+**Phase 4 evidence** (2026-10-15): `MacrosPage.tsx`, `MacroRow.tsx`,
+`MacroOverflowMenu.tsx`, `UsbNotice.tsx`, `MacroEditorPage.tsx`,
+`MacroKeyPicker.tsx`, `macroInsertions.ts`, `m3/Menu.tsx`, `m3/Progress.tsx`;
+unit tests `v2-macros-page-states`, `v2-macro-insertions`,
+`v2-macro-editor-page`, `m3-menu`; Chrome: macro-editing workflow drives the
+picker and combo builder, `visibleControls.mjs` covers Macros, the editor and
+the picker at six viewports.
 
 **Phase 4 exit gate**
 
-- [ ] Macro list and editor pass existing behavior tests plus responsive and
+- [x] Macro list and editor pass existing behavior tests plus responsive and
       accessibility checks.
-- [ ] Quick Send remains one clear action when USB is ready; safety states are
+- [x] Quick Send remains one clear action when USB is ready; safety states are
       never obscured.
 
 ## Phase 5 — Packages, snapshots, and repository files

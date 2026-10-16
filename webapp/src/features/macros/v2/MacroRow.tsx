@@ -1,4 +1,5 @@
 import { Card } from "../../../components/Card";
+import { Icon } from "../../../components/m3/Icon";
 import type { RepositoryMacro } from "../../../v2/repository";
 import { MacroOverflowMenu } from "./MacroOverflowMenu";
 import type { MoveAction } from "./macroSendStatus";
@@ -16,6 +17,14 @@ interface MacroRowProps {
   onDelete: () => void;
 }
 
+/**
+ * One macro: its name, a one-line source preview, and the three controls a
+ * person reaches for -- Send (prominent), Edit, and a labelled "More actions"
+ * menu holding reorder, Duplicate and Delete (UXR-040). The source preview is
+ * a single truncated line: the list stays scannable, and the full text is one
+ * tap away in the editor (UI_UX_SPEC_V2 §5.2 keeps source visible here; it
+ * must never reach logs, diagnostics or send acknowledgements).
+ */
 export function MacroRow({
   macro,
   index,
@@ -29,76 +38,42 @@ export function MacroRow({
   onDelete,
 }: MacroRowProps): React.JSX.Element {
   return (
-    <Card>
-      <div>
+    <Card variant="flush">
+      <div className="min-w-0">
         <h3>{macro.name}</h3>
-        <p>
-          <code>{macro.source}</code>
+        <p className="min-w-0">
+          <code className="block truncate font-mono text-body-md">
+            {macro.source}
+          </code>
         </p>
       </div>
-      <div className="flex flex-wrap content-start items-center gap-2 [&_button]:flex-initial [@media(width<=32rem)]:w-full">
+      <div className="flex items-center gap-2">
         <button
           aria-label={sending ? `Sending ${macro.name}` : `Send ${macro.name}`}
-          className="primary"
+          className="primary flex-1 px-5 min-[34rem]:flex-none"
           disabled={sendDisabled}
           onClick={onSend}
           type="button"
         >
+          <Icon name="play" size={18} />
           {sending ? "Sending…" : "Send"}
         </button>
         <button
           aria-label={`Edit ${macro.name}`}
+          className="px-4"
           onClick={onEdit}
           type="button"
         >
+          <Icon name="edit" size={18} />
           Edit
         </button>
-        <div className="grid grid-cols-2 gap-2 [@media(width<=32rem)]:grid-cols-1">
-          <button
-            aria-label={`Move ${macro.name} to first`}
-            disabled={index === 0}
-            onClick={() => {
-              onMove("first");
-            }}
-            type="button"
-          >
-            Move first
-          </button>
-          <button
-            aria-label={`Move ${macro.name} up`}
-            disabled={index === 0}
-            onClick={() => {
-              onMove("up");
-            }}
-            type="button"
-          >
-            Move up
-          </button>
-          <button
-            aria-label={`Move ${macro.name} down`}
-            disabled={index === macroCount - 1}
-            onClick={() => {
-              onMove("down");
-            }}
-            type="button"
-          >
-            Move down
-          </button>
-          <button
-            aria-label={`Move ${macro.name} to last`}
-            disabled={index === macroCount - 1}
-            onClick={() => {
-              onMove("last");
-            }}
-            type="button"
-          >
-            Move last
-          </button>
-        </div>
         <MacroOverflowMenu
+          index={index}
           macro={macro}
+          macroCount={macroCount}
           onDelete={onDelete}
           onDuplicate={onDuplicate}
+          onMove={onMove}
         />
       </div>
     </Card>

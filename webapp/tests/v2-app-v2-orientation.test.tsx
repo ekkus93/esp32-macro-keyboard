@@ -77,7 +77,7 @@ describe("AppV2 — V2-131/V2-132 phone-landscape orientation surface (UI_UX_SPE
     const view = await signIn();
 
     await click(buttonWithText("Add macro"));
-    await waitUntil(() => bodyIncludes("Create macro"), "the macro editor");
+    await waitUntil(() => bodyIncludes("New macro"), "the macro editor");
     await setInputValue(
       requiredElement("#macro-editor-name", HTMLInputElement),
       "Open terminal",

@@ -61,6 +61,26 @@ type Phase =
   | { kind: "authenticated" }
   | { kind: "device-unreachable"; message: string };
 
+/** The app bar heading for each route (UXR-020). */
+function routeTitle(route: ScreenV2): string {
+  switch (route) {
+    case "macros":
+      return "Macros";
+    case "macro-editor":
+      return macroEditorTargetFromHash().kind === "edit"
+        ? "Edit macro"
+        : "New macro";
+    case "packages":
+      return "Packages";
+    case "snapshots":
+      return "Snapshots";
+    case "settings":
+      return "Settings";
+    case "diagnostics":
+      return "Diagnostics";
+  }
+}
+
 interface AuthenticatedShellProps {
   ready: RepositoryStartupReady;
 }
@@ -268,10 +288,6 @@ export function AuthenticatedShell({
     }
   };
 
-  const packageName =
-    snapshot.repository.packages.find((pkg) => pkg.id === packageId)?.name ??
-    null;
-
   if (deviceAction !== null && reconnect.phase !== "reachable") {
     return (
       <DeviceReconnectScreen
@@ -426,7 +442,10 @@ export function AuthenticatedShell({
           onSaveSnapshot={() => {
             void saveSnapshot();
           }}
-          packageName={packageName}
+          {...(route === "macro-editor"
+            ? { back: { label: "Back to macros", onBack: navigateToMacros } }
+            : {})}
+          title={routeTitle(route)}
           route={route}
           saveError={saveError}
           saving={saving}

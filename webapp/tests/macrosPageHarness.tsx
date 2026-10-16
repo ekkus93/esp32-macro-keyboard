@@ -7,7 +7,7 @@ import {
 } from "../src/features/macros/v2/MacrosPage";
 import type { Repository } from "../src/v2/repository";
 import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
-import type { SendStatusResponse } from "../src/v2/apiTypes";
+import type { SendStatusResponse, UsbState } from "../src/v2/apiTypes";
 import { render } from "./render";
 
 /** Timer-driven React updates (poll callbacks, the completion-ack timeout)
@@ -79,7 +79,7 @@ export const accepted = {
 };
 
 export interface RenderOptions {
-  usbState?: "ready" | "disconnected";
+  usbState?: UsbState;
   initialSend?: SendStatusResponse | null;
   onActiveSendChange?: (summary: ActiveSendSummary | null) => void;
   dependencies?: MacrosPageDependencies;

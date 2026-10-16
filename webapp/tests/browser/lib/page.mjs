@@ -233,3 +233,23 @@ export async function assertResponsiveLayout(page) {
  * `evaluate()` invokes React's `onClick` handler twice in the same task --
  * exactly the race the guard is built to withstand.
  */
+
+/**
+ * Reorders a macro through its row's "More actions" menu, by keyboard: Enter
+ * on the trigger opens the menu, Enter on the item chooses it. (UXR-040 moved
+ * Move up/down/top/bottom, Duplicate and Delete into that menu.)
+ */
+export async function moveMacroViaMenu(page, macroName, direction) {
+  await page
+    .locator(`[aria-label="More actions for ${macroName}"]`)
+    .press("Enter");
+  await page
+    .locator(`[aria-label="Move ${macroName} ${direction}"]`)
+    .press("Enter");
+}
+
+/** Opens a macro row's "More actions" menu and clicks one of its items. */
+export async function chooseMacroMenuItem(page, macroName, itemLabel) {
+  await page.locator(`[aria-label="More actions for ${macroName}"]`).click();
+  await page.locator(`[aria-label="${itemLabel}"]`).click();
+}

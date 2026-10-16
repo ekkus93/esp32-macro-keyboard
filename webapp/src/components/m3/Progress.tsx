@@ -25,3 +25,38 @@ export function LinearProgress({
     </div>
   );
 }
+
+/**
+ * Determinate linear progress: `value` of `max` complete. Exposed as a
+ * `progressbar` with its numeric value, which assistive technology reads on
+ * request but does not announce as it changes, so a once-per-poll update
+ * stays visual (UXR-041). `max` of 0 renders an empty track.
+ */
+export interface DeterminateProgressProps {
+  label: string;
+  max: number;
+  value: number;
+}
+
+export function DeterminateProgress({
+  label,
+  max,
+  value,
+}: DeterminateProgressProps): React.JSX.Element {
+  const fraction = max > 0 ? Math.min(1, Math.max(0, value / max)) : 0;
+  return (
+    <div
+      aria-label={label}
+      aria-valuemax={max}
+      aria-valuemin={0}
+      aria-valuenow={value}
+      className="h-1 w-full overflow-hidden rounded-full bg-surface-container-highest"
+      role="progressbar"
+    >
+      <div
+        className="h-full rounded-full bg-primary transition-[width] duration-300 ease-standard"
+        style={{ width: `${String(Math.round(fraction * 100))}%` }}
+      />
+    </div>
+  );
+}

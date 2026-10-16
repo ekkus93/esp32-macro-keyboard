@@ -169,7 +169,7 @@ describe("MacrosPage — V2-101 overflow menu (Duplicate/Delete)", () => {
         HTMLButtonElement,
       ),
     );
-    await click(buttonWithText("Confirm delete"));
+    await click(buttonWithText("Delete macro"));
 
     const pkg = store
       .getRepository()

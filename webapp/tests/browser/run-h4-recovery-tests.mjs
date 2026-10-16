@@ -1,3 +1,4 @@
+import { moveMacroViaMenu } from "./lib/page.mjs";
 import { chromium } from "playwright";
 
 import { startH4RecoveryFixture } from "./fixtures/h4RecoveryFixture.mjs";
@@ -28,7 +29,7 @@ try {
     "H4 fixture did not reach the Macros page.",
   );
 
-  await page.locator('[aria-label="Move Recovery macro down"]').press("Enter");
+  await moveMacroViaMenu(page, "Recovery macro", "down");
   await waitFor(
     page,
     () => document.body?.innerText.includes("Unsaved changes") ?? false,

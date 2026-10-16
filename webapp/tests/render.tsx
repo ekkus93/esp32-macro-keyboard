@@ -136,3 +136,22 @@ export function buttonContaining(text: string): HTMLButtonElement {
   }
   return button;
 }
+
+/** Chooses an option of a `<select>` the way a person would, firing `change`. */
+export async function selectOption(
+  element: HTMLSelectElement,
+  value: string,
+): Promise<void> {
+  await act(async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(
+      HTMLSelectElement.prototype,
+      "value",
+    );
+    if (descriptor?.set === undefined) {
+      throw new Error("Missing native select value setter.");
+    }
+    descriptor.set.call(element, value);
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+    await Promise.resolve();
+  });
+}

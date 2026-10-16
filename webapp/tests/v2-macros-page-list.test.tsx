@@ -3,6 +3,16 @@ import { describe, expect, test } from "vitest";
 import { buttonWithText, click, requiredElement } from "./render";
 import { macroBId, packageId, renderMacrosPage } from "./macrosPageHarness";
 
+/** Opens a row's "More actions" menu, where reorder, Duplicate and Delete live. */
+async function openMoreActions(macroName: string): Promise<void> {
+  await click(
+    requiredElement(
+      `[aria-label="More actions for ${macroName}"]`,
+      HTMLButtonElement,
+    ),
+  );
+}
+
 describe("MacrosPage — V2-091 macro list", () => {
   test("shows ordered macros, macro count, and Add macro", async () => {
     const { container, callbacks } = await renderMacrosPage();
@@ -16,7 +26,7 @@ describe("MacrosPage — V2-091 macro list", () => {
     await click(buttonWithText("Add macro"));
     expect(callbacks.onOpenAddMacro).toHaveBeenCalledOnce();
 
-    await click(buttonWithText("Change"));
+    await click(buttonWithText("Change package"));
     expect(callbacks.onChangePackage).toHaveBeenCalledOnce();
   });
 
@@ -33,6 +43,7 @@ describe("MacrosPage — V2-091 macro list", () => {
 
   test("accessible reordering moves a macro and announces the move", async () => {
     const { container, store } = await renderMacrosPage();
+    await openMoreActions("Start the build");
     await click(
       requiredElement(
         '[aria-label="Move Start the build down"]',
@@ -61,6 +72,8 @@ describe("MacrosPage — V2-091 macro list", () => {
 
   test("the first row cannot move up and the last row cannot move down", async () => {
     await renderMacrosPage();
+    await openMoreActions("Start the build");
+    await openMoreActions("Open terminal");
     const moveUpFirst = requiredElement(
       '[aria-label="Move Start the build up"]',
       HTMLButtonElement,
@@ -77,6 +90,8 @@ describe("MacrosPage — V2-091 macro list", () => {
   // "Move up"/"Move down" — a keyboard-operable alternative to drag and drop.
   test("Move first and Move last are disabled at their respective ends", async () => {
     await renderMacrosPage();
+    await openMoreActions("Start the build");
+    await openMoreActions("Open terminal");
     expect(
       requiredElement(
         '[aria-label="Move Start the build to first"]',
@@ -105,6 +120,7 @@ describe("MacrosPage — V2-091 macro list", () => {
 
   test("Move last reorders to the end of the list and announces the move", async () => {
     const { container, store } = await renderMacrosPage();
+    await openMoreActions("Start the build");
     await click(
       requiredElement(
         '[aria-label="Move Start the build to last"]',
@@ -124,6 +140,7 @@ describe("MacrosPage — V2-091 macro list", () => {
 
   test("Move first reorders to the start of the list", async () => {
     const { store } = await renderMacrosPage();
+    await openMoreActions("Open terminal");
     await click(
       requiredElement(
         '[aria-label="Move Open terminal to first"]',
@@ -229,12 +246,10 @@ describe("MacrosPage — V2-133 overflow menu dismissal", () => {
         .getRepository()
         .packages.find((candidate) => candidate.id === packageId)?.macros,
     ).toHaveLength(2);
-    // The original "Delete Start the build" button was itself unmounted
-    // (replaced by the confirmation panel) and a new one just remounted in
-    // its place — asserts focus landed on that reappeared trigger.
+    // Focus returns to the "More actions" button that opened the menu.
     expect(document.activeElement).toBe(
       requiredElement(
-        '[aria-label="Delete Start the build"]',
+        '[aria-label="More actions for Start the build"]',
         HTMLButtonElement,
       ),
     );

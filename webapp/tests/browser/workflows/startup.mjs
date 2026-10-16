@@ -1,7 +1,12 @@
 import { blobId, repositoryGzip } from "../fixtures/data.mjs";
 import { startStartupFixtureServer } from "../fixtures/startupFixtureServer.mjs";
 import { assert } from "../lib/http.mjs";
-import { clickButton, clickButtonByAriaLabel, waitFor } from "../lib/page.mjs";
+import {
+  clickButton,
+  clickButtonByAriaLabel,
+  waitFor,
+  moveMacroViaMenu,
+} from "../lib/page.mjs";
 
 async function runStartupFirstPhoneScenario(browser) {
   const fixture = await startStartupFixtureServer({
@@ -165,7 +170,7 @@ async function runStartupExpiredSessionScenario(browser) {
       "Startup fixture: initial load did not reach the Macros page.",
     );
 
-    await page.locator('[aria-label="Move Open terminal down"]').press("Enter");
+    await moveMacroViaMenu(page, "Open terminal", "down");
     await waitFor(
       page,
       () => document.body.innerText.includes("Unsaved changes"),

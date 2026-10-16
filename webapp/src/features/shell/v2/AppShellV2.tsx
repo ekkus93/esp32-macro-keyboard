@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { Eyebrow } from "../../../components/Eyebrow";
 import { ErrorBanner } from "../../../components/ErrorBanner";
+import { IconButton } from "../../../components/m3/Button";
 import { Icon } from "../../../components/m3/Icon";
 import type { IconName } from "../../../components/m3/Icon";
 import { SendStatus } from "../../../components/SendStatus";
@@ -27,7 +28,13 @@ import { useBeforeUnloadGuard } from "./useBeforeUnloadGuard";
 export interface AppShellV2Props {
   children: ReactNode;
   deviceName: string;
-  packageName: string | null;
+  /** The page title, shown as the app bar heading. */
+  title: string;
+  /**
+   * Present on a focused task screen (the macro editor): a back control to
+   * the left of the title. Absent on the four top-level destinations.
+   */
+  back?: { label: string; onBack: () => void };
   usbState: UsbState;
   dirty: boolean;
   route: ScreenV2;
@@ -78,10 +85,23 @@ function usbBadgeState(
   }
 }
 
+/**
+ * The navigation bar (phones) / rail (600px and up). On a focused task screen
+ * -- the macro editor, which has a Back control in the app bar -- the bottom
+ * bar is not shown on a phone: it would take 80px of a 568px screen from the
+ * form, and Back is the way out. The rail stays at wider widths. Both are
+ * complete literal strings (WEBAPP_TAILWIND_SPEC §8.2).
+ */
+const NAV_CLASS =
+  "order-last grid grid-cols-4 gap-1 bg-surface-container px-2 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] min-[37.5rem]:order-none min-[37.5rem]:flex min-[37.5rem]:w-20 min-[37.5rem]:shrink-0 min-[37.5rem]:flex-col min-[37.5rem]:items-center min-[37.5rem]:gap-3 min-[37.5rem]:px-0 min-[37.5rem]:pt-[calc(1.5rem+env(safe-area-inset-top))] [@media(pointer:coarse)_and_(width<37.5rem)]:group-has-[:is(input,textarea,select):focus]/shell:hidden";
+const NAV_FOCUSED_CLASS =
+  "order-last grid grid-cols-4 gap-1 bg-surface-container px-2 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] min-[37.5rem]:order-none min-[37.5rem]:flex min-[37.5rem]:w-20 min-[37.5rem]:shrink-0 min-[37.5rem]:flex-col min-[37.5rem]:items-center min-[37.5rem]:gap-3 min-[37.5rem]:px-0 min-[37.5rem]:pt-[calc(1.5rem+env(safe-area-inset-top))] [@media(pointer:coarse)_and_(width<37.5rem)]:group-has-[:is(input,textarea,select):focus]/shell:hidden max-[37.5rem]:hidden";
+
 export function AppShellV2({
   children,
   deviceName,
-  packageName,
+  title,
+  back,
   usbState,
   dirty,
   route,
@@ -132,7 +152,7 @@ export function AppShellV2({
       </button>
       <nav
         aria-label="Primary navigation"
-        className="order-last grid grid-cols-4 gap-1 bg-surface-container px-2 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] min-[37.5rem]:order-none min-[37.5rem]:flex min-[37.5rem]:w-20 min-[37.5rem]:shrink-0 min-[37.5rem]:flex-col min-[37.5rem]:items-center min-[37.5rem]:gap-3 min-[37.5rem]:px-0 min-[37.5rem]:pt-[calc(1.5rem+env(safe-area-inset-top))] [@media(pointer:coarse)_and_(width<37.5rem)]:group-has-[:is(input,textarea,select):focus]/shell:hidden"
+        className={back === undefined ? NAV_CLASS : NAV_FOCUSED_CLASS}
       >
         {navigation.map(([target, label, icon]) => {
           const active = navigationActive(route, target);
@@ -172,10 +192,13 @@ export function AppShellV2({
             one wrapping row so the bar costs one line of chrome on a wide
             screen and two on a phone, instead of the old three. */}
         <header className="flex flex-wrap items-center gap-x-3 gap-y-2 bg-surface px-4 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-2">
+          {back === undefined ? null : (
+            <IconButton icon="back" label={back.label} onClick={back.onBack} />
+          )}
           <div className="min-w-0 flex-1 overflow-hidden">
             <Eyebrow>{deviceName}</Eyebrow>
             <h1 className="m-0 overflow-hidden text-title-lg text-ellipsis whitespace-nowrap">
-              {packageName ?? "No package selected"}
+              {title}
             </h1>
           </div>
           {dirty ? (

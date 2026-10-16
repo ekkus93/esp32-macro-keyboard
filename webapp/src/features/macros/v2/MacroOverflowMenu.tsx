@@ -1,126 +1,151 @@
 import { useCallback, useRef, useState } from "react";
+import { Dialog } from "../../../components/Dialog";
+import { FormActions } from "../../../components/FormActions";
+import { Menu } from "../../../components/m3/Menu";
+import type { MenuItem } from "../../../components/m3/Menu";
 import type { RepositoryMacro } from "../../../v2/repository";
-import { useDismissibleOverlay } from "../../shell/v2/useDismissibleOverlay";
 import { useFocusTrap } from "../../shell/v2/useFocusTrap";
+import type { MoveAction } from "./macroSendStatus";
 
 /**
- * Overflow menu (TODO_V2 V2-101, closing a gap Phase 9 flagged rather than
- * faked — UI_UX_SPEC_V2 §5.1 "overflow actions such as Duplicate, Move, and
- * Delete"). Delete asks for an explicit, name-bearing confirmation before it
- * ever touches the working copy, matching the destructive-target
- * identification UI_UX_SPEC_V2 §6.2 requires for package deletion.
+ * The "More actions" menu on a macro row (TODO_V2 V2-101; UI_UX_SPEC_V2 §5.1
+ * "overflow actions such as Duplicate, Move, and Delete"; UXR-040). Reorder
+ * (UI_UX_SPEC_V2 §14: accessible Move first/up/down/last), Duplicate and
+ * Delete live here so a row's visible controls are Send and Edit. Every item
+ * keeps the accessible name it always had ("Move X up", "Duplicate X",
+ * "Delete X").
  *
- * TODO_V2 V2-133/UI_UX_SPEC_V2 §14: the menu itself closes on `Escape` or an
- * outside click (`useDismissibleOverlay`), and the delete confirmation traps
- * and restores focus like any other dialog (`useFocusTrap`) — this menu had
- * neither before the accessibility audit that opened V2-133.
+ * Delete asks for an explicit confirmation that names the macro and the
+ * consequence before it touches the working copy, matching the
+ * destructive-target identification UI_UX_SPEC_V2 §6.2 requires. It is a
+ * modal dialog (`useFocusTrap`: traps Tab, closes on Escape, restores focus to
+ * the "More actions" button), no longer a panel nested inside the menu.
  */
 export function MacroOverflowMenu({
   macro,
+  index,
+  macroCount,
+  onMove,
   onDuplicate,
   onDelete,
 }: {
   macro: RepositoryMacro;
+  index: number;
+  macroCount: number;
+  onMove: (action: MoveAction) => void;
   onDuplicate: () => void;
   onDelete: () => void;
 }): React.JSX.Element {
-  const [open, setOpen] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const confirmRef = useRef<HTMLDivElement>(null);
-  // The "Delete" trigger is unmounted (replaced by the confirmation panel)
-  // the same render that opens the trap, so `useFocusTrap`'s own automatic
-  // "whatever had focus when it activated" capture would only ever find
-  // `document.body`. This ref is attached to the *replacement* "Delete"
-  // button that remounts once the trap deactivates (see the hook's doc
-  // comment on `restoreFocusRef`).
-  const deleteButtonRef = useRef<HTMLButtonElement>(null);
-
-  const closeMenu = useCallback((): void => {
-    setOpen(false);
-    setConfirmingDelete(false);
-  }, []);
-  useDismissibleOverlay(open && !confirmingDelete, containerRef, closeMenu);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const cancelDelete = useCallback((): void => {
     setConfirmingDelete(false);
   }, []);
   useFocusTrap({
     active: confirmingDelete,
-    containerRef: confirmRef,
+    containerRef: dialogRef,
     onClose: cancelDelete,
-    restoreFocusRef: deleteButtonRef,
   });
 
+  const isFirst = index === 0;
+  const isLast = index === macroCount - 1;
+  const items: readonly MenuItem[] = [
+    {
+      key: "up",
+      label: "Move up",
+      ariaLabel: `Move ${macro.name} up`,
+      icon: "arrowUp",
+      disabled: isFirst,
+      onSelect: () => {
+        onMove("up");
+      },
+    },
+    {
+      key: "down",
+      label: "Move down",
+      ariaLabel: `Move ${macro.name} down`,
+      icon: "arrowDown",
+      disabled: isLast,
+      onSelect: () => {
+        onMove("down");
+      },
+    },
+    {
+      key: "first",
+      label: "Move to top",
+      ariaLabel: `Move ${macro.name} to first`,
+      icon: "arrowUp",
+      disabled: isFirst,
+      onSelect: () => {
+        onMove("first");
+      },
+    },
+    {
+      key: "last",
+      label: "Move to bottom",
+      ariaLabel: `Move ${macro.name} to last`,
+      icon: "arrowDown",
+      disabled: isLast,
+      onSelect: () => {
+        onMove("last");
+      },
+    },
+    {
+      key: "duplicate",
+      label: "Duplicate",
+      ariaLabel: `Duplicate ${macro.name}`,
+      icon: "copy",
+      onSelect: onDuplicate,
+    },
+    {
+      key: "delete",
+      label: "Delete",
+      ariaLabel: `Delete ${macro.name}`,
+      icon: "trash",
+      tone: "danger",
+      onSelect: () => {
+        setConfirmingDelete(true);
+      },
+    },
+  ];
+
   return (
-    <div className="relative" ref={containerRef}>
-      <button
-        aria-expanded={open}
-        aria-label={`More actions for ${macro.name}`}
-        onClick={() => {
-          setOpen((current) => !current);
-          setConfirmingDelete(false);
-        }}
-        type="button"
-      >
-        More actions
-      </button>
-      {open ? (
-        <div
-          aria-label={`Actions for ${macro.name}`}
-          className="mt-2 grid min-w-[12rem] gap-2 rounded-shape-md bg-surface-container-high p-3 shadow-elevation-2"
+    <>
+      <Menu
+        items={items}
+        menuLabel={`Actions for ${macro.name}`}
+        triggerLabel={`More actions for ${macro.name}`}
+      />
+      {confirmingDelete ? (
+        <Dialog
+          aria-labelledby={`delete-macro-title-${macro.id}`}
+          containerRef={dialogRef}
+          heading={<h2 id={`delete-macro-title-${macro.id}`}>Delete macro?</h2>}
+          role="alertdialog"
+          tone="danger"
         >
-          <button
-            aria-label={`Duplicate ${macro.name}`}
-            onClick={() => {
-              setOpen(false);
-              onDuplicate();
-            }}
-            type="button"
-          >
-            Duplicate
-          </button>
-          {confirmingDelete ? (
-            <div
-              className="my-4 rounded-shape-md bg-warning-container p-4 text-on-warning-container"
-              ref={confirmRef}
-              role="alertdialog"
-              tabIndex={-1}
-            >
-              <p>
-                Delete <strong>{macro.name}</strong>? This cannot be undone once
-                the working copy is saved.
-              </p>
-              <button
-                className="danger"
-                onClick={() => {
-                  setOpen(false);
-                  setConfirmingDelete(false);
-                  onDelete();
-                }}
-                type="button"
-              >
-                Confirm delete
-              </button>
-              <button onClick={cancelDelete} type="button">
-                Cancel
-              </button>
-            </div>
-          ) : (
+          <p>
+            <strong>{macro.name}</strong> will be removed from this package.
+            This cannot be undone once the working copy is saved.
+          </p>
+          <FormActions>
+            <button onClick={cancelDelete} type="button">
+              Cancel
+            </button>
             <button
-              aria-label={`Delete ${macro.name}`}
               className="danger"
               onClick={() => {
-                setConfirmingDelete(true);
+                setConfirmingDelete(false);
+                onDelete();
               }}
-              ref={deleteButtonRef}
               type="button"
             >
-              Delete
+              Delete macro
             </button>
-          )}
-        </div>
+          </FormActions>
+        </Dialog>
       ) : null}
-    </div>
+    </>
   );
 }

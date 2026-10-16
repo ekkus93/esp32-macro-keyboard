@@ -36,7 +36,7 @@ describe("AppV2 — Phase 10 wiring (macro editor and Packages, TODO_V2 V2-100/V
     expect(bodyIncludes("Unsaved changes")).toBe(true);
 
     await click(buttonWithText("Add macro"));
-    await waitUntil(() => bodyIncludes("Create macro"), "the macro editor");
+    await waitUntil(() => bodyIncludes("New macro"), "the macro editor");
 
     await setInputValue(
       requiredElement("#macro-editor-name", HTMLInputElement),

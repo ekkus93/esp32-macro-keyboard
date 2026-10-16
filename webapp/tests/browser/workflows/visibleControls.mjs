@@ -34,33 +34,97 @@ export const VIEWPORTS = [
 const NAV = ["Macros", "Packages", "Snapshots", "Settings"];
 
 /** Controls every authenticated route must show without scrolling. */
-const SHELL_CONTROLS = [
+const STATUS_CONTROLS = [
   { label: "page title", find: (page) => page.locator("header h1") },
   { label: "USB state", find: (page) => page.getByText(/^USB /) },
   {
     label: "saved state",
     find: (page) => page.getByText(/^(Saved|Unsaved changes)$/),
   },
-  ...NAV.map((name) => ({
-    label: `navigation: ${name}`,
-    find: (page) =>
-      page
-        .getByRole("navigation", { name: "Primary navigation" })
-        .getByRole("button", { name }),
-  })),
 ];
+
+/** Primary navigation: the bottom bar on phones, the rail from 600px up. */
+const NAVIGATION_CONTROLS = NAV.map((name) => ({
+  label: `navigation: ${name}`,
+  find: (page) =>
+    page
+      .getByRole("navigation", { name: "Primary navigation" })
+      .getByRole("button", { name }),
+}));
+
+/** Below this width the bottom bar replaces the rail. */
+const RAIL_MIN_WIDTH = 600;
 
 const button = (name) => ({
   label: `button: ${name}`,
   find: (page) => page.getByRole("button", { name, exact: true }),
 });
 
-/** route hash -> additional controls that screen promises. */
+const labelled = (name) => ({
+  label: `control labelled "${name}"`,
+  find: (page) => page.getByLabel(name, { exact: true }),
+});
+
+/**
+ * route hash -> additional controls that screen promises. A control may carry
+ * `minHeight`: it is only asserted where the viewport is at least that tall.
+ */
 export const SCREENS = [
   {
     route: "macros",
     ready: "Lab bench workflow",
-    controls: [button("Add macro")],
+    controls: [
+      button("Add macro"),
+      button("Change package"),
+      // The first row's everyday controls, at every size.
+      labelled("Send Open terminal"),
+      labelled("Edit Open terminal"),
+      labelled("More actions for Open terminal"),
+      // UXR-040: on a normal phone at least two rows are visible.
+      { ...labelled("Send Confirm before typing"), minHeight: 800 },
+    ],
+  },
+  {
+    // UXR-042: the editor is a focused task screen. On a phone its bottom
+    // bar gives way to a Back control; Cancel, Save, the fields and the key
+    // picker entry point must all be on screen at once.
+    route: "macro-editor",
+    ready: "Macro source",
+    focused: true,
+    controls: [
+      labelled("Back to macros"),
+      button("Cancel"),
+      button("Save changes"),
+      {
+        label: "Name field",
+        find: (page) => page.locator("#macro-editor-name"),
+      },
+      {
+        label: "Macro source field",
+        find: (page) => page.locator("#macro-editor-source"),
+      },
+      button("Keys and combinations"),
+    ],
+  },
+  {
+    route: "macro-editor",
+    ready: "Macro source",
+    focused: true,
+    name: "key picker",
+    drive: async (page) => {
+      await page
+        .getByRole("button", { name: "Keys and combinations", exact: true })
+        .click();
+    },
+    controls: [
+      {
+        label: "picker title",
+        find: (page) => page.getByText("Insert into macro"),
+      },
+      button("Done"),
+      labelled("Insert Enter key"),
+      labelled("Insert Tab key"),
+    ],
   },
   { route: "packages", ready: "Create package", controls: [] },
   { route: "snapshots", ready: "Snapshots", controls: [] },
@@ -120,8 +184,23 @@ export async function runVisibleControlsWorkflow(browser) {
             ),
             `The ${screen.route} screen did not render.`,
           );
-          const where = `${screen.route} @ ${viewport.name}`;
-          for (const control of [...SHELL_CONTROLS, ...screen.controls]) {
+          if (screen.drive !== undefined) {
+            await screen.drive(page);
+          }
+          const where = `${screen.name ?? screen.route} @ ${viewport.name}`;
+          const showsBottomBar =
+            screen.focused !== true || viewport.width >= RAIL_MIN_WIDTH;
+          for (const control of [
+            ...STATUS_CONTROLS,
+            ...(showsBottomBar ? NAVIGATION_CONTROLS : []),
+            ...screen.controls,
+          ]) {
+            if (
+              control.minHeight !== undefined &&
+              viewport.height < control.minHeight
+            ) {
+              continue;
+            }
             await assertVisibleInViewport(page, control, where);
           }
           await assertFitsViewport(page, where);
@@ -146,8 +225,13 @@ export async function runVisibleControlsWorkflow(browser) {
  * (UXR-021 virtual keyboard rule). A real keyboard cannot be summoned in
  * headless Chrome, so this proves the part that is ours: the navigation is
  * hidden exactly while a field is focused under a coarse pointer at phone
- * width, and returns on blur. `interactive-widget=resizes-content` in
- * index.html is what makes the browser shrink the layout around the keyboard.
+ * width, and returns on blur.
+ *
+ * Deliberately NOT done: `interactive-widget=resizes-content` in index.html.
+ * It would shrink the layout viewport when the keyboard opens, and the
+ * landscape-phone rule (`useLandscapePhoneBlock`) is a media query on that
+ * viewport -- on a 320px-wide phone a ~260px keyboard-open height reads as
+ * "landscape" and would replace the app with "Rotate your phone" mid-typing.
  */
 export async function runKeyboardNavigationWorkflow(browser) {
   const application = await startApplicationServer();

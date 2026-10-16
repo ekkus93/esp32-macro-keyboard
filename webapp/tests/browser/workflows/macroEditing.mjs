@@ -45,25 +45,58 @@ export async function runMacroEditingWorkflows(browser) {
     );
     await page.locator("#macro-editor-name").fill("Open the run dialog");
     await page.locator("#macro-editor-source").fill("r");
-    await page.getByRole("button", { name: "ENTER", exact: true }).click();
+    // UXR-042: the key picker is a focused view of the editor. Insert Enter
+    // at the cursor, then build and insert a Ctrl+Shift+T combination.
+    await clickButton(page, "Keys and combinations");
+    await waitFor(
+      page,
+      () => document.body.innerText.includes("Insert into macro"),
+      "Keys and combinations did not open the key picker.",
+    );
+    await page.getByLabel("Insert Enter key", { exact: true }).click();
+    await page
+      .getByRole("group", { name: "Modifiers to hold" })
+      .getByRole("button", { name: "Ctrl", exact: true })
+      .click();
+    await page
+      .getByRole("group", { name: "Modifiers to hold" })
+      .getByRole("button", { name: "Shift", exact: true })
+      .click();
+    await page.locator("#macro-combo-character").fill("t");
+    await clickButton(page, "Add key");
+    assert(
+      (await page.getByLabel("Combination source").textContent()) ===
+        "[{CTRL}{SHIFT}t]",
+      "The combination builder did not preview [{CTRL}{SHIFT}t].",
+    );
+    await clickButton(page, "Insert combination");
+    await clickButton(page, "Done");
     await waitFor(
       page,
       () => document.body.innerText.includes("Macro is valid"),
-      "The new macro's source did not validate after inserting a directive.",
+      "The new macro's source did not validate after using the key picker.",
     );
     const sourceAfterInsert = await evaluate(page, () => {
       const source = document.querySelector("#macro-editor-source");
       return source instanceof HTMLTextAreaElement ? source.value : null;
     });
     assert(
-      sourceAfterInsert === "r{ENTER}",
-      `Inserting the ENTER directive did not append it to the macro source: ${String(sourceAfterInsert)}`,
+      sourceAfterInsert === "r{ENTER}[{CTRL}{SHIFT}t]",
+      `The key picker did not insert at the cursor in order: ${String(sourceAfterInsert)}`,
     );
-    await clickButton(page, "Advanced");
+    // Put the source back to the simple form the rest of this scenario
+    // (and the Macros page assertions after it) expect.
+    await page.locator("#macro-editor-source").fill("r{ENTER}");
+    await waitFor(
+      page,
+      () => document.body.innerText.includes("Macro is valid"),
+      "The simplified source did not validate.",
+    );
+    await clickButton(page, "Timing");
     await waitFor(
       page,
       () => document.querySelector("#macro-editor-key-press") !== null,
-      "Advanced did not open the timing dialog.",
+      "Timing did not open the timing dialog.",
     );
     await page.locator("#macro-editor-key-press").fill("10");
     await page.locator("#macro-editor-inter-key").fill("20");

@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Eyebrow } from "../../../components/Eyebrow";
+import { Button } from "../../../components/m3/Button";
+import { Icon } from "../../../components/m3/Icon";
+import { DeterminateProgress } from "../../../components/m3/Progress";
 import { SendStatus } from "../../../components/SendStatus";
-import { HeaderActions } from "../../../components/HeaderActions";
-import {
-  PAGE_HEADING_TITLE_CLASS,
-  PageHeading,
-} from "../../../components/PageHeading";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
 import type { ActiveSendSummary } from "../../shell/v2/activeSendSummary";
 import { V2ApiError } from "../../../v2/apiClient";
@@ -19,7 +16,9 @@ import {
 import type { RepositoryWorkingCopyStore } from "../../../v2/repositoryWorkingCopy";
 import { DismissibleBanner } from "./DismissibleBanner";
 import { MacroRow } from "./MacroRow";
+import { UsbNotice } from "./UsbNotice";
 import {
+  activeStatusParts,
   activeStatusText,
   completionAckMs,
   terminalIssueReason,
@@ -84,6 +83,49 @@ export interface MacrosPageProps {
   dependencies?: MacrosPageDependencies;
 }
 
+/**
+ * The in-page status for a send that is running or waiting for confirmation.
+ * The sentence naming the state is in the live region (announced when it
+ * changes); the per-poll action counter and the bar are outside it, so a send
+ * that polls once a second does not talk once a second.
+ */
+function ActiveSendStatus({
+  lifecycle,
+  cancelRequested,
+  onCancel,
+}: {
+  lifecycle: Extract<SendLifecycle, { kind: "active" }>;
+  cancelRequested: boolean;
+  onCancel: () => void;
+}): React.JSX.Element {
+  const parts = activeStatusParts(lifecycle.status, lifecycle.macro);
+  const name = lifecycle.macro === null ? "" : ` ${lifecycle.macro.name}`;
+  return (
+    <SendStatus role="status">
+      <p>{cancelRequested ? `Cancelling${name}…` : parts.text}</p>
+      {parts.progress === null ? null : (
+        <>
+          <DeterminateProgress
+            label="Send progress"
+            max={lifecycle.status.actionCount}
+            value={lifecycle.status.actionIndex}
+          />
+          <p aria-live="off" className="mt-2 mb-0 text-body-md font-normal">
+            {/* A leading space (collapsed on screen) keeps the status
+                sentence and the counter reading as one string in text
+                extraction, as they did before the counter left the live
+                region. */}{" "}
+            {parts.progress}
+          </p>
+        </>
+      )}
+      <button disabled={cancelRequested} onClick={onCancel} type="button">
+        {cancelRequested ? "Cancelling…" : "Cancel and release all keys"}
+      </button>
+    </SendStatus>
+  );
+}
+
 export function MacrosPage({
   store,
   packageId,
@@ -105,6 +147,10 @@ export function MacrosPage({
   const [lifecycle, setLifecycle] = useState<SendLifecycle>({ kind: "idle" });
   const [releaseError, setReleaseError] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
+  // Set from the moment Cancel is pressed until the send reaches a terminal
+  // state, so the control cannot be pressed twice and the page says what is
+  // happening while the device finishes releasing keys.
+  const [cancelRequested, setCancelRequested] = useState(false);
   const [moveAnnouncement, setMoveAnnouncement] = useState<string | null>(null);
 
   // Guards double-send on rapid taps (V2-095): set synchronously, before any
@@ -342,12 +388,21 @@ export function MacrosPage({
   // stable `setStartError` setter) so the active-send-summary effect below
   // can list it as a dependency without re-running every render.
   const cancelActiveSend = useCallback(async (): Promise<void> => {
+    setCancelRequested(true);
     try {
       await depsRef.current.cancelSend();
     } catch (error: unknown) {
+      setCancelRequested(false);
       setStartError(v2ErrorText(error));
     }
   }, []);
+
+  // A cancel request only means something while a send is active.
+  useEffect(() => {
+    if (lifecycle.kind !== "active") {
+      setCancelRequested(false);
+    }
+  }, [lifecycle.kind]);
 
   // TODO_V2 V2-132 / UI_UX_SPEC_V2 §12.3: reports the active-send summary
   // upward whenever it changes so the phone-landscape orientation surface
@@ -371,15 +426,19 @@ export function MacrosPage({
     if (lifecycle.kind === "active") {
       onActiveSendChange({
         macroName: lifecycle.macro?.name ?? null,
-        statusText: activeStatusText(lifecycle.status, lifecycle.macro),
-        onCancel: () => {
-          void cancelActiveSend();
-        },
+        statusText: cancelRequested
+          ? `Cancelling${lifecycle.macro === null ? "" : ` ${lifecycle.macro.name}`}…`
+          : activeStatusText(lifecycle.status, lifecycle.macro),
+        onCancel: cancelRequested
+          ? null
+          : () => {
+              void cancelActiveSend();
+            },
       });
       return;
     }
     onActiveSendChange(null);
-  }, [cancelActiveSend, lifecycle, onActiveSendChange]);
+  }, [cancelActiveSend, cancelRequested, lifecycle, onActiveSendChange]);
 
   const repository = snapshot.repository;
   const activePackage = repository.packages.find((pkg) => pkg.id === packageId);
@@ -465,41 +524,49 @@ export function MacrosPage({
 
   return (
     <section aria-labelledby="macros-title">
-      <PageHeading>
-        <div className="min-w-0 overflow-hidden">
-          <Eyebrow tone="dark">Selected package</Eyebrow>
-          <h2 className={PAGE_HEADING_TITLE_CLASS} id="macros-title">
+      {/* The package this list belongs to, how many macros it holds, and the
+          two actions that follow from it. The app bar's title is "Macros", so
+          the package name appears once, here. */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-[10rem] basis-full min-[34rem]:flex-1">
+          <h2
+            className="m-0 overflow-hidden text-title-lg text-ellipsis whitespace-nowrap"
+            id="macros-title"
+          >
             {activePackage.name}
           </h2>
-          <p>{String(activePackage.macros.length)} macros</p>
+          <p className="m-0 text-body-md text-on-surface-variant">
+            {String(activePackage.macros.length)} macros
+          </p>
         </div>
-        <HeaderActions>
-          <button onClick={onChangePackage} type="button">
-            Change
-          </button>
-          <button className="primary" onClick={onOpenAddMacro} type="button">
-            Add macro
-          </button>
-        </HeaderActions>
-      </PageHeading>
+        <Button onClick={onChangePackage} variant="text">
+          Change package
+        </Button>
+        <Button icon="add" onClick={onOpenAddMacro} variant="filled">
+          Add macro
+        </Button>
+      </div>
 
-      {lifecycle.kind === "starting" ? (
-        <SendStatus role="status">
-          <p>Sending {lifecycle.macro.name}…</p>
-        </SendStatus>
-      ) : null}
-      {lifecycle.kind === "active" ? (
-        <SendStatus role="status">
-          <p>{activeStatusText(lifecycle.status, lifecycle.macro)}</p>
-          <button
-            onClick={() => {
-              void cancelActiveSend();
-            }}
-            type="button"
-          >
-            Cancel and release all keys
-          </button>
-        </SendStatus>
+      {/* The in-flight status stays at the top of the scrolling region while
+          a long macro list scrolls beneath it, so Cancel is never more than
+          one glance away (UI_UX_SPEC_MATERIAL_3_EXPRESSIVE §5.2). */}
+      {lifecycle.kind === "starting" || lifecycle.kind === "active" ? (
+        <div className="sticky top-0 z-10 -mx-1 bg-surface px-1">
+          {lifecycle.kind === "starting" ? (
+            <SendStatus role="status">
+              <p>Sending {lifecycle.macro.name}…</p>
+            </SendStatus>
+          ) : null}
+          {lifecycle.kind === "active" ? (
+            <ActiveSendStatus
+              cancelRequested={cancelRequested}
+              lifecycle={lifecycle}
+              onCancel={() => {
+                void cancelActiveSend();
+              }}
+            />
+          ) : null}
+        </div>
       ) : null}
       {lifecycle.kind === "completed" ? (
         <SendStatus role="status">
@@ -540,23 +607,24 @@ export function MacrosPage({
         />
       ) : null}
       <p role="status">{moveAnnouncement}</p>
+      <UsbNotice usbState={usbState} />
 
       {activePackage.macros.length === 0 ? (
         <div
-          className="grid justify-items-start gap-2 rounded-shape-lg bg-surface-container p-6"
+          className="grid justify-items-start gap-3 rounded-shape-lg bg-surface-container p-6"
           role="status"
         >
-          <h3 className="m-0">No macros in {activePackage.name}</h3>
-          <p className="m-0 max-w-[34ch] text-on-surface-variant">
-            A macro is a sequence of keystrokes the device types for you over
-            USB. Add one to get started.
+          <h3 className="m-0">No macros yet</h3>
+          <p className="m-0 text-on-surface-variant">
+            Add a macro to type it from your keyboard.
           </p>
           <button className="primary" onClick={onOpenAddMacro} type="button">
+            <Icon name="add" size={18} />
             Add macro
           </button>
         </div>
       ) : (
-        <div aria-label="Macro list">
+        <div aria-label="Macro list" className="grid gap-3">
           {activePackage.macros.map((macro, index) => (
             <MacroRow
               index={index}

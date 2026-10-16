@@ -229,6 +229,26 @@ function classifyToken(base: string): string[] {
     return [arbitraryPropertyMatch[1]];
   }
 
+  // `truncate` is shorthand for three declarations; `overflow-hidden` or
+  // `whitespace-*` beside it would collide with it.
+  if (base === "truncate") {
+    return ["overflow", "text-overflow", "white-space"];
+  }
+
+  // `flex-1`/`flex-auto`/... set flex-basis as part of the shorthand, so they
+  // collide with an explicit `basis-*` in the same scope.
+  if (/^flex-(1|auto|initial|none)$/.test(base)) {
+    return ["flex", "flex-basis"];
+  }
+  if (/^basis-\S+$/.test(base)) {
+    return ["flex-basis"];
+  }
+
+  // `size-*` sets width and height together.
+  if (/^size-\S+$/.test(base)) {
+    return ["width", "height"];
+  }
+
   // M3 type-role utilities (`text-title-lg`, ...) set several properties at
   // once. The families listed are exactly the sub-variables each role defines
   // in `@theme` (src/styles.css): the body roles set no weight, and the
