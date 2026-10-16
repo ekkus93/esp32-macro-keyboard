@@ -42,7 +42,7 @@ product behavior.
       remains open.)
 - [x] Keep uncompleted hardware-dependent checks open; browser work does not
       imply hardware qualification.
-- [ ] Reconcile this TODO and record exact commit SHA, commands, pass/fail
+- [x] Reconcile this TODO and record exact code/test commit SHA, commands, pass/fail
       counts, screenshot locations, bundle measurements, and limitations.
 
 ## Phase 0 — Baseline and workflow inventory
@@ -179,8 +179,14 @@ prototype screenshots in `docs/ui-redesign/phase1-prototype/`.
       Android 16 emulator showed browser chrome above the app and Gboard below;
       the focused source field and Save action stayed visible. See
       `docs/ui-redesign/phase9-android-keyboard-review/`. Safe-area CSS is
-      present, but display-cutout behavior and 200% browser text zoom remain
-      unverified.
+      present and browser chrome/Gboard were observed on Android; Firefox
+      browser-level 200% zoom is now verified across all responsive-control
+      states at a 320 CSS-pixel viewport (see phase 10 evidence below).
+      On Android 16, the emulator tall-cutout overlay reported a 48 dp top
+      cutout. Chrome kept its content viewport below the cutout; the rendered
+      page had no horizontal overflow. CSS `env(safe-area-inset-*)` values were
+      zero in Chrome's normal browser viewport, so edge-to-edge/standalone safe
+      area behavior remains unverified.
       `interactive-widget=resizes-content` was tried and rejected: it would
       shrink the layout viewport and make a narrow phone with its keyboard open
       match the landscape-block media query. Physical-device behavior and text
@@ -409,10 +415,15 @@ visible-controls table (Packages, Snapshots, Import and export).
       Manual screen-reader announcements and a full screen-by-screen keyboard
       pass remain open.)
 - [x] Verify contrast for light/dark/system states if more than one theme exists.
-- [ ] Test 200% zoom/text enlargement, reflow at 320 CSS px, reduced motion, and
-      virtual keyboard interactions.
-      (320 CSS px, reduced motion, and the Android Gboard workflow are covered;
-      actual 200% browser text zoom remains open.)
+- [x] Test 200% zoom/text enlargement, reflow at 320 CSS px, reduced motion, and
+      virtual keyboard interactions. Firefox 153 was run in the pinned
+      Playwright Docker image; Ctrl+Plus produced DPR 2 and a 320×576 CSS
+      viewport from a 640×1236 window. All 20 route states in
+      `workflows/visibleControls.mjs` passed title/control bounds, occlusion,
+      and horizontal-overflow checks; the key picker also opened with Enter.
+      See `scripts/check-firefox-zoom-docker.sh` and
+      `docs/ui-redesign/phase10-firefox-200zoom/`. Chromium reduced-motion and
+      Android Chrome/Gboard checks are covered by the earlier evidence above.
 
 ### UXR-072 — Visual regression and design review
 
@@ -471,7 +482,7 @@ visible-controls table (Packages, Snapshots, Import and export).
       specification; resolve any conflict without weakening product safety.
 - [x] Update webapp documentation and this TODO with completed tasks and exact
       evidence.
-- [ ] Record final commit SHA, test counts, screenshot/baseline references,
+- [x] Record the implementation commit SHA, test counts, screenshot/baseline references,
       bundle sizes, offline results, and known limitations.
 
 **Final exit gate**
@@ -511,10 +522,9 @@ visible-controls table (Packages, Snapshots, Import and export).
   across six viewports). Visual baselines: `webapp/tests/browser/visual/baselines/`.
   Inspected phone, tablet, and desktop screens had no obvious clipping.
 - Still open: final product-owner acceptance; physical device/offline route
-  testing (no ESP32 board attached); Safari/WebKit (blocked by missing host
-  `libavif.so.16`); screen-reader announcement review; and actual browser 200%
-  zoom. Android virtual-keyboard behavior is further qualified in the
-  continuation below.
+  testing (no ESP32 board attached); Apple Safari; screen-reader announcement
+  review; and manual keyboard-only review. Android virtual-keyboard behavior is
+  further qualified in the continuation below.
 
 ## 2026-10-16 continuation — theme, keyboard, and final gate
 
@@ -540,9 +550,11 @@ visible-controls table (Packages, Snapshots, Import and export).
   requests. This did not exercise ESP32 webfs serving or device-error recovery.
 - Browser coverage: Android Chrome 133 emulator; Firefox 153 responsive-control
   workflow at phone and desktop sizes, including touch-target and axe checks;
-  Chromium workflows and axe.
-  Safari remains unqualified because Playwright WebKit cannot launch without
-  host `libavif.so.16`.
+  Chromium workflows and axe; and Firefox 153 at actual 200% browser zoom / 320
+  CSS px across all 20 responsive-control route states. Playwright WebKit 26.5
+  in the same pinned Docker image passed responsive controls, touch-target/axe,
+  startup, keyboard viewport, and macro-editing/package workflows. Apple Safari
+  itself remains unqualified.
 - `./scripts/check-all.sh` (ESP-IDF v5.5.5 / Node 24.18.0): passed, exit 0.
   This includes 706 webapp tests across 67 files (unit and coverage runs),
   Chromium workflows including H4/H5, 97 visual baselines, no-orphan and
@@ -559,16 +571,16 @@ visible-controls table (Packages, Snapshots, Import and export).
   baselines pass.
 - Still needs owner assistance or a physical target: final visual acceptance
   of the current palette/type/screens; a real screen-reader pass (TalkBack or
-  VoiceOver) and full manual keyboard-only route pass; actual 200% browser text
-  zoom; Safari/WebKit qualification; and ESP32-served offline/recovery and
-  constrained-serving performance checks. No ESP32 board is connected in this
-  environment. The TODO remains open for these gates.
+  VoiceOver) and full manual keyboard-only route pass; Apple Safari
+  qualification; and ESP32-served offline/recovery and constrained-serving
+  performance checks. No ESP32 board is connected in this environment. The
+  TODO remains open for these gates.
 
 ## 2026-10-16 evidence revision
 
-- Code and browser-test revision: `dc9a87a6e08cbf536bf636d49b23c557011e091b`
-  (`codex/ui-ux-redesign-2026-10-16`), pushed to GitHub.
-- Full repository command at this revision: source ESP-IDF v5.5.5, then
+- App code revision: `dc9a87a6e08cbf536bf636d49b23c557011e091b` on
+  `codex/ui-ux-redesign-2026-10-16`, pushed to GitHub. Full repository command
+  at this app revision: source ESP-IDF v5.5.5, then
   `./scripts/check-all.sh`; **passed, exit 0**. Counts: 706 webapp tests across
   67 files (unit and coverage runs), 97 visual scenarios, and 63/63 host tests.
   Firmware and the on-device test app built. See the continuation above for
@@ -577,13 +589,41 @@ visible-controls table (Packages, Snapshots, Import and export).
   `runVisibleControlsWorkflow` from
   `webapp/tests/browser/workflows/visibleControls.mjs`; **passed** at phone and
   desktop sizes, including the 44×44 CSS-pixel visible-control audit and axe.
+- `./scripts/check-firefox-zoom-docker.sh`: **passed** in
+  `mcr.microsoft.com/playwright:v1.62.1-noble`; Firefox 153 reached DPR 2 via
+  Ctrl+Plus, producing a 320×576 CSS viewport from a 640×1236 window. All 20
+  responsive-control states passed, including title/control bounds, occlusion,
+  overflow, and Enter-opening the key picker. Captures are in
+  `docs/ui-redesign/phase10-firefox-200zoom/`.
+- `docker run --rm -v "$PWD:/repo:ro" -w /repo/webapp
+  mcr.microsoft.com/playwright:v1.62.1-noble node
+  tests/browser/run-webkit-smoke.mjs`: **passed** with WebKit 26.5 across
+  responsive controls, touch-target/axe scans, keyboard viewport, startup, and
+  macro-editing/package workflows. This Linux WebKit run does not qualify Apple
+  Safari.
+- Android 16 emulator tall-cutout overlay (48 dp top cutout), Chrome 133: the
+  browser viewport remained below the cutout and page content did not overflow
+  horizontally. Chrome returned zero for all four `env(safe-area-inset-*)`
+  values in its normal browser viewport. This does not qualify edge-to-edge or
+  standalone display modes; the overlay was restored to disabled afterward.
+- Added Docker browser runners and the two zoom captures in code/test commit
+  `90d4be51f1323029d350f030eb9cfd7e5d37d2df` on the same branch. The pinned
+  Docker image is version-matched to the webapp's Playwright 1.62.1 dependency.
+- At that commit, webapp Prettier and ESLint passed; `check-format.sh`,
+  `check-scripts.sh` (with ESP-IDF v5.5.5 sourced and `$(go env GOPATH)/bin` on
+  `PATH`), and the Firefox/WebKit Docker workflows passed. The new browser
+  runner files are linted and formatted; the production application is
+  unchanged from the full-gate revision above.
 - `bash scripts/check-docs.sh`: **passed**, zero Markdown issues; existing
-  yamllint warnings remain. `git diff --check`: **passed**.
+  yamllint warnings remain. `git diff --check`: **passed** before this final
+  documentation reconciliation; it will be rerun before commit.
 - Screenshots: `docs/ui-redesign/phase7-review/` (72 light captures),
   `docs/ui-redesign/phase8-dark-review/` (14 dark captures), and
   `docs/ui-redesign/phase9-android-keyboard-review/` (Android 16 / Chrome 133 /
-  Gboard, 390 CSS px wide).
+  Gboard, 390 CSS px wide), plus
+  `docs/ui-redesign/phase10-firefox-200zoom/` (Macros and macro editor at actual
+  200% Firefox zoom / 320 CSS px).
 - Remaining exit gates are external/manual: owner acceptance of the final
-  screenshots; spoken screen-reader and full manual keyboard review; real 200%
-  browser zoom; Safari/WebKit; and physical ESP32 offline/recovery/performance
-  checks. These are not inferred from browser automation or build results.
+  screenshots; spoken screen-reader and full manual keyboard review; Apple
+  Safari; and physical ESP32 offline/recovery/performance checks. These are not
+  inferred from browser automation or build results.

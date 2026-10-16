@@ -66,11 +66,13 @@
   matrix lists Chrome >=117, Firefox/Edge >=121, and Safari >=17
   ([supported platforms](https://mui.com/material-ui/getting-started/supported-platforms/));
   this is candidate-library evidence, not a claim that this app has passed all
-  those browsers. Playwright WebKit 26.5 could not launch: after supplying the
-  Ubuntu 24.04 `libavif`, `libgav1`, and `libyuv` libraries in a temporary
-  directory, its bundled engine still requires unavailable `libbacktrace.so.0`
-  and `libjxl.so.0.8`. Safari is not qualified. Actual screen-reader,
-  browser-zoom and physical-device performance checks remain open.
+  those browsers. Playwright WebKit 26.5 launched in the pinned
+  `mcr.microsoft.com/playwright:v1.62.1-noble` Docker image and passed responsive
+  controls, touch-target and axe scans, startup layouts, keyboard viewport
+  checks, and macro-editing/package workflows. Safari itself is not qualified
+  by this Linux WebKit run. Actual screen-reader and physical-device
+  performance checks remain open; 200% browser zoom is recorded in the TODO's
+  Firefox Docker evidence.
 
 ## 2026-10-16 release measurements
 
