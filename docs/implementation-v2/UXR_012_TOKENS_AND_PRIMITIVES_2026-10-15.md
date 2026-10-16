@@ -7,8 +7,9 @@
 
 ## What changed
 
-- `webapp/src/styles.css` now defines Material 3 colour roles (light, with a
-  dark scheme selected by `prefers-color-scheme`), M3 type roles
+- `webapp/src/styles.css` defines Material 3 colour roles (warm ivory, deep teal
+  and terracotta in light mode; deep green-black surfaces and sea-glass teal in
+  dark mode), M3 type roles
   (`text-title-lg`, `text-body-md`, ...), a shape scale (`rounded-shape-*`),
   elevation, and motion easing, all in `@theme`. The keycap button treatment,
   uppercase legends and the "PBT and petrol" palette are removed.
@@ -81,5 +82,5 @@ literal class string per variant; layered overrides are not used.
 - The macro editor, Settings and Snapshots layouts are unchanged apart from
   colour, shape and type.
 - Visual baselines are stale (see above).
-- Dark scheme is checked for contrast only; no dark-mode screenshots or axe run
-  exist yet (UXR-071).
+- Dark palette contrast is tested; dark-mode axe coverage is in the Chrome
+  browser suite. Dark review screenshots are collected for product-owner review.

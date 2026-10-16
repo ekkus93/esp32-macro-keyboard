@@ -15,6 +15,8 @@ import { IdentityForm } from "./IdentityForm";
 import { PasswordForm } from "./PasswordForm";
 import { StationForm } from "./StationForm";
 import { UsbConfirmationForm } from "./UsbConfirmationForm";
+import { ThemePreferenceControl } from "./ThemePreferenceControl";
+import type { ThemePreference } from "../../../v2/themePreference";
 import {
   factoryResetDevice as defaultFactoryResetDevice,
   resetDeviceSettings as defaultResetDeviceSettings,
@@ -98,6 +100,8 @@ export interface SettingsPageProps {
    */
   onDeviceActionStarted: (kind: DeviceActionKind) => void;
   dependencies?: SettingsPageDependencies;
+  themePreference?: ThemePreference;
+  onThemePreferenceChange?: (preference: ThemePreference) => void;
 }
 
 type DirtyGuardedAction = "sign-out" | "reset-settings" | "factory-reset";
@@ -116,6 +120,8 @@ export function SettingsPage({
   onOpenSection = () => undefined,
   onDeviceActionStarted,
   dependencies,
+  themePreference = "system",
+  onThemePreferenceChange = () => undefined,
 }: SettingsPageProps): React.JSX.Element {
   const deps = dependencies ?? defaultDependencies();
   const depsRef = useRef(deps);
@@ -309,6 +315,10 @@ export function SettingsPage({
             <h2 className="sr-only" id="settings-title">
               Settings
             </h2>
+            <ThemePreferenceControl
+              onChange={onThemePreferenceChange}
+              value={themePreference}
+            />
             <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 lg:grid-cols-3">
               {settingsGroupInfo.map((info) => (
                 <li key={info.key}>

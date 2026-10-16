@@ -35,7 +35,7 @@ export function ListItemButton({
       aria-label={label}
       className={
         compact
-          ? "flex min-h-16 w-full flex-col items-start justify-center gap-2 rounded-shape-md bg-surface-container px-3 py-2 text-left text-body-md font-medium text-on-surface"
+          ? "flex min-h-14 w-full flex-row items-center justify-start gap-3 rounded-shape-md bg-surface-container px-3 py-2 text-left text-body-md font-medium text-on-surface"
           : "w-full justify-start gap-4 rounded-shape-md bg-surface-container px-4 py-3 text-left text-body-lg font-normal text-on-surface"
       }
       disabled={disabled}

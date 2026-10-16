@@ -42,7 +42,8 @@ const canonical = canonicalRepository as Repository;
  * IndexedDB, Cache Storage, or a service worker. This file gives both the
  * static "build scan" (source never references the forbidden APIs at all)
  * and a runtime behavioral check (exercising the Phase 7 client leaves
- * browser storage untouched).
+ * browser storage untouched). The only separate browser preference allowed
+ * is the non-sensitive appearance choice in `v2/themePreference.ts`.
  *
  * The static scan covers `src/AppV2.tsx`, the complete `src/v2/` data layer,
  * and every production V2 feature directory under `src/features/`. This includes
@@ -53,6 +54,9 @@ const canonical = canonicalRepository as Repository;
 
 const forbiddenApiPattern =
   /\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b|\bcaches\.\w|\bserviceWorker\b|\bopenDatabase\b/;
+const forbiddenExceptThemePreferencePattern =
+  /\bsessionStorage\b|\bindexedDB\b|\bcaches\.\w|\bserviceWorker\b|\bopenDatabase\b/;
+const themePreferencePath = "../src/v2/themePreference.ts";
 const browserConsolePattern = /\bconsole\.(?:log|info|warn|error|debug)\s*\(/;
 
 // Reads every scanned source file's raw text through Vite's glob import
@@ -84,12 +88,17 @@ function stripComments(source: string): string {
 }
 
 describe("v2 browser-storage prohibition: static scan", () => {
-  test("no production V2 source references browser persistence APIs", () => {
+  test("repository and feature code never references browser persistence APIs", () => {
     const entries = Object.entries(v2SourceModules);
     expect(entries.length).toBeGreaterThan(0);
     const offenders = entries
       .map(([path, source]) => ({ path, code: stripComments(source) }))
-      .filter(({ code }) => forbiddenApiPattern.test(code));
+      .filter(({ path, code }) => {
+        if (path === themePreferencePath) {
+          return forbiddenExceptThemePreferencePattern.test(code);
+        }
+        return forbiddenApiPattern.test(code);
+      });
     expect(offenders.map((offender) => offender.path)).toEqual([]);
   });
 

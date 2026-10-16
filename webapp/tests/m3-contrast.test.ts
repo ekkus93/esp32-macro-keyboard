@@ -9,7 +9,7 @@ import { describe, expect, test } from "vitest";
  *
  * The tokens are read straight from src/styles.css -- the one place they are
  * defined -- so this test cannot drift from what ships. Light values come from
- * `@theme`; dark values come from the `prefers-color-scheme: dark` override
+ * `@theme`; dark values come from the explicit dark-theme override
  * and are layered over the light set (a role the dark block does not redefine
  * keeps its light value, exactly as in the browser).
  */
@@ -19,7 +19,7 @@ import { describe, expect, test } from "vitest";
 // Vitest runs with the webapp directory as its working directory.
 const css = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
 
-const DARK_MARKER = "@media (prefers-color-scheme: dark)";
+const DARK_MARKER = ':root[data-theme="dark"]';
 
 function colorsIn(block: string): Map<string, string> {
   const result = new Map<string, string>();
@@ -67,7 +67,7 @@ function contrast(foreground: string, background: string): number {
 
 const darkStart = css.indexOf(DARK_MARKER);
 if (darkStart < 0) {
-  throw new Error("styles.css has no prefers-color-scheme: dark block.");
+  throw new Error("styles.css has no explicit dark-theme block.");
 }
 const light = colorsIn(css.slice(0, darkStart));
 const darkOverrides = colorsIn(css.slice(darkStart));

@@ -10,9 +10,11 @@ from pathlib import Path
 
 APPROVED_LOCAL_STORAGE_FILES = {
     Path("features/package/PackageSelectionPage.tsx"),
+    Path("v2/themePreference.ts"),
 }
 APPROVED_LOCAL_STORAGE_KEYS = {
     "esp32-macro-keyboard.recent-package-ids",
+    "esp32-macro-keyboard.theme",
 }
 # Not used anywhere today (FIX1 18.5): any future use is a deliberate policy
 # decision that must extend this checker, not something that slips in

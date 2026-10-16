@@ -56,6 +56,16 @@ write_valid_fixture
 expect_pass 'approved localStorage key in the approved file'
 
 write_valid_fixture
+mkdir -p "${temporary_dir}/src/v2"
+cat >"${temporary_dir}/src/v2/themePreference.ts" <<'SOURCE'
+const themeKey = "esp32-macro-keyboard.theme";
+export function readTheme(): string | null {
+  return window.localStorage.getItem(themeKey);
+}
+SOURCE
+expect_pass 'approved appearance preference in its dedicated file'
+
+write_valid_fixture
 mkdir -p "${temporary_dir}/src/features/auth"
 cat >"${temporary_dir}/src/features/auth/SessionCache.ts" <<'SOURCE'
 export function cacheSessionToken(token: string): void {
@@ -99,5 +109,14 @@ export function readElsewhere(): string | null {
 }
 SOURCE
 expect_fail 'localStorage outside approved file' 'localStorage use outside the FIX1 18.5 approved file list'
+
+write_valid_fixture
+mkdir -p "${temporary_dir}/src/v2"
+cat >"${temporary_dir}/src/v2/themePreference.ts" <<'SOURCE'
+export function readTheme(): string | null {
+  return window.localStorage.getItem("other-key");
+}
+SOURCE
+expect_fail 'unapproved theme key' 'is not in the FIX1 18.5 approved key list'
 
 printf 'check-frontend-persisted-state regression tests passed: %d\n' "${pass_count}"

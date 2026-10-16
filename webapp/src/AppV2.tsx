@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { StandaloneScreen } from "./components/StandaloneScreen";
 import { v2ErrorText } from "./features/auth/v2/v2ErrorText";
 import { FirstRunSetupPage } from "./features/auth/v2/FirstRunSetupPage";
@@ -52,6 +52,11 @@ import {
 } from "./v2/routingV2";
 import type { ScreenV2 } from "./v2/routingV2";
 import type { SendStatusResponse, SettingsResponse } from "./v2/apiTypes";
+import {
+  readThemePreference,
+  writeThemePreference,
+} from "./v2/themePreference";
+import type { ThemePreference } from "./v2/themePreference";
 
 /**
  * The v2 application root (TODO_V2 V2-090): first-run setup or Sign In,
@@ -117,10 +122,14 @@ function routeTitle(route: ScreenV2): string {
 
 interface AuthenticatedShellProps {
   ready: RepositoryStartupReady;
+  themePreference?: ThemePreference;
+  onThemePreferenceChange?: (preference: ThemePreference) => void;
 }
 
 export function AuthenticatedShell({
   ready,
+  themePreference = "system",
+  onThemePreferenceChange = () => undefined,
 }: AuthenticatedShellProps): React.JSX.Element {
   const { store } = ready;
   const [snapshot, setSnapshot] = useState(() => store.getSnapshot());
@@ -457,6 +466,7 @@ export function AuthenticatedShell({
         return (
           <SettingsPage
             onDeviceActionStarted={setDeviceAction}
+            onThemePreferenceChange={onThemePreferenceChange}
             group={settingsGroupFromHash()}
             section={settingsSectionFromHash()}
             onOpenDiagnostics={navigateToDiagnostics}
@@ -467,6 +477,7 @@ export function AuthenticatedShell({
             saveError={saveError}
             saving={saving}
             settings={settings}
+            themePreference={themePreference}
             store={store}
           />
         );
@@ -595,6 +606,37 @@ export function AuthenticatedShell({
 }
 
 export default function AppV2(): React.JSX.Element {
+  const [themePreference, setThemePreference] = useState(readThemePreference);
+
+  useLayoutEffect(() => {
+    const systemTheme =
+      typeof window.matchMedia === "function"
+        ? window.matchMedia("(prefers-color-scheme: dark)")
+        : null;
+    const applyTheme = (): void => {
+      const theme =
+        themePreference === "system"
+          ? (systemTheme?.matches ?? false)
+            ? "dark"
+            : "light"
+          : themePreference;
+      document.documentElement.dataset.theme = theme;
+    };
+    applyTheme();
+    if (systemTheme === null) {
+      return;
+    }
+    systemTheme.addEventListener("change", applyTheme);
+    return () => {
+      systemTheme.removeEventListener("change", applyTheme);
+    };
+  }, [themePreference]);
+
+  const changeThemePreference = (preference: ThemePreference): void => {
+    writeThemePreference(preference);
+    setThemePreference(preference);
+  };
+
   const [phase, setPhase] = useState<Phase>({ kind: "checking" });
   const [ready, setReady] = useState<RepositoryStartupReady | null>(null);
 
@@ -676,7 +718,13 @@ export default function AppV2(): React.JSX.Element {
       );
     case "authenticated":
       if (ready !== null) {
-        return <AuthenticatedShell ready={ready} />;
+        return (
+          <AuthenticatedShell
+            onThemePreferenceChange={changeThemePreference}
+            ready={ready}
+            themePreference={themePreference}
+          />
+        );
       }
       return (
         <RepositoryStartupScreen

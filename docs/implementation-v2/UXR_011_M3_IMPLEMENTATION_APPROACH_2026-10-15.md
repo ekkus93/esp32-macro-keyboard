@@ -33,10 +33,11 @@
 
 ## Constraints the layer follows
 
-- Colors are M3 roles with a fixed branded palette (primary `#6750A4` family)
-  and a dark scheme selected by `prefers-color-scheme`. `light-dark()` is not
-  used: overriding custom properties in a media query works in every supported
-  browser, and the app already requires `CompressionStream` (Safari 16.4+).
+- Colors use a contrast-checked M3 palette with deep teal primary, warm ivory
+  surfaces, and terracotta accents. The appearance setting supports System,
+  Light, and Dark; System follows `prefers-color-scheme`. The explicit choice is
+  stored as a UI preference only, never with repository data. `light-dark()` is
+  not used, so the app controls all role overrides from its single token set.
 - Fonts are the system stack; no font files ship (`verify-no-remote-assets.sh`).
 - Icons are inline SVG in one local component with a single stroke style; every
   icon-only control needs an accessible name.

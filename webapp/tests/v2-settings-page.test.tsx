@@ -8,6 +8,7 @@ import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCop
 import type { RepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
 import type { SettingsResponse } from "../src/v2/apiTypes";
 import type { SettingsGroup, SettingsSection } from "../src/v2/routingV2";
+import type { ThemePreference } from "../src/v2/themePreference";
 import {
   buttonContaining,
   buttonWithText,
@@ -88,6 +89,8 @@ interface Overrides {
   /** The Settings group to show; the list of groups when omitted. */
   group?: SettingsGroup | null;
   section?: SettingsSection | null;
+  themePreference?: ThemePreference;
+  onThemePreferenceChange?: (preference: ThemePreference) => void;
 }
 
 async function renderPage(overrides: Overrides = {}) {
@@ -115,6 +118,12 @@ async function renderPage(overrides: Overrides = {}) {
       saveError={overrides.saveError ?? null}
       saving={overrides.saving ?? false}
       settings={overrides.settings ?? settings()}
+      {...(overrides.themePreference === undefined
+        ? {}
+        : { themePreference: overrides.themePreference })}
+      {...(overrides.onThemePreferenceChange === undefined
+        ? {}
+        : { onThemePreferenceChange: overrides.onThemePreferenceChange })}
       store={store}
     />,
   );
@@ -396,6 +405,27 @@ describe("SettingsPage (TODO_V2 V2-120)", () => {
     expect(onOpenDiagnostics).toHaveBeenCalledOnce();
   });
 
+  test("the settings overview offers System, Light, and Dark appearance choices", async () => {
+    const onThemePreferenceChange = vi.fn();
+    const { container, unmount } = await renderPage({
+      onThemePreferenceChange,
+    });
+    expect(container.textContent).toContain("Appearance");
+    expect(container.textContent).toContain("Appearance");
+    expect(container.querySelector('[value="system"]')).not.toBeNull();
+    expect(container.querySelector('[value="light"]')).not.toBeNull();
+    const dark = requiredElement(
+      'select[name="theme-preference"]',
+      HTMLSelectElement,
+    );
+    act(() => {
+      dark.value = "dark";
+      dark.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    expect(onThemePreferenceChange).toHaveBeenCalledWith("dark");
+    await unmount();
+  });
+
   test("the compact list shows each group and opens it on tap", async () => {
     const { container, onOpenGroup, unmount } = await renderPage({
       settings: settings({
@@ -415,8 +445,8 @@ describe("SettingsPage (TODO_V2 V2-120)", () => {
       "Diagnostics",
     ]);
     expect(container.textContent).not.toContain("OfficeWiFi");
-    // No form is on the list screen.
-    expect(container.querySelector("input")).toBeNull();
+    // Device settings remain on their dedicated group page.
+    expect(container.querySelector("#settings-device-name")).toBeNull();
     await click(buttonContaining("Network"));
     expect(onOpenGroup).toHaveBeenCalledWith("network");
     await unmount();

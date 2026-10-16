@@ -31,6 +31,15 @@ export const STANDARD_VIEWPORTS = [
   { name: "1280x900", width: 1280, height: 900 },
 ];
 
+let reviewColorScheme = "light";
+
+export function setReviewColorScheme(colorScheme) {
+  if (colorScheme !== "light" && colorScheme !== "dark") {
+    throw new Error(`Unsupported review colour scheme: ${colorScheme}`);
+  }
+  reviewColorScheme = colorScheme;
+}
+
 /**
  * Boundary scenarios (T1-5, `*-boundary` names below) each define their own
  * three-viewport array -- the exact SPEC §5.3 threshold, one pixel below,
@@ -66,6 +75,7 @@ async function importFixturePath() {
 async function newPage(browser, viewport, extra = {}) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
+    colorScheme: reviewColorScheme,
     ...extra,
   });
   const page = await context.newPage();

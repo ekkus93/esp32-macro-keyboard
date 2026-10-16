@@ -73,6 +73,25 @@ export async function runSettingsWorkflows(page) {
     "Back to Settings did not return to the Settings list.",
   );
 
+  await page.locator('select[name="theme-preference"]').selectOption("dark");
+  await waitFor(
+    page,
+    () => document.documentElement.dataset.theme === "dark",
+    "Choosing Dark did not switch the app theme.",
+  );
+  assert(
+    (await page.evaluate(() =>
+      window.localStorage.getItem("esp32-macro-keyboard.theme"),
+    )) === "dark",
+    "The explicit Dark choice was not saved as a UI preference.",
+  );
+  await page.locator('select[name="theme-preference"]').selectOption("system");
+  await waitFor(
+    page,
+    () => document.documentElement.dataset.theme === "light",
+    "Choosing System did not return to the current light device appearance.",
+  );
+
   await openSettingsSection(page, "reset", "Restart");
   await clickButton(page, "Restart");
   await waitFor(

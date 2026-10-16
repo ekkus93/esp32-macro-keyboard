@@ -17,7 +17,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { chromium } from "playwright";
 
-import { SCENARIOS } from "./scenarios.mjs";
+import { SCENARIOS, setReviewColorScheme } from "./scenarios.mjs";
 
 /** The review sizes named by UXR-000 and UXR-072. */
 export const REVIEW_VIEWPORTS = [
@@ -58,6 +58,7 @@ export const REVIEW_SCENARIOS = [
 function parseArgs(argv) {
   const args = {
     out: null,
+    colorScheme: "light",
     scenarios: REVIEW_SCENARIOS,
     viewports: REVIEW_VIEWPORTS,
   };
@@ -72,6 +73,9 @@ function parseArgs(argv) {
     } else if (arg === "--viewports") {
       i += 1;
       args.viewports = argv[i].split(",");
+    } else if (arg === "--color-scheme") {
+      i += 1;
+      args.colorScheme = argv[i];
     } else {
       throw new Error(`Unrecognized argument: ${arg}`);
     }
@@ -92,6 +96,7 @@ function parseViewport(text) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  setReviewColorScheme(args.colorScheme);
   await mkdir(args.out, { recursive: true });
   const viewports = args.viewports.map(parseViewport);
   const byName = new Map(SCENARIOS.map((s) => [s.name, s]));
