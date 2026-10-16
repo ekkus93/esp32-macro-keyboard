@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>ESP32 Macro Keyboard — UI/UX Workflow Mockups</title>
+  <style>
+    html, body { margin:0; min-height:100%; }
+    body { padding:24px; background:Canvas; color:CanvasText; font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { max-width:1080px; margin:0 auto; }
+    h1 { margin:0 0 8px; font-size:1.5rem; font-weight:500; letter-spacing:-.03em; }
+    .intro { margin:0 0 18px; color:GrayText; }
+    @media(max-width:560px) { body { padding:12px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>ESP32 Macro Keyboard</h1>
+    <p class="intro">Workflow mockups · choose a screen, then switch between desktop and phone.</p>
+<div id="esp32-macro-redesign" class="macro-preview">
+  <style>
+    #esp32-macro-redesign {
+      --m-bg: light-dark(#f6f3f9, #17151b);
+      --m-surface: light-dark(#fff, #211f26);
+      --m-surface-2: light-dark(#f0edf5, #2c2931);
+      --m-ink: light-dark(#211d27, #f2eff7);
+      --m-muted: light-dark(#625d68, #c5bfcb);
+      --m-primary: light-dark(#6550a5, #d0bcff);
+      --m-primary-ink: light-dark(#fff, #38256e);
+      --m-soft: light-dark(#ebe5fa, #383049);
+      --m-line: light-dark(#e4dfea, #3d3943);
+      --m-good: light-dark(#28734e, #8ee0b1);
+      --m-good-soft: light-dark(#d9f2e3, #203c2e);
+      --m-warm: light-dark(#a83c47, #ffb2b8);
+      --m-warm-soft: light-dark(#ffe1e3, #48292d);
+      color: var(--m-ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      color-scheme: light dark;
+      max-width: 1024px;
+      margin: 0 auto;
+    }
+    #esp32-macro-redesign * { box-sizing: border-box; }
+    #esp32-macro-redesign .preview-toolbar {
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+      margin:0 0 14px; flex-wrap:wrap;
+    }
+    #esp32-macro-redesign .preview-label { color:var(--m-muted); font-weight:500; }
+    #esp32-macro-redesign .preview-tabs, #esp32-macro-redesign .size-toggle {
+      display:flex; gap:5px; padding:4px; border-radius:16px; background:var(--m-surface-2);
+      flex-wrap:wrap;
+    }
+    #esp32-macro-redesign button {
+      border:0; color:inherit; font:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent;
+    }
+    #esp32-macro-redesign .preview-tabs button, #esp32-macro-redesign .size-toggle button {
+      background:transparent; border-radius:12px; padding:8px 11px; color:var(--m-muted); font-weight:500; white-space:nowrap;
+    }
+    #esp32-macro-redesign .preview-tabs button[aria-selected="true"], #esp32-macro-redesign .size-toggle button[aria-pressed="true"] {
+      background:var(--m-surface); color:var(--m-ink); box-shadow:0 1px 3px color-mix(in srgb, var(--m-ink) 12%, transparent);
+    }
+    #esp32-macro-redesign button:focus-visible { outline:3px solid var(--m-primary); outline-offset:2px; }
+    #esp32-macro-redesign .app-window {
+      width:100%; min-height:570px; overflow:hidden; border:1px solid var(--m-line);
+      border-radius:28px; background:var(--m-bg); box-shadow:0 18px 50px color-mix(in srgb, var(--m-ink) 14%, transparent);
+      transition:width .25s ease, min-height .25s ease, border-radius .25s ease;
+    }
+    #esp32-macro-redesign .app-window[data-size="phone"] {
+      width:375px; max-width:100%; min-height:690px; margin:0 auto; border-radius:32px;
+      box-shadow:0 14px 42px color-mix(in srgb, var(--m-ink) 16%, transparent);
+    }
+    #esp32-macro-redesign .app-topbar {
+      min-height:66px; display:flex; align-items:center; justify-content:space-between;
+      padding:12px 22px; border-bottom:1px solid var(--m-line); background:var(--m-surface);
+    }
+    #esp32-macro-redesign .mini-icon { display:inline-flex; width:18px; height:18px; align-items:center; justify-content:center; flex:0 0 18px; font-family:ui-sans-serif,system-ui,sans-serif; }
+    #esp32-macro-redesign .brand-mark .mini-icon { width:22px; height:22px; flex-basis:22px; }
+    #esp32-macro-redesign .brand { display:flex; align-items:center; gap:11px; font-weight:500; letter-spacing:-.02em; }
+    #esp32-macro-redesign .brand-mark {
+      width:36px; height:36px; display:grid; place-items:center; border-radius:14px;
+      background:var(--m-soft); color:var(--m-primary);
+    }
+    #esp32-macro-redesign .top-status { display:flex; align-items:center; gap:9px; color:var(--m-muted); font-weight:500; }
+    #esp32-macro-redesign .ready-dot { width:9px; height:9px; display:inline-block; border-radius:50%; background:var(--m-good); box-shadow:0 0 0 4px var(--m-good-soft); }
+    #esp32-macro-redesign .saved-pill { border-radius:999px; padding:7px 10px; background:var(--m-surface-2); color:var(--m-muted); }
+    #esp32-macro-redesign .app-body { display:grid; grid-template-columns:204px minmax(0,1fr); min-height:503px; }
+    #esp32-macro-redesign .side-nav { padding:20px 12px; border-right:1px solid var(--m-line); background:var(--m-surface); }
+    #esp32-macro-redesign .nav-item { width:100%; display:flex; align-items:center; gap:13px; margin:3px 0; padding:12px 14px; border-radius:15px; background:transparent; color:var(--m-muted); text-align:left; font-weight:500; }
+    #esp32-macro-redesign .nav-item.active { background:var(--m-soft); color:var(--m-primary); }
+    #esp32-macro-redesign .nav-item i, #esp32-macro-redesign .icon-action i { width:18px; height:18px; }
+    #esp32-macro-redesign .work-area { padding:27px clamp(18px,4vw,44px) 30px; min-width:0; }
+    #esp32-macro-redesign .page-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:22px; }
+    #esp32-macro-redesign h1, #esp32-macro-redesign h2 { font-weight:500; }
+    #esp32-macro-redesign h1 { margin:0; letter-spacing:-.04em; }
+    #esp32-macro-redesign h2 { margin:0; letter-spacing:-.02em; }
+    #esp32-macro-redesign p { margin:5px 0 0; color:var(--m-muted); }
+    #esp32-macro-redesign .head-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+    #esp32-macro-redesign .btn { min-height:40px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 15px; border-radius:999px; background:var(--m-surface-2); color:var(--m-ink); font-weight:500; white-space:nowrap; }
+    #esp32-macro-redesign .btn.primary { background:var(--m-primary); color:var(--m-primary-ink); }
+    #esp32-macro-redesign .btn.tonal { background:var(--m-soft); color:var(--m-primary); }
+    #esp32-macro-redesign .btn.small { min-height:34px; padding:0 12px; }
+    #esp32-macro-redesign .icon-action { width:38px; height:38px; display:grid; place-items:center; border-radius:50%; background:transparent; color:var(--m-muted); }
+    #esp32-macro-redesign .package-context { display:inline-flex; align-items:center; gap:8px; margin-top:8px; padding:6px 10px; border-radius:999px; background:var(--m-surface-2); color:var(--m-muted); font-weight:500; }
+    #esp32-macro-redesign .macro-list, #esp32-macro-redesign .snapshot-list, #esp32-macro-redesign .package-list { display:grid; gap:10px; }
+    #esp32-macro-redesign .macro-row, #esp32-macro-redesign .snapshot-row, #esp32-macro-redesign .package-row, #esp32-macro-redesign .setting-row {
+      display:flex; align-items:center; gap:12px; min-width:0; padding:14px 15px; border-radius:20px;
+      background:var(--m-surface); border:1px solid var(--m-line);
+    }
+    #esp32-macro-redesign .row-icon { width:40px; height:40px; flex:0 0 40px; display:grid; place-items:center; border-radius:15px; background:var(--m-soft); color:var(--m-primary); }
+    #esp32-macro-redesign .row-main { flex:1; min-width:0; }
+    #esp32-macro-redesign .row-title { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
+    #esp32-macro-redesign .row-meta { display:block; margin-top:4px; color:var(--m-muted); }
+    #esp32-macro-redesign .macro-row .btn { margin-left:auto; }
+    #esp32-macro-redesign .send-hint { display:flex; align-items:center; gap:8px; margin-top:15px; color:var(--m-muted); }
+    #esp32-macro-redesign .send-hint .ready-dot { width:7px; height:7px; box-shadow:none; }
+    #esp32-macro-redesign .form-grid { display:grid; gap:16px; max-width:680px; }
+    #esp32-macro-redesign .field { display:grid; gap:7px; }
+    #esp32-macro-redesign .field label { font-weight:500; color:var(--m-muted); }
+    #esp32-macro-redesign input, #esp32-macro-redesign textarea {
+      width:100%; border:1px solid var(--m-line); border-radius:15px; padding:12px 14px; color:var(--m-ink);
+      background:var(--m-surface); font:inherit; outline:none;
+    }
+    #esp32-macro-redesign textarea { min-height:165px; resize:vertical; font-family:ui-monospace, SFMono-Regular, Consolas, monospace; }
+    #esp32-macro-redesign input:focus, #esp32-macro-redesign textarea:focus { border-color:var(--m-primary); box-shadow:0 0 0 3px color-mix(in srgb, var(--m-primary) 18%, transparent); }
+    #esp32-macro-redesign .form-footer { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:5px; }
+    #esp32-macro-redesign .insert-bar { display:flex; align-items:center; flex-wrap:wrap; gap:7px; padding:10px 12px; border-radius:17px; background:var(--m-surface-2); }
+    #esp32-macro-redesign .insert-bar strong { margin-right:auto; }
+    #esp32-macro-redesign .token-groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px; }
+    #esp32-macro-redesign .token-group { min-width:0; padding:13px; border:1px solid var(--m-line); border-radius:18px; background:var(--m-surface); }
+    #esp32-macro-redesign .token-group h2 { margin:0 0 10px; }
+    #esp32-macro-redesign .token-set { display:flex; flex-wrap:wrap; gap:6px; }
+    #esp32-macro-redesign .token { min-height:36px; padding:0 10px; border-radius:12px; background:var(--m-soft); color:var(--m-primary); font-family:ui-monospace, SFMono-Regular, Consolas, monospace; }
+    #esp32-macro-redesign .combo-preview { margin-top:10px; padding:9px 11px; border-radius:12px; background:var(--m-surface-2); font-family:ui-monospace, SFMono-Regular, Consolas, monospace; }
+    #esp32-macro-redesign .token-hint { margin-top:8px; color:var(--m-muted); }
+    #esp32-macro-redesign .selection { display:flex; align-items:center; gap:10px; }
+    #esp32-macro-redesign .radio { width:20px; height:20px; display:grid; place-items:center; border:2px solid var(--m-line); border-radius:50%; }
+    #esp32-macro-redesign .selected .radio { border-color:var(--m-primary); }
+    #esp32-macro-redesign .selected .radio:after { content:""; width:10px; height:10px; border-radius:50%; background:var(--m-primary); }
+    #esp32-macro-redesign .selected { border-color:color-mix(in srgb, var(--m-primary) 38%, var(--m-line)); background:color-mix(in srgb, var(--m-soft) 55%, var(--m-surface)); }
+    #esp32-macro-redesign .settings-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px; }
+    #esp32-macro-redesign .setting-row { min-height:80px; }
+    #esp32-macro-redesign .setting-row .row-icon { border-radius:50%; }
+    #esp32-macro-redesign .mobile-nav { display:none; }
+    #esp32-macro-redesign .auth-screen { min-height:570px; display:grid; place-items:center; padding:32px 22px; background:radial-gradient(ellipse at 82% 10%, color-mix(in srgb, var(--m-primary) 14%, transparent), transparent 38%), var(--m-bg); }
+    #esp32-macro-redesign .auth-card { width:min(100%,450px); padding:32px; border:1px solid var(--m-line); border-radius:28px; background:var(--m-surface); box-shadow:0 14px 40px color-mix(in srgb, var(--m-ink) 8%, transparent); }
+    #esp32-macro-redesign .auth-card .brand { margin-bottom:28px; }
+    #esp32-macro-redesign .auth-card h1 { }
+    #esp32-macro-redesign .auth-card .form-grid { margin-top:24px; }
+    #esp32-macro-redesign .step-indicator { display:flex; gap:6px; margin-bottom:24px; }
+    #esp32-macro-redesign .step-indicator span { width:32px; height:5px; border-radius:9px; background:var(--m-line); }
+    #esp32-macro-redesign .step-indicator span.active { background:var(--m-primary); }
+    #esp32-macro-redesign .auth-foot { margin-top:18px; text-align:center; color:var(--m-muted); }
+    #esp32-macro-redesign .notice { display:flex; align-items:center; gap:10px; margin-top:16px; padding:12px 14px; border-radius:16px; background:var(--m-good-soft); color:var(--m-good); font-weight:500; }
+    @media (max-width:700px) {
+      #esp32-macro-redesign .app-window[data-size="desktop"] .app-body { grid-template-columns:1fr; }
+      #esp32-macro-redesign .app-window[data-size="desktop"] .side-nav { display:none; }
+      #esp32-macro-redesign .app-window[data-size="desktop"] .mobile-nav { display:grid; }
+      #esp32-macro-redesign .app-window[data-size="desktop"] .work-area { padding:24px 20px 22px; }
+      #esp32-macro-redesign .app-window[data-size="desktop"] .app-topbar { padding:10px 16px; }
+    }
+    #esp32-macro-redesign .app-window[data-size="phone"] .app-body { grid-template-columns:1fr; min-height:600px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .side-nav { display:none; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .mobile-nav { display:grid; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .app-topbar { min-height:59px; padding:9px 14px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .brand { gap:8px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .brand-mark { width:32px; height:32px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .top-status { }
+    #esp32-macro-redesign .app-window[data-size="phone"] .saved-pill { display:none; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .work-area { padding:22px 15px 20px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] h1 { }
+    #esp32-macro-redesign .app-window[data-size="phone"] .page-head { align-items:flex-start; margin-bottom:17px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .page-head .head-actions { gap:6px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .page-head .head-actions .btn { min-height:38px; padding:0 11px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .macro-row, #esp32-macro-redesign .app-window[data-size="phone"] .snapshot-row, #esp32-macro-redesign .app-window[data-size="phone"] .package-row { padding:11px 10px; gap:8px; border-radius:17px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .row-icon { width:35px; height:35px; flex-basis:35px; border-radius:13px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .macro-row .btn { min-height:34px; padding:0 10px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .row-title { }
+    #esp32-macro-redesign .app-window[data-size="phone"] .row-meta { }
+    #esp32-macro-redesign .app-window[data-size="phone"] .settings-grid { grid-template-columns:1fr; gap:8px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .setting-row { min-height:64px; padding:9px 11px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .mobile-nav { padding:8px 7px calc(8px + env(safe-area-inset-bottom)); }
+    #esp32-macro-redesign .app-window[data-size="phone"] .mobile-nav button { }
+    #esp32-macro-redesign .app-window[data-size="phone"] .auth-screen { min-height:630px; padding:18px 14px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .auth-card { padding:24px 19px; border-radius:24px; }
+    #esp32-macro-redesign .app-window[data-size="phone"] .auth-card h1 { }
+    #esp32-macro-redesign .app-window[data-size="phone"] .auth-card .brand { margin-bottom:24px; }
+    @media (max-width:560px) {
+      #esp32-macro-redesign .preview-toolbar { display:block; }
+      #esp32-macro-redesign .preview-label { display:block; margin-bottom:8px; }
+      #esp32-macro-redesign .preview-controls { display:flex; justify-content:space-between; gap:8px; }
+      #esp32-macro-redesign .preview-tabs { flex:1; overflow:auto; flex-wrap:nowrap; }
+      #esp32-macro-redesign .preview-tabs button { padding:8px; }
+      #esp32-macro-redesign .size-toggle { flex-wrap:nowrap; }
+    }
+    #esp32-macro-redesign .mobile-nav { grid-template-columns:repeat(4,minmax(0,1fr)); gap:2px; padding:8px 14px calc(8px + env(safe-area-inset-bottom)); border-top:1px solid var(--m-line); background:var(--m-surface); }
+    #esp32-macro-redesign .mobile-nav button { min-width:0; display:flex; flex-direction:column; align-items:center; gap:4px; padding:5px 2px; border-radius:13px; background:transparent; color:var(--m-muted); font-weight:500; }
+    #esp32-macro-redesign .mobile-nav button.active { background:var(--m-soft); color:var(--m-primary); }
+    #esp32-macro-redesign .mobile-nav i { width:17px; height:17px; }
+    @media (prefers-reduced-motion:reduce) { #esp32-macro-redesign *, #esp32-macro-redesign *:before, #esp32-macro-redesign *:after { transition:none !important; scroll-behavior:auto !important; } }
+  </style>
+  <div class="preview-toolbar">
+    <span class="preview-label">Macro Keyboard · Workflow mockups</span>
+    <div class="preview-controls" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div class="preview-tabs" role="tablist" aria-label="Workflow screen">
+        <button type="button" role="tab" aria-selected="false" data-screen="setup">Setup</button>
+        <button type="button" role="tab" aria-selected="false" data-screen="signin">Sign in</button>
+        <button type="button" role="tab" aria-selected="true" data-screen="macros">Macros</button>
+        <button type="button" role="tab" aria-selected="false" data-screen="editor">Edit</button>
+        <button type="button" role="tab" aria-selected="false" data-screen="keypicker">Keys &amp; combos</button>
+        <button type="button" role="tab" aria-selected="false" data-screen="packages">Packages</button>
+        <button type="button" role="tab" aria-selected="false" data-screen="snapshots">Snapshots</button>
+        <button type="button" role="tab" aria-selected="false" data-screen="settings">Settings</button>
+      </div>
+      <div class="size-toggle" aria-label="Preview size">
+        <button type="button" aria-pressed="true" data-size="desktop">Desktop</button>
+        <button type="button" aria-pressed="false" data-size="phone">Phone</button>
+      </div>
+    </div>
+  </div>
+  <section class="app-window" id="macro-app" data-size="desktop" aria-label="Macro Keyboard interface mockup">
+    <div id="macro-screen"></div>
+  </section>
+  <script>
+    (function () {
+      const root = document.getElementById("esp32-macro-redesign");
+      if (!root) return;
+      const app = root.querySelector("#macro-app");
+      const screen = root.querySelector("#macro-screen");
+      const sizeButtons = Array.from(root.querySelectorAll("[data-size]"));
+      const nav = [
+        ["macros", "Macros", "keyboard"],
+        ["packages", "Packages", "layers-3"],
+        ["snapshots", "Snapshots", "archive"],
+        ["settings", "Settings", "settings"]
+      ];
+      function icon(name) {
+        const glyphs = { keyboard:"⌨", "layers-3":"▤", archive:"▣", settings:"⚙", plus:"+", play:"▶", "message-square-text":"▤", "at-sign":"@", sparkles:"✦", ellipsis:"⋯", save:"↓", "badge-check":"✓", wifi:"◔", shield:"⬟", usb:"⌁", activity:"⌁", "check-circle-2":"✓", "chevron-right":"›" };
+        return '<span class="mini-icon" aria-hidden="true">' + (glyphs[name] || "•") + '</span>';
+      }
+      function brand() { return '<div class="brand"><span class="brand-mark">' + icon("keyboard") + '</span><span>Macro Keyboard</span></div>'; }
+      function navMarkup(active) {
+        const links = nav.map(([id, label, glyph]) => '<button type="button" class="nav-item ' + (active === id ? 'active' : '') + '"' + (active === id ? ' aria-current="page"' : '') + '>' + icon(glyph) + '<span>' + label + '</span></button>').join("");
+        const mobile = nav.map(([id, label, glyph]) => '<button type="button" class="' + (active === id ? 'active' : '') + '"' + (active === id ? ' aria-current="page"' : '') + '>' + icon(glyph) + '<span>' + label + '</span></button>').join("");
+        return '<aside class="side-nav" aria-label="Main navigation">' + links + '</aside><nav class="mobile-nav" aria-label="Main navigation">' + mobile + '</nav>';
+      }
+      function shell(active, content, dirty) {
+        return '<header class="app-topbar">' + brand() + '<div class="top-status"><span class="ready-dot"></span><span>Keyboard ready</span><span class="saved-pill">' + (dirty ? 'Unsaved changes' : 'Saved') + '</span></div></header><div class="app-body">' + navMarkup(active) + '<main class="work-area">' + content + '</main></div>';
+      }
+      const screens = {
+        setup: '<div class="auth-screen"><section class="auth-card">' + brand() + '<div class="step-indicator"><span class="active"></span><span></span><span></span></div><h1>Set up your keyboard</h1><p>Give your device a name and connect it to Wi-Fi.</p><div class="form-grid"><div class="field"><label for="setup-code">Setup code</label><input id="setup-code" value="••••••" readonly></div><div class="field"><label for="device-name">Device name</label><input id="device-name" value="Studio keyboard"></div><div class="field"><label for="network-name">Wi-Fi network</label><input id="network-name" value="Home Wi-Fi"></div><button class="btn primary" type="button">Continue <span aria-hidden="true">→</span></button></div><div class="auth-foot">Step 1 of 3</div></section></div>',
+        signin: '<div class="auth-screen"><section class="auth-card">' + brand() + '<h1>Welcome back</h1><p>Sign in to manage your macros.</p><div class="form-grid"><div class="field"><label for="password">Password</label><input id="password" type="password" value="keyboard-safe" autocomplete="current-password"></div><button class="btn primary" type="button">Sign in</button></div><div class="auth-foot">Connected to Studio keyboard</div></section></div>',
+        macros: shell("macros", '<div class="page-head"><div><h1>Macros</h1><span class="package-context">' + icon("layers-3") + ' Daily <span aria-hidden="true">·</span> 4 macros</span></div><div class="head-actions"><button class="btn" type="button">Change package</button><button class="btn primary" type="button">' + icon("plus") + ' Add macro</button></div></div><div class="macro-list"><article class="macro-row"><span class="row-icon">' + icon("message-square-text") + '</span><div class="row-main"><span class="row-title">Start a meeting</span><span class="row-meta">Last used today</span></div><button class="btn primary" type="button">' + icon("play") + ' Send</button></article><article class="macro-row"><span class="row-icon">' + icon("at-sign") + '</span><div class="row-main"><span class="row-title">Send a greeting</span><span class="row-meta">Text shortcut</span></div><button class="btn primary" type="button">' + icon("play") + ' Send</button></article><article class="macro-row"><span class="row-icon">' + icon("sparkles") + '</span><div class="row-main"><span class="row-title">Open focus tools</span><span class="row-meta">3 actions</span></div><button class="btn primary" type="button">' + icon("play") + ' Send</button></article></div><div class="send-hint"><span class="ready-dot"></span>Ready to send from your keyboard</div>', false),
+        editor: shell("macros", '<div class="page-head"><div><h1>Edit macro</h1><p>Daily package</p></div><div class="head-actions"><button class="btn" type="button">Cancel</button><button class="btn primary" type="button">Save</button></div></div><div class="form-grid"><div class="field"><label for="macro-name">Name</label><input id="macro-name" value="Send a greeting"></div><div class="field"><label for="macro-source">Macro source</label><textarea id="macro-source" spellcheck="false">Hello there!\n\nThanks for reaching out.</textarea></div><div class="insert-bar"><strong>Insert into macro</strong><button class="btn small" type="button" data-screen="keypicker">Special keys</button><button class="btn small" type="button" data-screen="keypicker">Key combo</button><button class="btn small" type="button" data-screen="keypicker">Symbols &amp; delay</button></div><div class="form-footer"><button class="btn tonal" type="button">Check macro</button><span class="row-meta">Changes are not saved yet</span></div></div>', true),
+        keypicker: shell("macros", '<div class="page-head"><div><h1>Insert into macro</h1><p>Added at the cursor in Macro source.</p></div><div class="head-actions"><button class="btn" type="button" data-screen="editor">Back to editor</button></div></div><div class="token-groups"><section class="token-group"><h2>Special keys</h2><div class="token-set"><button class="token" type="button">{TAB}</button><button class="token" type="button">{ENTER}</button><button class="token" type="button">{ESC}</button><button class="token" type="button">{BACKSPACE}</button><button class="token" type="button">{DELETE}</button><button class="token" type="button">{UP}</button><button class="token" type="button">{DOWN}</button><button class="token" type="button">{F1–F12}</button></div><p class="token-hint">Also: arrows, Home, End, Insert, Page Up/Down, Space.</p></section><section class="token-group"><h2>Modifiers</h2><div class="token-set"><button class="token" type="button">{CTRL}</button><button class="token" type="button">{ALT}</button><button class="token" type="button">{SHIFT}</button><button class="token" type="button">{GUI}</button></div><p class="token-hint">Tap a modifier alone, or combine it with other keys.</p></section><section class="token-group"><h2>Key combo</h2><div class="token-set"><button class="token" type="button">Ctrl</button><button class="token" type="button">Shift</button><button class="token" type="button">T</button><span aria-hidden="true">→</span><button class="btn primary small" type="button">Insert combo</button></div><div class="combo-preview">[{CTRL}{SHIFT}t]</div></section><section class="token-group"><h2>Symbols &amp; delay</h2><div class="token-set"><button class="token" type="button">{{</button><button class="token" type="button">}}</button><button class="token" type="button">[[</button><button class="token" type="button">]]</button><button class="token" type="button">{DELAY:500}</button></div><p class="token-hint">Escaped braces, brackets, and pauses.</p></section></div>', true),
+        packages: shell("packages", '<div class="page-head"><div><h1>Packages</h1><p>Choose what you want on your keyboard.</p></div><div class="head-actions"><button class="btn primary" type="button">' + icon("plus") + ' New package</button></div></div><div class="package-list"><article class="package-row selected"><span class="selection"><span class="radio"></span></span><div class="row-main"><span class="row-title">Daily</span><span class="row-meta">4 macros · Selected</span></div><button class="icon-action" type="button" aria-label="More actions for Daily">' + icon("ellipsis") + '</button></article><article class="package-row"><span class="selection"><span class="radio"></span></span><div class="row-main"><span class="row-title">Work</span><span class="row-meta">8 macros</span></div><button class="icon-action" type="button" aria-label="More actions for Work">' + icon("ellipsis") + '</button></article><article class="package-row"><span class="selection"><span class="radio"></span></span><div class="row-main"><span class="row-title">Streaming</span><span class="row-meta">5 macros</span></div><button class="icon-action" type="button" aria-label="More actions for Streaming">' + icon("ellipsis") + '</button></article></div>', false),
+        snapshots: shell("snapshots", '<div class="page-head"><div><h1>Snapshots</h1><p>Saved versions of your macro library.</p></div><div class="head-actions"><button class="btn primary" type="button">' + icon("save") + ' Save snapshot</button></div></div><div class="snapshot-list"><article class="snapshot-row"><span class="row-icon">' + icon("archive") + '</span><div class="row-main"><span class="row-title">Before travel</span><span class="row-meta">Today, 10:42 AM · 17 macros</span></div><button class="btn tonal small" type="button">Load</button><button class="icon-action" type="button" aria-label="More actions for Before travel">' + icon("ellipsis") + '</button></article><article class="snapshot-row"><span class="row-icon">' + icon("archive") + '</span><div class="row-main"><span class="row-title">Work setup</span><span class="row-meta">Yesterday · 17 macros</span></div><button class="btn tonal small" type="button">Load</button><button class="icon-action" type="button" aria-label="More actions for Work setup">' + icon("ellipsis") + '</button></article><article class="snapshot-row"><span class="row-icon">' + icon("archive") + '</span><div class="row-main"><span class="row-title">First setup</span><span class="row-meta">Oct 12 · 12 macros</span></div><button class="btn tonal small" type="button">Load</button><button class="icon-action" type="button" aria-label="More actions for First setup">' + icon("ellipsis") + '</button></article></div><div class="send-hint">Snapshots stay on this device. Nothing is deleted automatically.</div>', false),
+        settings: shell("settings", '<div class="page-head"><div><h1>Settings</h1><p>Manage your keyboard.</p></div></div><div class="settings-grid"><button class="setting-row" type="button"><span class="row-icon">' + icon("badge-check") + '</span><span class="row-main"><span class="row-title">Device</span><span class="row-meta">Name and identity</span></span>' + icon("chevron-right") + '</button><button class="setting-row" type="button"><span class="row-icon">' + icon("wifi") + '</span><span class="row-main"><span class="row-title">Network</span><span class="row-meta">Wi-Fi connection</span></span>' + icon("chevron-right") + '</button><button class="setting-row" type="button"><span class="row-icon">' + icon("shield") + '</span><span class="row-main"><span class="row-title">Security</span><span class="row-meta">Password and access</span></span>' + icon("chevron-right") + '</button><button class="setting-row" type="button"><span class="row-icon">' + icon("usb") + '</span><span class="row-main"><span class="row-title">USB behavior</span><span class="row-meta">Identity and confirmation</span></span>' + icon("chevron-right") + '</button><button class="setting-row" type="button"><span class="row-icon">' + icon("activity") + '</span><span class="row-main"><span class="row-title">Diagnostics</span><span class="row-meta">Device status and export</span></span>' + icon("chevron-right") + '</button></div><div class="notice">' + icon("check-circle-2") + ' Your settings are up to date</div>', false)
+      };
+      function draw(id) {
+        screen.innerHTML = screens[id] || screens.macros;
+        root.querySelectorAll('[role="tab"][data-screen]').forEach(btn => btn.setAttribute("aria-selected", String(btn.dataset.screen === id)));
+        if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons({ attrs: { width: 18, height: 18 } });
+      }
+      root.addEventListener("click", event => {
+        const button = event.target.closest("button[data-screen]");
+        if (button) draw(button.dataset.screen);
+      });
+      sizeButtons.forEach(btn => btn.addEventListener("click", () => {
+        app.dataset.size = btn.dataset.size;
+        sizeButtons.forEach(item => item.setAttribute("aria-pressed", String(item === btn)));
+      }));
+      draw("macros");
+    })();
+  </script>
+</div>
+
+  </main>
+</body>
+</html>
