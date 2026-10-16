@@ -20,6 +20,7 @@ import { runSnapshotsWorkflows } from "./workflows/snapshots.mjs";
 import { runStartupWorkflows } from "./workflows/startup.mjs";
 import {
   runKeyboardNavigationWorkflow,
+  runStartupVisibleControlsWorkflow,
   runVisibleControlsWorkflow,
 } from "./workflows/visibleControls.mjs";
 
@@ -88,6 +89,7 @@ async function main() {
     );
     await runVisibleControlsWorkflow(browser);
     await runKeyboardNavigationWorkflow(browser);
+    await runStartupVisibleControlsWorkflow(browser);
     console.log(
       "Real Chrome v2 visible-controls checks (320x568 to 1440x900, axe at 320 and 1440) passed.",
     );

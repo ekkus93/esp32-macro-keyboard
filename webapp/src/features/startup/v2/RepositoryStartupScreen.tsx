@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FieldHelp } from "../../../components/FieldHelp";
+import { LinearProgress } from "../../../components/m3/Progress";
+import { ListItemButton } from "../../../components/m3/ListItem";
 import { StandaloneScreen } from "../../../components/StandaloneScreen";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
@@ -214,36 +216,36 @@ function FirstPackageForm({
           ? "Create Your First Repository"
           : "Create your first package"}
       </h1>
-      {origin === "no-blobs" ? (
-        <p>This device has no saved repository snapshots yet.</p>
-      ) : (
-        <p>The loaded repository does not contain any packages yet.</p>
-      )}
       <p>
-        The repository exists only in this browser tab until{" "}
-        <strong>Save snapshot</strong> succeeds.
+        {origin === "no-blobs"
+          ? "No snapshots are saved on this device yet."
+          : "This repository has no packages yet."}
       </p>
       <form
-        className="grid gap-[0.85rem]"
+        className="grid gap-4"
         onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
           event.preventDefault();
           void submit();
         }}
       >
-        <label htmlFor="first-package-name">Package name</label>
-        <input
-          autoFocus
-          disabled={submitting}
-          id="first-package-name"
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-            setName(event.target.value);
-          }}
-          required
-          value={name}
-        />
-        <FieldHelp>
-          1 through {v2Limits.packageNameMaxBytes} UTF-8 bytes.
-        </FieldHelp>
+        <div>
+          <label htmlFor="first-package-name">Package name</label>
+          <input
+            autoFocus
+            disabled={submitting}
+            id="first-package-name"
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              setName(event.target.value);
+            }}
+            required
+            value={name}
+          />
+          <FieldHelp>1 to {v2Limits.packageNameMaxBytes} bytes.</FieldHelp>
+        </div>
+        <p className="m-0">
+          This repository exists only in this browser tab until you save a
+          snapshot.
+        </p>
         <button
           className="primary"
           disabled={!validation.ok || submitting}
@@ -252,7 +254,6 @@ function FirstPackageForm({
           {submitting ? "Creating…" : "Create package"}
         </button>
       </form>
-      <p role="status">Unsaved changes</p>
     </StandaloneScreen>
   );
 }
@@ -301,21 +302,22 @@ function PackageChooserView({
   return (
     <StandaloneScreen>
       <h1>Choose a package</h1>
-      <p>Select which package to open.</p>
-      <ul className="grid gap-[0.85rem]">
+      <ul className="m-0 grid list-none gap-2 p-0">
         {repository.packages.map((pkg) => (
           <li key={pkg.id}>
-            <button
+            <ListItemButton
               disabled={busyId !== null}
+              headline={pkg.name}
+              leadingIcon="layers"
               onClick={() => {
                 void choose(pkg.id);
               }}
-              type="button"
-            >
-              {busyId === pkg.id
-                ? "Opening…"
-                : `${pkg.name} (${String(pkg.macros.length)} macros)`}
-            </button>
+              supporting={
+                busyId === pkg.id
+                  ? "Opening…"
+                  : `${String(pkg.macros.length)} macros`
+              }
+            />
           </li>
         ))}
       </ul>
@@ -464,32 +466,41 @@ function SnapshotRecoveryView({
   return (
     <StandaloneScreen>
       <h1>Snapshot recovery</h1>
-      <p>Blob {initialBlobId} could not be opened automatically.</p>
+      <p>Snapshot {initialBlobId} could not be opened.</p>
       <ErrorBanner message={message} />
       {candidates.length === 0 ? (
-        <p>No other stored snapshots are available to try.</p>
+        <p>No other snapshots are stored on this device.</p>
       ) : (
-        <ul className="grid gap-[0.85rem]">
-          {candidates.map((blob) => (
-            <li key={blob.id}>
-              <button
-                disabled={busyId !== null}
-                onClick={() => {
-                  void attempt(blob);
-                }}
-                type="button"
-              >
-                {busyId === blob.id
-                  ? "Loading…"
-                  : `Load snapshot ${blob.id} (${String(blob.sizeBytes)} bytes)`}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <>
+          <h2 className="mt-4">Open an earlier snapshot</h2>
+          <ul className="m-0 mb-4 grid list-none gap-2 p-0">
+            {candidates.map((blob) => (
+              <li key={blob.id}>
+                <ListItemButton
+                  disabled={busyId !== null}
+                  headline={`Snapshot ${blob.id}`}
+                  label={`Load snapshot ${blob.id} (${String(blob.sizeBytes)} bytes)`}
+                  leadingIcon="archive"
+                  onClick={() => {
+                    void attempt(blob);
+                  }}
+                  supporting={
+                    busyId === blob.id
+                      ? "Loading…"
+                      : `${String(blob.sizeBytes)} bytes`
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+        </>
       )}
       <button onClick={onRestart} type="button">
         Start over
       </button>
+      <FieldHelp as="p">
+        Start over tries the newest snapshot again. Nothing is deleted.
+      </FieldHelp>
     </StandaloneScreen>
   );
 }
@@ -626,6 +637,7 @@ export function RepositoryStartupScreen({
       return (
         <StandaloneScreen aria-busy="true">
           <p role="status">Opening your repository…</p>
+          <LinearProgress label="Opening your repository" />
           <p>Loading the newest snapshot from the device.</p>
         </StandaloneScreen>
       );
@@ -634,11 +646,8 @@ export function RepositoryStartupScreen({
         <StandaloneScreen>
           <h1>Browser not supported</h1>
           <p>
-            This browser does not support the compression features this
-            application requires to read or save a repository. Update to a
-            recent version of a browser that supports{" "}
-            <code>CompressionStream</code> and <code>DecompressionStream</code>,
-            then reload.
+            This browser can&apos;t read or save a repository. Update to a
+            recent version of Chrome, Edge, Firefox or Safari, then reload.
           </p>
         </StandaloneScreen>
       );

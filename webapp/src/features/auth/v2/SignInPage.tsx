@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Icon } from "../../../components/m3/Icon";
 import { StandaloneScreen } from "../../../components/StandaloneScreen";
 import { V2ApiError, v2GetJson, v2PostJson } from "../../../v2/apiClient";
 import { isSessionStatus } from "../../../v2/apiGuards";
@@ -19,49 +20,6 @@ export interface SignInPageProps {
 }
 
 type Phase = "checking" | "form" | "check-error";
-
-/** Minimal inline icons — no icon font/library, matching the rest of the
- * app: `verify-no-remote-assets.sh` fails the build on any webfont, and
- * nothing here depends on a package for two shapes. `aria-hidden` because
- * the enclosing button already carries the accessible name. */
-function EyeIcon(): React.JSX.Element {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      height="20"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="20"
-    >
-      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function EyeOffIcon(): React.JSX.Element {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      height="20"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="20"
-    >
-      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.6 18.6 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 5c7 0 11 7 11 7a18.6 18.6 0 0 1-2.16 3.19" />
-      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
-      <line x1="1" x2="23" y1="1" y2="23" />
-    </svg>
-  );
-}
 
 /**
  * V2-081 — Sign In (UI_UX_SPEC_V2 §3.2).
@@ -175,7 +133,7 @@ export function SignInPage({
       <section>
         <h1>Sign in</h1>
         <form
-          className="grid gap-[0.85rem]"
+          className="grid gap-4"
           onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
             void submit(event);
           }}
@@ -196,11 +154,8 @@ export function SignInPage({
               type={passwordVisible ? "text" : "password"}
               value={adminPassword}
             />
-            {/* A plain icon toggle, not a keycap: the bare `button` rule
-                gives every button the pressed-key travel treatment, which
-                reads as too heavy sitting inside a text field. h-11/w-11
-                (44px) still meet the touch-target floor the rest of the app
-                uses (see CheckboxRow.tsx). */}
+            {/* A plain icon toggle inside the field: 44px (h-11/w-11) keeps the
+                touch-target floor the rest of the app uses. */}
             <button
               aria-label={passwordVisible ? "Hide password" : "Show password"}
               aria-pressed={passwordVisible}
@@ -210,7 +165,7 @@ export function SignInPage({
               }}
               type="button"
             >
-              {passwordVisible ? <EyeOffIcon /> : <EyeIcon />}
+              <Icon name={passwordVisible ? "eyeOff" : "eye"} size={20} />
             </button>
           </div>
           <ErrorBanner message={error} />

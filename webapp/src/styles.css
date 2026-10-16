@@ -170,6 +170,17 @@
      block below shortens every duration to ~0 regardless of these values. */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --animate-progress-slide: progress-slide 1.4s var(--ease-standard) infinite;
+
+  @keyframes progress-slide {
+    0% {
+      translate: -100%;
+    }
+
+    100% {
+      translate: 250%;
+    }
+  }
 }
 
 @layer base {

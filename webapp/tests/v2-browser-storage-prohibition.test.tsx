@@ -218,6 +218,7 @@ describe("v2 browser-storage prohibition: runtime behavior", () => {
       requiredElement("#device-name", HTMLInputElement),
       "Desk Macro Keyboard",
     );
+    await click(buttonWithText("Continue"));
     await setInputValue(
       requiredElement("#ap-ssid", HTMLInputElement),
       "MacroKeyboard",
@@ -226,11 +227,12 @@ describe("v2 browser-storage prohibition: runtime behavior", () => {
       requiredElement("#ap-passphrase", HTMLInputElement),
       "example-passphrase",
     );
+    await click(buttonWithText("Continue"));
     await setInputValue(
       requiredElement("#admin-password", HTMLInputElement),
       "example-admin-password",
     );
-    await submitForm(requiredElement("form", HTMLFormElement));
+    await click(buttonWithText("Review setup"));
     await flushReact();
     planFetch(() =>
       jsonResponse(

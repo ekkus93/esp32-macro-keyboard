@@ -9,6 +9,7 @@ import { startH4RecoveryFixture } from "../fixtures/h4RecoveryFixture.mjs";
 import { repositoryGzip } from "../fixtures/data.mjs";
 import { importFixtureRepository } from "../workflows/macroEditing.mjs";
 import { clickButton, clickButtonByAriaLabel, waitFor } from "../lib/page.mjs";
+import { completeSetupSteps } from "../workflows/startup.mjs";
 import { captureScenario } from "./capture.mjs";
 
 /**
@@ -739,7 +740,7 @@ export const SCENARIOS = [
       browser,
       viewport,
       { provisioned: false },
-      "isolated setup mode",
+      "Set up your keyboard",
       (page) => captureScenario(page),
     ),
   ),
@@ -748,14 +749,15 @@ export const SCENARIOS = [
       browser,
       viewport,
       { provisioned: false },
-      "isolated setup mode",
+      "Set up your keyboard",
       async (page) => {
-        await page.locator("#setup-code").fill("12345678");
-        await page.locator("#device-name").fill("Bench device");
-        await page.locator("#ap-ssid").fill("bench-ap");
-        await page.locator("#ap-passphrase").fill("bench-fixture-passphrase");
-        await page.locator("#admin-password").fill("bench-fixture-admin-1");
-        await clickButton(page, "Review setup");
+        await completeSetupSteps(page, {
+          setupCode: "12345678",
+          deviceName: "Bench device",
+          apSsid: "bench-ap",
+          apPassphrase: "bench-fixture-passphrase",
+          adminPassword: "bench-fixture-admin-1",
+        });
         await waitFor(
           page,
           () => document.body.innerText.includes("Review setup"),
@@ -766,8 +768,12 @@ export const SCENARIOS = [
     ),
   ),
   scenario("startup-no-blobs", STANDARD_VIEWPORTS, (browser, viewport) =>
-    withStartup(browser, viewport, { blobs: [] }, "Save snapshot", (page) =>
-      captureScenario(page),
+    withStartup(
+      browser,
+      viewport,
+      { blobs: [] },
+      "Create Your First Repository",
+      (page) => captureScenario(page),
     ),
   ),
   scenario(

@@ -1,3 +1,5 @@
+import { Icon } from "./m3/Icon";
+
 /**
  * The full-page surface every single-task screen sits on — Sign In,
  * First-Run Setup, the reconnect screens, and every repository-startup
@@ -58,6 +60,18 @@ const STANDALONE_CLASS =
   "pl-[calc(1rem+env(safe-area-inset-left))] " +
   "min-[60rem]:w-[min(100%,64rem)] *:mx-auto *:w-[min(100%,27rem)]";
 
+/** The product mark above every single-task screen: an icon tile and name. */
+function Brand(): React.JSX.Element {
+  return (
+    <div className="mb-6 flex items-center gap-3 text-title-md">
+      <span className="grid size-10 place-items-center rounded-shape-md bg-primary-container text-on-primary-container">
+        <Icon name="keyboard" />
+      </span>
+      Macro Keyboard
+    </div>
+  );
+}
+
 export interface StandaloneScreenProps {
   "aria-busy"?: React.AriaAttributes["aria-busy"];
   children: React.ReactNode;
@@ -69,6 +83,7 @@ export function StandaloneScreen({
 }: StandaloneScreenProps): React.JSX.Element {
   return (
     <main aria-busy={ariaBusy} className={STANDALONE_CLASS}>
+      <Brand />
       {children}
     </main>
   );

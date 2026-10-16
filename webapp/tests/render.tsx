@@ -125,3 +125,14 @@ export function buttonWithText(text: string): HTMLButtonElement {
   }
   return button;
 }
+
+/** A button whose visible text contains `text` (for rows with supporting text). */
+export function buttonContaining(text: string): HTMLButtonElement {
+  const button = Array.from(document.querySelectorAll("button")).find(
+    (candidate) => candidate.textContent?.includes(text) === true,
+  );
+  if (button === undefined) {
+    throw new Error(`Missing button containing: ${text}`);
+  }
+  return button;
+}

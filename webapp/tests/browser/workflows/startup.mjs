@@ -17,15 +17,16 @@ async function runStartupFirstPhoneScenario(browser) {
     await page.goto(fixture.baseUrl);
     await waitFor(
       page,
-      () => document.body.innerText.includes("First-run setup"),
+      () => document.body.innerText.includes("Set up your keyboard"),
       "An unprovisioned device did not open First-Run Setup.",
     );
-    await page.locator("#setup-code").fill("12345678");
-    await page.locator("#device-name").fill("Bench Macro Keyboard");
-    await page.locator("#ap-ssid").fill("MacroKeyboard");
-    await page.locator("#ap-passphrase").fill("bench-ap-passphrase-1");
-    await page.locator("#admin-password").fill("bench-fixture-admin-pw-1");
-    await clickButton(page, "Review setup");
+    await completeSetupSteps(page, {
+      setupCode: "12345678",
+      deviceName: "Bench Macro Keyboard",
+      apSsid: "MacroKeyboard",
+      apPassphrase: "bench-ap-passphrase-1",
+      adminPassword: "bench-fixture-admin-pw-1",
+    });
     await waitFor(
       page,
       () => document.body.innerText.includes("Review setup"),
@@ -278,10 +279,7 @@ async function runStartupInvalidNewestBlobScenario(browser) {
     );
     await waitFor(
       page,
-      () =>
-        document.body.innerText.includes(
-          "Blob 2 could not be opened automatically.",
-        ),
+      () => document.body.innerText.includes("Snapshot 2 could not be opened."),
       "Snapshot recovery did not identify the corrupt blob by ID.",
     );
     await clickButton(
@@ -312,6 +310,23 @@ async function runStartupInvalidNewestBlobScenario(browser) {
  * too much between them to share the fixture above), and each cleans up
  * fully before the next starts.
  */
+/**
+ * Walks the three first-run setup steps (device, Wi-Fi, access) and lands on
+ * the review step. Each step's Continue stays disabled until its own fields
+ * are valid, so a step that was not filled correctly fails here rather than
+ * further on.
+ */
+export async function completeSetupSteps(page, values) {
+  await page.locator("#setup-code").fill(values.setupCode);
+  await page.locator("#device-name").fill(values.deviceName);
+  await clickButton(page, "Continue");
+  await page.locator("#ap-ssid").fill(values.apSsid);
+  await page.locator("#ap-passphrase").fill(values.apPassphrase);
+  await clickButton(page, "Continue");
+  await page.locator("#admin-password").fill(values.adminPassword);
+  await clickButton(page, "Review setup");
+}
+
 export async function runStartupWorkflows(browser) {
   await runStartupFirstPhoneScenario(browser);
   await runStartupRefreshAndSendRecoveryScenario(browser);

@@ -10,6 +10,7 @@ import { createRepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCop
 import type { SendStatusResponse, SettingsResponse } from "../src/v2/apiTypes";
 import { getFetchCalls, jsonResponse, planFetch } from "./fakeFetch";
 import {
+  buttonContaining,
   buttonWithText,
   click,
   flushReact,
@@ -282,7 +283,6 @@ describe("v2 RepositoryStartupScreen", () => {
     expect(document.body.textContent).toContain(
       "exists only in this browser tab",
     );
-    expect(document.body.textContent).toContain("Unsaved changes");
 
     await setInputValue(
       requiredElement("#first-package-name", HTMLInputElement),
@@ -474,7 +474,7 @@ describe("v2 RepositoryStartupScreen", () => {
     );
 
     const put = planSettingsPutAccepted();
-    await click(buttonWithText("Second package (0 macros)"));
+    await click(buttonContaining("Second package"));
     await waitUntil(
       () => onReady.mock.calls.length > 0,
       "onReady after choose",
@@ -505,7 +505,7 @@ describe("v2 RepositoryStartupScreen", () => {
 
     const failure = new TypeError("settings unavailable");
     planSettingsPutFailure(failure);
-    await click(buttonWithText("Second package (0 macros)"));
+    await click(buttonContaining("Second package"));
     await waitUntil(
       () => onReady.mock.calls.length > 0,
       "onReady after failed selection persistence",
@@ -539,13 +539,18 @@ describe("v2 RepositoryStartupScreen", () => {
     );
 
     expect(document.body.textContent).toContain(
-      "Blob 9 could not be opened automatically.",
+      "Snapshot 9 could not be opened.",
     );
     expect(onReady).not.toHaveBeenCalled();
 
     planBlobGet("8", await canonicalGzipBytes());
     planNoSend();
-    await click(buttonWithText("Load snapshot 8 (42 bytes)"));
+    await click(
+      requiredElement(
+        '[aria-label="Load snapshot 8 (42 bytes)"]',
+        HTMLButtonElement,
+      ),
+    );
     await waitUntil(
       () => onReady.mock.calls.length > 0,
       "onReady after recovery",
@@ -562,7 +567,7 @@ describe("v2 RepositoryStartupScreen", () => {
     planBlobGet("5", new Uint8Array([9, 9, 9]));
     const view = await renderScreen();
     await waitUntil(
-      () => bodyIncludes("No other stored snapshots are available to try."),
+      () => bodyIncludes("No other snapshots are stored on this device."),
       "the no-alternates message",
     );
     await view.unmount();

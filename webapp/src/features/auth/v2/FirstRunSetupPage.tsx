@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { CheckboxRow } from "../../../components/CheckboxRow";
 import { FieldHelp } from "../../../components/FieldHelp";
+import { StepIndicator } from "../../../components/StepIndicator";
 import { FormActions } from "../../../components/FormActions";
 import { StandaloneScreen } from "../../../components/StandaloneScreen";
 import { V2ApiError, v2GetJson, v2PostJson } from "../../../v2/apiClient";
 import { isSetupAccepted, isSetupStateResponse } from "../../../v2/apiGuards";
-import { isSetupRequest } from "../../../v2/apiRequestGuards";
+import { isSetupRequest, setupFieldGuards } from "../../../v2/apiRequestGuards";
 import { v2Limits } from "../../../v2/limits";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { v2ErrorText } from "./v2ErrorText";
@@ -23,7 +24,31 @@ export interface FirstRunSetupPageProps {
 type Phase = "loading" | "unavailable" | "form" | "review" | "complete";
 
 /**
- * V2-080 — First-run setup screens (UI_UX_SPEC_V2 §3.1).
+ * The input steps, grouped by the decision being made (UI_UX_SPEC_V2 §3.1
+ * steps 1-5). Review is the fourth stop of the same progress indicator. Each
+ * step holds at most two fields plus one option so the step's fields and its
+ * Continue button fit a 320x568 screen without scrolling
+ * (UI_UX_SPEC_MATERIAL_3_EXPRESSIVE §4.2).
+ */
+const STEP_LABELS = ["Device", "Wi-Fi", "Access", "Review"] as const;
+
+type SetupField =
+  | "setupCode"
+  | "deviceName"
+  | "apSsid"
+  | "apPassphrase"
+  | "adminPassword";
+
+/** Which fields belong to which input step. */
+const STEP_FIELDS: readonly (readonly SetupField[])[] = [
+  ["setupCode", "deviceName"],
+  ["apSsid", "apPassphrase"],
+  ["adminPassword"],
+];
+
+/**
+ * V2-080 — First-run setup screens (UI_UX_SPEC_V2 §3.1), presented as a
+ * short stepper (UXR-030): device, Wi-Fi, access, then review.
  *
  * Loads unauthenticated `GET /api/v1/setup` state, walks the user through
  * device identification/setup code, device name, AP credentials,
@@ -38,7 +63,9 @@ export function FirstRunSetupPage({
 }: FirstRunSetupPageProps): React.JSX.Element {
   const [phase, setPhase] = useState<Phase>("loading");
   const [loadError, setLoadError] = useState<V2ApiError | null>(null);
-  const [currentDeviceName, setCurrentDeviceName] = useState("");
+
+  const [step, setStep] = useState(0);
+  const [touched, setTouched] = useState<ReadonlySet<SetupField>>(new Set());
 
   const [setupCode, setSetupCode] = useState("");
   const [deviceName, setDeviceName] = useState("");
@@ -61,7 +88,6 @@ export function FirstRunSetupPage({
         if (!active) {
           return;
         }
-        setCurrentDeviceName(state.deviceName);
         setDeviceName(state.deviceName);
         setPhase("form");
       } catch (error: unknown) {
@@ -87,6 +113,17 @@ export function FirstRunSetupPage({
     requireSerialConfirmation,
   };
   const requestValid = isSetupRequest(requestBody);
+
+  const fieldValid = (field: SetupField): boolean =>
+    setupFieldGuards[field](requestBody[field]);
+  const stepValid = (index: number): boolean =>
+    (STEP_FIELDS[index] ?? []).every(fieldValid);
+  /** A field is flagged only after the user has left it once. */
+  const fieldFlagged = (field: SetupField): boolean =>
+    touched.has(field) && !fieldValid(field);
+  const touch = (field: SetupField): void => {
+    setTouched((current) => new Set(current).add(field));
+  };
 
   const submit = async (): Promise<void> => {
     setSubmitting(true);
@@ -128,6 +165,7 @@ export function FirstRunSetupPage({
           message={loadError === null ? null : v2ErrorText(loadError)}
         />
         <button
+          className="primary"
           onClick={() => {
             window.location.reload();
           }}
@@ -144,12 +182,8 @@ export function FirstRunSetupPage({
       <StandaloneScreen>
         <h1>Setup complete</h1>
         <p>
-          The device applied your configuration and is restarting its Wi-Fi
-          network.
-        </p>
-        <p>
-          Reconnect to <strong>{apSsid}</strong> using the passphrase you just
-          set, then continue.
+          Reconnect to <strong>{apSsid}</strong> with the passphrase you just
+          set, then sign in.
         </p>
         <button className="primary" onClick={onSetupComplete} type="button">
           Continue to Sign In
@@ -161,19 +195,20 @@ export function FirstRunSetupPage({
   if (phase === "review") {
     return (
       <StandaloneScreen>
-        <h1>Review setup</h1>
-        <p>
-          Your Wi-Fi passphrase, administrator password, and setup code are
-          never shown again after you enter them.
-        </p>
-        <dl className="mt-3 text-[0.85rem]">
+        <StepIndicator current={3} labels={STEP_LABELS} />
+        <h1 className="mt-4">Review setup</h1>
+        <dl className="mb-4">
           <dt>Device name</dt>
           <dd>{deviceName}</dd>
-          <dt>Wi-Fi network name</dt>
+          <dt>Wi-Fi network</dt>
           <dd>{apSsid}</dd>
-          <dt>Require the device button before typing macros</dt>
+          <dt>Device button required before typing</dt>
           <dd>{requireSerialConfirmation ? "Yes" : "No"}</dd>
         </dl>
+        <p>
+          Applying restarts the device&apos;s Wi-Fi. Your passphrase, password
+          and setup code are not shown again.
+        </p>
         <ErrorBanner message={submitError} />
         <FormActions>
           <button
@@ -184,7 +219,7 @@ export function FirstRunSetupPage({
             }}
             type="button"
           >
-            Edit
+            Back
           </button>
           <button
             className="primary"
@@ -201,105 +236,177 @@ export function FirstRunSetupPage({
     );
   }
 
+  const lastInputStep = STEP_FIELDS.length - 1;
+  const advance = (): void => {
+    if (!stepValid(step)) {
+      for (const field of STEP_FIELDS[step] ?? []) {
+        touch(field);
+      }
+      return;
+    }
+    if (step === lastInputStep) {
+      setPhase("review");
+      return;
+    }
+    setStep(step + 1);
+  };
+
   return (
     <StandaloneScreen>
-      <section>
-        <h1>First-run setup</h1>
-        <p>
-          Device <strong>{currentDeviceName}</strong> is in isolated setup mode.
-        </p>
-        <form
-          className="grid gap-[0.85rem]"
-          onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
-            event.preventDefault();
-            if (requestValid) {
-              setPhase("review");
-            }
-          }}
-        >
-          <label htmlFor="setup-code">
-            Setup code (from the device serial console)
-          </label>
-          <input
-            autoComplete="one-time-code"
-            id="setup-code"
-            inputMode="numeric"
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-              setSetupCode(event.target.value);
-            }}
-            required
-            value={setupCode}
-          />
-          <FieldHelp>Exactly 8 digits.</FieldHelp>
-
-          <label htmlFor="device-name">Device name</label>
-          <input
-            id="device-name"
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-              setDeviceName(event.target.value);
-            }}
-            required
-            value={deviceName}
-          />
-          <FieldHelp>1 through 32 UTF-8 bytes.</FieldHelp>
-
-          <label htmlFor="ap-ssid">Wi-Fi network name (access point)</label>
-          <input
-            id="ap-ssid"
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-              setApSsid(event.target.value);
-            }}
-            required
-            value={apSsid}
-          />
-          <FieldHelp>1 through 32 UTF-8 bytes.</FieldHelp>
-
-          <label htmlFor="ap-passphrase">Wi-Fi passphrase</label>
-          <input
-            autoComplete="new-password"
-            id="ap-passphrase"
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-              setApPassphrase(event.target.value);
-            }}
-            required
-            type="password"
-            value={apPassphrase}
-          />
-          <FieldHelp>8 through 63 UTF-8 bytes.</FieldHelp>
-
-          <label htmlFor="admin-password">Administrator password</label>
-          <input
-            autoComplete="new-password"
-            id="admin-password"
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-              setAdminPassword(event.target.value);
-            }}
-            required
-            type="password"
-            value={adminPassword}
-          />
-          <FieldHelp>
-            {v2Limits.adminPasswordMinBytes} through{" "}
-            {v2Limits.adminPasswordMaxBytes} UTF-8 bytes.
-          </FieldHelp>
-
-          <CheckboxRow>
-            <input
-              checked={requireSerialConfirmation}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                setRequireSerialConfirmation(event.target.checked);
+      <StepIndicator current={step} labels={STEP_LABELS} />
+      <h1 className="mt-4">
+        {step === 0
+          ? "Set up your keyboard"
+          : step === 1
+            ? "Create its Wi-Fi network"
+            : "Protect access"}
+      </h1>
+      <form
+        className="grid gap-4"
+        key={step}
+        onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
+          event.preventDefault();
+          advance();
+        }}
+      >
+        {step === 0 ? (
+          <>
+            <div>
+              <label htmlFor="setup-code">Setup code</label>
+              <input
+                aria-invalid={fieldFlagged("setupCode")}
+                autoComplete="one-time-code"
+                autoFocus
+                id="setup-code"
+                inputMode="numeric"
+                onBlur={() => {
+                  touch("setupCode");
+                }}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                  setSetupCode(event.target.value);
+                }}
+                required
+                value={setupCode}
+              />
+              <FieldHelp exceeded={fieldFlagged("setupCode")}>
+                8 digits, shown in the device serial console.
+              </FieldHelp>
+            </div>
+            <div>
+              <label htmlFor="device-name">Device name</label>
+              <input
+                aria-invalid={fieldFlagged("deviceName")}
+                id="device-name"
+                onBlur={() => {
+                  touch("deviceName");
+                }}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                  setDeviceName(event.target.value);
+                }}
+                required
+                value={deviceName}
+              />
+              <FieldHelp exceeded={fieldFlagged("deviceName")}>
+                1 to 32 bytes.
+              </FieldHelp>
+            </div>
+          </>
+        ) : null}
+        {step === 1 ? (
+          <>
+            <div>
+              <label htmlFor="ap-ssid">Wi-Fi network name</label>
+              <input
+                aria-invalid={fieldFlagged("apSsid")}
+                autoFocus
+                id="ap-ssid"
+                onBlur={() => {
+                  touch("apSsid");
+                }}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                  setApSsid(event.target.value);
+                }}
+                required
+                value={apSsid}
+              />
+              <FieldHelp exceeded={fieldFlagged("apSsid")}>
+                1 to 32 bytes.
+              </FieldHelp>
+            </div>
+            <div>
+              <label htmlFor="ap-passphrase">Wi-Fi passphrase</label>
+              <input
+                aria-invalid={fieldFlagged("apPassphrase")}
+                autoComplete="new-password"
+                id="ap-passphrase"
+                onBlur={() => {
+                  touch("apPassphrase");
+                }}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                  setApPassphrase(event.target.value);
+                }}
+                required
+                type="password"
+                value={apPassphrase}
+              />
+              <FieldHelp exceeded={fieldFlagged("apPassphrase")}>
+                8 to 63 bytes.
+              </FieldHelp>
+            </div>
+          </>
+        ) : null}
+        {step === 2 ? (
+          <>
+            <div>
+              <label htmlFor="admin-password">Administrator password</label>
+              <input
+                aria-invalid={fieldFlagged("adminPassword")}
+                autoComplete="new-password"
+                autoFocus
+                id="admin-password"
+                onBlur={() => {
+                  touch("adminPassword");
+                }}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                  setAdminPassword(event.target.value);
+                }}
+                required
+                type="password"
+                value={adminPassword}
+              />
+              <FieldHelp exceeded={fieldFlagged("adminPassword")}>
+                {v2Limits.adminPasswordMinBytes} to{" "}
+                {v2Limits.adminPasswordMaxBytes} bytes.
+              </FieldHelp>
+            </div>
+            <CheckboxRow>
+              <input
+                checked={requireSerialConfirmation}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                  setRequireSerialConfirmation(event.target.checked);
+                }}
+                type="checkbox"
+              />
+              Require the device button before typing macros
+            </CheckboxRow>
+          </>
+        ) : null}
+        <FormActions>
+          {step > 0 ? (
+            <button
+              onClick={() => {
+                setStep(step - 1);
               }}
-              type="checkbox"
-            />
-            Require the device button before typing macros
-          </CheckboxRow>
-
-          <ErrorBanner message={submitError} />
-          <button className="primary" disabled={!requestValid} type="submit">
-            Review setup
+              type="button"
+            >
+              Back
+            </button>
+          ) : null}
+          <button className="primary" disabled={!stepValid(step)} type="submit">
+            {step === lastInputStep ? "Review setup" : "Continue"}
           </button>
-        </form>
-      </section>
+        </FormActions>
+      </form>
     </StandaloneScreen>
   );
 }

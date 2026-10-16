@@ -191,31 +191,43 @@ step in `workflows/browser.mjs`; unit tests in `tests/v2-app-shell.test.tsx`.
 
 ### UXR-030 — Redesign first-run setup
 
-- [ ] Convert setup into concise, focused steps with clear grouping and
+- [x] Convert setup into concise, focused steps with clear grouping and
       progress/orientation.
-- [ ] Keep validation beside fields and show one concise explanation for
+- [x] Keep validation beside fields and show one concise explanation for
       consequential network/restart actions.
-- [ ] Preserve setup code, device identity, password, network, confirmation,
+- [x] Preserve setup code, device identity, password, network, confirmation,
       restart, and reconnect semantics.
-- [ ] Test incomplete fields, invalid values, request failure, device restart,
-      and reconnect.
+- [x] Test incomplete fields, invalid values, request failure, device restart,
+      and reconnect. (Unit tests: incomplete, invalid, per-step gating, Back
+      keeps entries, request failure keeps review; Chrome: full setup to Sign
+      In. The restart/reconnect screen itself is unchanged here and is restyled
+      with the other device-action screens in UXR-060.)
 
 ### UXR-031 — Redesign sign-in and startup recovery
 
-- [ ] Build a concise sign-in screen with visible field label, submit action,
+- [x] Build a concise sign-in screen with visible field label, submit action,
       password reveal affordance, and inline errors.
-- [ ] Redesign loading, session recovery, first repository, no snapshots,
+- [x] Redesign loading, session recovery, first repository, no snapshots,
       unreadable snapshot, and repository failure screens.
-- [ ] Ensure recovery choices state the consequence in plain language and never
+- [x] Ensure recovery choices state the consequence in plain language and never
       silently switch snapshots.
-- [ ] Preserve a live in-memory working copy through recoverable auth/network
+- [x] Preserve a live in-memory working copy through recoverable auth/network
       failures.
+
+**Phase 3 evidence** (2026-10-15): `FirstRunSetupPage.tsx` (four-stop
+stepper), `SignInPage.tsx`, `RepositoryStartupScreen.tsx`, `StepIndicator`,
+`m3/Progress`, `m3/ListItem`; unit tests in `v2-first-run-setup-page`,
+`v2-repository-startup-screen`; Chrome checks in `visibleControls.mjs`
+(`STARTUP_SCREENS`, six viewports, axe at 320 and 1440).
 
 **Phase 3 exit gate**
 
 - [ ] Startup decision-table tests still pass and visual tests cover every
-      startup branch.
-- [ ] No setup/sign-in/recovery action is hidden below the fold.
+      startup branch. (Decision-table tests pass. Visual scenarios exist for
+      setup, review, sign-in error, no blobs, empty package, and snapshot
+      recovery, but none for the package chooser or the retry screens, and the
+      visual baselines are regenerated only at UXR-072.)
+- [x] No setup/sign-in/recovery action is hidden below the fold.
 
 ## Phase 4 — Macros operating screen and editor
 

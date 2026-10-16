@@ -154,7 +154,7 @@ describe("AppV2 — wiring RepositoryStartupScreen into the running app shell", 
     await view.unmount();
   });
 
-  test("unprovisioned device opens First-run setup", async () => {
+  test("unprovisioned device opens first-run setup", async () => {
     // AppV2's own provisioning probe, then FirstRunSetupPage's independent
     // load of the same unauthenticated state (device name/setup-code entry).
     planFetch((call) => {
@@ -172,7 +172,10 @@ describe("AppV2 — wiring RepositoryStartupScreen into the running app shell", 
       });
     });
     const view = await render(<AppV2 />);
-    await waitUntil(() => bodyIncludes("First-run setup"), "First-run setup");
+    await waitUntil(
+      () => bodyIncludes("Set up your keyboard"),
+      "first-run setup",
+    );
     await view.unmount();
   });
 

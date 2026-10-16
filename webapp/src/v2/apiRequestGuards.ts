@@ -101,24 +101,37 @@ function isNetworkCredentials(
   ]);
 }
 
+/**
+ * One guard per `POST /api/v1/setup` field, so a multi-step form can validate
+ * the step in front of the user with exactly the rules `isSetupRequest`
+ * applies to the whole request -- there is one definition of each limit.
+ */
+export const setupFieldGuards = {
+  setupCode: (value: unknown): boolean =>
+    typeof value === "string" && setupCodePattern.test(value),
+  deviceName: (value: unknown): boolean => isStringWithinBytes(value, 1, 32),
+  apSsid: (value: unknown): boolean => isStringWithinBytes(value, 1, 32),
+  apPassphrase: (value: unknown): boolean => isStringWithinBytes(value, 8, 63),
+  adminPassword: (value: unknown): boolean =>
+    isStringWithinBytes(
+      value,
+      v2Limits.adminPasswordMinBytes,
+      v2Limits.adminPasswordMaxBytes,
+    ),
+} as const;
+
 function isSetupIdentity(value: Record<string, unknown>): boolean {
   return all([
-    typeof value.setupCode === "string",
-    typeof value.setupCode === "string" &&
-      setupCodePattern.test(value.setupCode),
-    isStringWithinBytes(value.deviceName, 1, 32),
+    setupFieldGuards.setupCode(value.setupCode),
+    setupFieldGuards.deviceName(value.deviceName),
   ]);
 }
 
 function isSetupCredentials(value: Record<string, unknown>): boolean {
   return all([
-    isStringWithinBytes(value.apSsid, 1, 32),
-    isStringWithinBytes(value.apPassphrase, 8, 63),
-    isStringWithinBytes(
-      value.adminPassword,
-      v2Limits.adminPasswordMinBytes,
-      v2Limits.adminPasswordMaxBytes,
-    ),
+    setupFieldGuards.apSsid(value.apSsid),
+    setupFieldGuards.apPassphrase(value.apPassphrase),
+    setupFieldGuards.adminPassword(value.adminPassword),
   ]);
 }
 

@@ -1,4 +1,6 @@
 import { startApplicationServer } from "../fixtures/applicationServer.mjs";
+import { startStartupFixtureServer } from "../fixtures/startupFixtureServer.mjs";
+import { blobId, repositoryGzip } from "../fixtures/data.mjs";
 import { runAccessibilityScan } from "../lib/accessibility.mjs";
 import { assert } from "../lib/http.mjs";
 import { assertFitsViewport, evaluate, waitFor } from "../lib/page.mjs";
@@ -192,5 +194,153 @@ export async function runKeyboardNavigationWorkflow(browser) {
     }
   } finally {
     await application.close();
+  }
+}
+
+const id = (selector) => ({
+  label: `field ${selector}`,
+  find: (page) => page.locator(selector),
+});
+const text = (pattern) => ({
+  label: `text ${String(pattern)}`,
+  find: (page) => page.getByText(pattern),
+});
+
+/**
+ * Pre-authentication and startup screens (UXR-030/031): no navigation bar, so
+ * the rule is simply that each step's fields, state and next action are in
+ * the first viewport. `drive` walks the screen to the state under test.
+ */
+export const STARTUP_SCREENS = [
+  {
+    name: "setup step 1",
+    options: { provisioned: false },
+    marker: "Set up your keyboard",
+    controls: [
+      text("Step 1 of 4: Device"),
+      id("#setup-code"),
+      id("#device-name"),
+      button("Continue"),
+    ],
+  },
+  {
+    name: "setup step 2",
+    options: { provisioned: false },
+    marker: "Set up your keyboard",
+    drive: async (page) => {
+      await page.locator("#setup-code").fill("12345678");
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
+    },
+    controls: [
+      text("Step 2 of 4: Wi-Fi"),
+      id("#ap-ssid"),
+      id("#ap-passphrase"),
+      button("Back"),
+      button("Continue"),
+    ],
+  },
+  {
+    name: "setup step 3",
+    options: { provisioned: false },
+    marker: "Set up your keyboard",
+    drive: async (page) => {
+      await page.locator("#setup-code").fill("12345678");
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
+      await page.locator("#ap-ssid").fill("MacroKeyboard");
+      await page.locator("#ap-passphrase").fill("bench-ap-passphrase-1");
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
+    },
+    controls: [
+      text("Step 3 of 4: Access"),
+      id("#admin-password"),
+      button("Back"),
+      button("Review setup"),
+    ],
+  },
+  {
+    name: "setup review",
+    options: { provisioned: false },
+    marker: "Set up your keyboard",
+    drive: async (page) => {
+      await page.locator("#setup-code").fill("12345678");
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
+      await page.locator("#ap-ssid").fill("MacroKeyboard");
+      await page.locator("#ap-passphrase").fill("bench-ap-passphrase-1");
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
+      await page.locator("#admin-password").fill("bench-fixture-admin-pw-1");
+      await page
+        .getByRole("button", { name: "Review setup", exact: true })
+        .click();
+    },
+    controls: [
+      text("Step 4 of 4: Review"),
+      button("Back"),
+      button("Apply setup"),
+    ],
+  },
+  {
+    name: "sign in",
+    options: { authenticated: false },
+    marker: "Sign in",
+    controls: [id("#admin-password"), button("Sign in")],
+  },
+  {
+    name: "first repository",
+    options: { blobs: [] },
+    marker: "Create Your First Repository",
+    controls: [id("#first-package-name"), button("Create package")],
+  },
+  {
+    name: "snapshot recovery",
+    options: {
+      blobs: [
+        { id: blobId, bytes: repositoryGzip },
+        { id: "2", bytes: Buffer.from([0, 1, 2, 3, 4]) },
+      ],
+    },
+    marker: "Snapshot recovery",
+    controls: [
+      button("Start over"),
+      {
+        label: "first snapshot candidate",
+        find: (page) => page.locator('[aria-label^="Load snapshot"]'),
+      },
+    ],
+  },
+];
+
+export async function runStartupVisibleControlsWorkflow(browser) {
+  for (const viewport of VIEWPORTS) {
+    for (const screen of STARTUP_SCREENS) {
+      const fixture = await startStartupFixtureServer(screen.options);
+      const context = await browser.newContext({
+        viewport: { width: viewport.width, height: viewport.height },
+      });
+      const page = await context.newPage();
+      try {
+        await page.goto(fixture.baseUrl);
+        await waitFor(
+          page,
+          new Function(
+            `return document.body.innerText.includes(${JSON.stringify(screen.marker)});`,
+          ),
+          `The ${screen.name} screen did not render.`,
+        );
+        if (screen.drive !== undefined) {
+          await screen.drive(page);
+        }
+        const where = `${screen.name} @ ${viewport.name}`;
+        for (const control of screen.controls) {
+          await assertVisibleInViewport(page, control, where);
+        }
+        await assertFitsViewport(page, where);
+        if (viewport.name === "320x568" || viewport.name === "1440x900") {
+          await runAccessibilityScan(page, where);
+        }
+      } finally {
+        await context.close();
+        await fixture.close();
+      }
+    }
   }
 }
