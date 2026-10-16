@@ -120,8 +120,7 @@
 
   /* --- Type roles ----------------------------------------------------------
      `text-<role>` sets size, line height, weight and tracking together. */
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", roboto, sans-serif;
+  --font-sans: "Helvetica Neue", "Arial", sans-serif;
   --font-mono: ui-monospace, "SF Mono", menlo, consolas, monospace;
   --text-display-sm: 2.25rem;
   --text-display-sm--line-height: 2.75rem;
@@ -145,13 +144,13 @@
   --text-title-sm--letter-spacing: 0.007em;
   --text-body-lg: 1rem;
   --text-body-lg--line-height: 1.5rem;
-  --text-body-lg--letter-spacing: 0.03em;
+  --text-body-lg--letter-spacing: 0.01em;
   --text-body-md: 0.875rem;
   --text-body-md--line-height: 1.25rem;
-  --text-body-md--letter-spacing: 0.016em;
+  --text-body-md--letter-spacing: 0.005em;
   --text-body-sm: 0.75rem;
   --text-body-sm--line-height: 1rem;
-  --text-body-sm--letter-spacing: 0.033em;
+  --text-body-sm--letter-spacing: 0.015em;
   --text-label-lg: 0.875rem;
   --text-label-lg--line-height: 1.25rem;
   --text-label-lg--font-weight: 600;
