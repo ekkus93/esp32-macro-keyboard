@@ -48,31 +48,40 @@ product behavior.
 
 ### UXR-000 — Record repository baseline
 
-- [ ] Record current master SHA and working-tree state.
-- [ ] Run existing frontend build/test/check scripts and record the baseline.
-- [ ] Capture current first-run, sign-in, macro list, editor, package, snapshot,
+- [x] Record current master SHA and working-tree state.
+- [x] Run existing frontend build/test/check scripts and record the baseline.
+- [x] Capture current first-run, sign-in, macro list, editor, package, snapshot,
       settings, diagnostics, active-send, and error/recovery screens.
-- [ ] Capture screenshots at 320×568, 360×800, tablet portrait/landscape, and
+- [x] Capture screenshots at 320×568, 360×800, tablet portrait/landscape, and
       desktop 1440×900.
-- [ ] Record current initial JS/CSS/font/image bundle sizes and firmware webfs
+- [x] Record current initial JS/CSS/font/image bundle sizes and firmware webfs
       budget headroom.
 
 ### UXR-001 — Map current routes and behavior
 
-- [ ] Enumerate every route, screen, dialog, menu, loading state, error state,
+- [x] Enumerate every route, screen, dialog, menu, loading state, error state,
       empty state, and destructive confirmation.
-- [ ] Map each user task from entry to completion and identify where controls
+- [x] Map each user task from entry to completion and identify where controls
       appear below the fold or inside unclear menus.
-- [ ] Record all copy blocks that explain UI instead of helping a real decision.
-- [ ] Record current breakpoints, scroll containers, fixed/sticky elements,
+- [x] Record all copy blocks that explain UI instead of helping a real decision.
+- [x] Record current breakpoints, scroll containers, fixed/sticky elements,
       safe-area handling, and virtual-keyboard interactions.
 - [ ] Map each UI flow to the existing v2 behavior and tests so presentation
       changes cannot silently alter product semantics.
 
+**Phase 0 evidence** (2026-10-15, baseline `5bed6a6`): see
+`docs/implementation-v2/UXR_000_001_BASELINE_AND_INVENTORY_2026-10-15.md`.
+Gate run: 570 unit tests, browser and axe pass; `test:visual` fails on the
+unmodified tree (host-font-specific baselines, recorded there). Screenshots:
+`docs/ui-redesign/baseline-screenshots/` (120 PNGs, regenerate with
+`webapp/tests/browser/visual/screenshot-set.mjs`). The flow-to-behavior mapping
+is done at test-file level only, so that one UXR-001 item stays open until each
+screen is mapped to `SPEC_V2.md` sections during its own task.
+
 **Phase 0 exit gate**
 
-- [ ] Baseline record is reproducible; route/state inventory is complete.
-- [ ] Every known viewport, discoverability, copy, and layout problem has a
+- [x] Baseline record is reproducible; route/state inventory is complete.
+- [x] Every known viewport, discoverability, copy, and layout problem has a
       specific target screen and acceptance condition.
 
 ## Phase 1 — UX architecture and Material 3 system
