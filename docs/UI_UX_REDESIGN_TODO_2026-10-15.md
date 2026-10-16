@@ -17,8 +17,8 @@ product behavior.
 - [x] Read repository `CLAUDE.md`, `AGENTS.md`, `SPEC_V2.md`, `UI_UX_SPEC_V2.md`,
       current webapp architecture, and current release/bundle budgets before
       changing code.
-- [x] Work directly on `master`, following repository policy. Do not create a
-      branch or PR for each task.
+- [x] Work on the product-owner-authorized review branch and keep it pushed for
+      review; merge only after the owner accepts the completed experience.
 - [x] Keep existing auth, API, persistence, repository schema, USB HID,
       execution, privacy, device-setting, and recovery contracts intact.
 - [x] Do not modify the frozen existing spec files as part of implementation.
@@ -76,8 +76,9 @@ Gate run: 570 unit tests, browser and axe pass; `test:visual` fails on the
 unmodified tree (host-font-specific baselines, recorded there). Screenshots:
 `docs/ui-redesign/baseline-screenshots/` (120 PNGs, regenerate with
 `webapp/tests/browser/visual/screenshot-set.mjs`). The flow-to-behavior mapping
-is done at test-file level only, so that one UXR-001 item stays open until each
-screen is mapped to `SPEC_V2.md` sections during its own task.
+was initially recorded at test-file level; it was completed in
+`docs/implementation-v2/UXR_001_BEHAVIOR_TRACEABILITY_2026-10-16.md`, which
+maps flows to normative sections and regression suites.
 
 **Phase 0 exit gate**
 
@@ -562,3 +563,27 @@ visible-controls table (Packages, Snapshots, Import and export).
   zoom; Safari/WebKit qualification; and ESP32-served offline/recovery and
   constrained-serving performance checks. No ESP32 board is connected in this
   environment. The TODO remains open for these gates.
+
+## 2026-10-16 evidence revision
+
+- Code and browser-test revision: `dc9a87a6e08cbf536bf636d49b23c557011e091b`
+  (`codex/ui-ux-redesign-2026-10-16`), pushed to GitHub.
+- Full repository command at this revision: source ESP-IDF v5.5.5, then
+  `./scripts/check-all.sh`; **passed, exit 0**. Counts: 706 webapp tests across
+  67 files (unit and coverage runs), 97 visual scenarios, and 63/63 host tests.
+  Firmware and the on-device test app built. See the continuation above for
+  bundle and webfs measurements.
+- Additional browser command: launch Firefox with Playwright and call
+  `runVisibleControlsWorkflow` from
+  `webapp/tests/browser/workflows/visibleControls.mjs`; **passed** at phone and
+  desktop sizes, including the 44×44 CSS-pixel visible-control audit and axe.
+- `bash scripts/check-docs.sh`: **passed**, zero Markdown issues; existing
+  yamllint warnings remain. `git diff --check`: **passed**.
+- Screenshots: `docs/ui-redesign/phase7-review/` (72 light captures),
+  `docs/ui-redesign/phase8-dark-review/` (14 dark captures), and
+  `docs/ui-redesign/phase9-android-keyboard-review/` (Android 16 / Chrome 133 /
+  Gboard, 390 CSS px wide).
+- Remaining exit gates are external/manual: owner acceptance of the final
+  screenshots; spoken screen-reader and full manual keyboard review; real 200%
+  browser zoom; Safari/WebKit; and physical ESP32 offline/recovery/performance
+  checks. These are not inferred from browser automation or build results.

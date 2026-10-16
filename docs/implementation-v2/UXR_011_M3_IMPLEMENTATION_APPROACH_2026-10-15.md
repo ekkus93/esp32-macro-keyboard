@@ -60,19 +60,22 @@
   while manual screen-reader qualification remains open under UXR-071.
 - Supported-browser evidence for the selected implementation: Playwright
   Chromium workflows, axe, reduced-motion, six viewport sizes, and the Android
-  Chrome 133 emulator all passed. Firefox 153 passed a 320×568 smoke test with
-  no horizontal overflow and no external requests. MUI's published v9.5.0
+  Chrome 133 emulator all passed. Firefox 153 passed the responsive-control
+  workflow at phone and desktop sizes, including touch-target and axe checks.
+  MUI's published v9.5.0
   matrix lists Chrome >=117, Firefox/Edge >=121, and Safari >=17
   ([supported platforms](https://mui.com/material-ui/getting-started/supported-platforms/));
   this is candidate-library evidence, not a claim that this app has passed all
-  those browsers. Playwright WebKit 26.5 could not launch because this host
-  lacks `libavif.so.16`, so Safari is not qualified. Actual screen-reader,
+  those browsers. Playwright WebKit 26.5 could not launch: after supplying the
+  Ubuntu 24.04 `libavif`, `libgav1`, and `libyuv` libraries in a temporary
+  directory, its bundled engine still requires unavailable `libbacktrace.so.0`
+  and `libjxl.so.0.8`. Safari is not qualified. Actual screen-reader,
   browser-zoom and physical-device performance checks remain open.
 
 ## 2026-10-16 release measurements
 
-Production webapp build: JS **339,490 bytes raw / 101,680 gzip**; CSS
-**38,760 raw / 7,620 gzip**; no font or external runtime assets. Compared with
+Production webapp build: JS **340,970 bytes raw / 102,120 gzip**; CSS
+**38,968 raw / 7,680 gzip**; no font or external runtime assets. Compared with
 the recorded baseline (JS 313,486 / 93,241 and CSS 27,946 / 6,193), total gzip
 increased by **9,866 bytes**. This is the whole redesign app delta, not an
 isolated component-library cost.
