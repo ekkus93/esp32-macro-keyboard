@@ -106,11 +106,12 @@ screen is mapped to `SPEC_V2.md` sections during its own task.
 - [x] Evaluate an M3 Expressive implementation compatible with React 19 and the
       existing webapp stack. Compare a locally bundled component library with
       an in-repo M3 token/component layer.
-- [ ] Measure package size, build/runtime compatibility, accessibility support,
+- [x] Measure package size, build/runtime compatibility, accessibility support,
       license, supported-browser compatibility, and firmware web-asset impact.
-      (Partial: size, license and web-asset impact measured in
-      `UXR_011_M3_IMPLEMENTATION_APPROACH_2026-10-15.md`; accessibility and
-      cross-browser support were not measured for the library options.)
+      (Measured candidate library size, license, runtime fit, documented
+      accessibility support and browser matrix; the selected in-repo layer
+      passed Chrome/Firefox checks, axe, and the webfs budget. Actual assistive
+      technology and Safari remain UXR-071/081 qualification items.)
 - [x] Choose one approach and record rationale. Do not add multiple overlapping
       component systems.
 - [x] Confirm every dependency and asset is available offline after device
@@ -173,7 +174,12 @@ prototype screenshots in `docs/ui-redesign/phase1-prototype/`.
       (`runKeyboardNavigationWorkflow`).
       `runMacroEditorKeyboardViewportWorkflow` checks that the focused source
       field and Save/Cancel remain reachable in a reduced mobile viewport; an
-      Android emulator check with Gboard open also passed.
+      Android emulator check with Gboard open also passed. Chrome 133 on the
+      Android 16 emulator showed browser chrome above the app and Gboard below;
+      the focused source field and Save action stayed visible. See
+      `docs/ui-redesign/phase9-android-keyboard-review/`. Safe-area CSS is
+      present, but display-cutout behavior and 200% browser text zoom remain
+      unverified.
       `interactive-widget=resizes-content` was tried and rejected: it would
       shrink the layout viewport and make a narrow phone with its keyboard open
       match the landscape-block media query. Physical-device behavior and text
@@ -371,6 +377,10 @@ visible-controls table (Packages, Snapshots, Import and export).
 - [x] Ensure error copy says what happened and the next useful action.
 - [ ] Verify keyboard dismissal, focus trap/restore, screen reader announcement,
       and no accidental dismissal of critical unsaved-work prompts.
+      (Automated unit/browser tests cover Escape dismissal, focus trapping and
+      restoration, and unsaved-work cancellation; Android Chrome's accessibility
+      tree exposes names for the main macro controls. Actual spoken
+      screen-reader announcements still need a human TalkBack/VoiceOver pass.)
 
 **Phase 6 exit gate**
 
@@ -393,9 +403,15 @@ visible-controls table (Packages, Snapshots, Import and export).
 - [x] Run axe-core scans on representative pages and all key overlays.
 - [ ] Test keyboard-only operation, focus visibility/order, Escape behavior,
       screen-reader labels/status announcements, and touch target size.
+      (Automated browser workflows and unit tests cover keyboard-operated menus,
+      focus traps/restoration, Escape, axe checks, and 44 px touch targets.
+      Manual screen-reader announcements and a full screen-by-screen keyboard
+      pass remain open.)
 - [x] Verify contrast for light/dark/system states if more than one theme exists.
 - [ ] Test 200% zoom/text enlargement, reflow at 320 CSS px, reduced motion, and
       virtual keyboard interactions.
+      (320 CSS px, reduced motion, and the Android Gboard workflow are covered;
+      actual 200% browser text zoom remains open.)
 
 ### UXR-072 — Visual regression and design review
 
@@ -405,8 +421,11 @@ visible-controls table (Packages, Snapshots, Import and export).
 - [x] Review alignment, hierarchy, whitespace, typography, color, shape,
       component consistency, and empty/error/loading states.
 - [x] Remove styling that resembles the old keycap/engineering demo treatment.
-- [ ] Obtain product-owner visual review of representative completed screens
-      before declaring the design phase complete.
+- [x] Obtain product-owner visual review of representative completed screens
+      before declaring the design phase complete. (The owner reviewed the phase
+      7 and dark-mode screenshots and requested a palette/theme option and a
+      more restrained type treatment; those changes were implemented and pushed
+      for continued review. Final phase acceptance is still open.)
 
 **Phase 7 exit gate**
 
@@ -423,6 +442,10 @@ visible-controls table (Packages, Snapshots, Import and export).
       fonts, scripts, styles, images, analytics, or icon requests.
 - [ ] Test the built app served from the device with internet unavailable.
 - [ ] Verify all app routes and error/recovery screens still render offline.
+      (Partial: with Android emulator Wi-Fi/mobile data disabled, authenticated
+      routes rendered from the local browser fixture through `adb reverse`, with
+      no external requests. This does not test firmware webfs serving; setup and
+      device-error recovery still need the on-device path.)
 
 ### UXR-081 — Verify size and performance
 
@@ -431,6 +454,9 @@ visible-controls table (Packages, Snapshots, Import and export).
 - [x] Document the M3 implementation's raw and compressed cost.
 - [ ] Confirm list/editor interactions remain responsive on target mobile
       browsers and constrained ESP32 serving conditions.
+      (Android Chrome 133/Gboard was exercised manually and the reduced-viewport
+      editor workflow is automated; constrained ESP32 serving and physical-phone
+      performance remain unmeasured.)
 
 ### UXR-082 — Full regression and reconciliation
 
@@ -483,7 +509,56 @@ visible-controls table (Packages, Snapshots, Import and export).
 - Review screenshots: `docs/ui-redesign/phase7-review/` (72 PNGs; 12 scenarios
   across six viewports). Visual baselines: `webapp/tests/browser/visual/baselines/`.
   Inspected phone, tablet, and desktop screens had no obvious clipping.
-- Still needs product-owner review; physical device/offline route testing (no
-  board attached); Safari/WebKit (blocked by missing host `libavif.so.16`);
-  screen-reader announcement review; and actual browser 200% zoom/virtual
-  keyboard validation.
+- Still open: final product-owner acceptance; physical device/offline route
+  testing (no ESP32 board attached); Safari/WebKit (blocked by missing host
+  `libavif.so.16`); screen-reader announcement review; and actual browser 200%
+  zoom. Android virtual-keyboard behavior is further qualified in the
+  continuation below.
+
+## 2026-10-16 continuation — theme, keyboard, and final gate
+
+- Base revision: `bc3eb5d2626cb331e432772daacc4693a6a28b7c` on
+  `codex/ui-ux-redesign-2026-10-16`.
+- UXR-011 candidate evaluation is complete in
+  `UXR_011_M3_IMPLEMENTATION_APPROACH_2026-10-15.md`: size, license, runtime,
+  browser matrix, firmware budget, and published accessibility evidence are
+  compared. The selected in-repo layer passes automated axe/focus/contrast
+  checks; manual assistive-technology verification remains an application
+  qualification item.
+- Added an all-route phone touch-target audit to
+  `tests/browser/workflows/visibleControls.mjs`; every visible target on each
+  listed phone route must meet 44×44 CSS pixels. The keyboard-open macro-editor
+  viewport test also asserts the source field and Save/Cancel stay in-view.
+- Android emulator: Chrome 133 on Android 16, 390 CSS px wide, Gboard open.
+  The source field and Save action remained visible; the bottom navigation
+  stepped aside. Screenshot:
+  `docs/ui-redesign/phase9-android-keyboard-review/`.
+- Offline smoke check: Android emulator Wi-Fi and mobile data were disabled;
+  authenticated Macros, Packages, Snapshots, Import/export, Settings, and
+  Diagnostics routes rendered through a local fixture with no external
+  requests. This did not exercise ESP32 webfs serving or device-error recovery.
+- Browser coverage: Android Chrome 133 emulator; Firefox 153 responsive-control
+  workflow at phone and desktop sizes, including touch-target and axe checks;
+  Chromium workflows and axe.
+  Safari remains unqualified because Playwright WebKit cannot launch without
+  host `libavif.so.16`.
+- `./scripts/check-all.sh` (ESP-IDF v5.5.5 / Node 24.18.0): passed, exit 0.
+  This includes 706 webapp tests across 67 files (unit and coverage runs),
+  Chromium workflows including H4/H5, 97 visual baselines, no-orphan and
+  status-badge checks, docs and scripts checks, firmware and device-test-app
+  builds, and 63/63 host tests. Existing yamllint warnings remain in workflow
+  files; docs lint reported zero Markdown issues.
+- Final gate measurements: JS 340,970 bytes raw (Vite: 340.97 kB / 102.12 kB
+  gzip); CSS 38,968 bytes raw (Vite: 38.97 kB / 7.68 kB gzip); webfs budget
+  520,192 / 891,289 bytes (58.4%, 371,097 free); OTA app 1,006,896 /
+  2,097,152 bytes (48.0%). The built distribution contains no remote assets.
+- Review captures: `phase7-review/` (72 light screenshots),
+  `phase8-dark-review/` (14 dark screenshots), and the Android keyboard capture
+  in `phase9-android-keyboard-review/`. The unit/browser suite and all 97 visual
+  baselines pass.
+- Still needs owner assistance or a physical target: final visual acceptance
+  of the current palette/type/screens; a real screen-reader pass (TalkBack or
+  VoiceOver) and full manual keyboard-only route pass; actual 200% browser text
+  zoom; Safari/WebKit qualification; and ESP32-served offline/recovery and
+  constrained-serving performance checks. No ESP32 board is connected in this
+  environment. The TODO remains open for these gates.

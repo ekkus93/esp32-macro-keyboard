@@ -49,11 +49,25 @@
 
 - `@material/web` coverage was judged from the installed package's directory
   listing and a bundle measurement, not from a prototype of every component.
-- Supported-browser evidence: real Chrome workflows, axe, reduced-motion and
-  six viewport sizes passed. A Firefox 153 smoke test passed at 320×568 with no
-  horizontal overflow. Playwright WebKit 26.5 could not launch because this
-  host lacks `libavif.so.16`; Safari is not qualified. Actual screen-reader,
-  browser zoom and physical-device performance checks remain open.
+- Accessibility comparison: Material Web describes its components as
+  accessible, but its project site says the library is in maintenance mode
+  ([project site](https://material-web.dev/)). MUI's current accessibility
+  report is a draft self-assessment of 12 components: 27 criteria are marked
+  supported and five partially supported, with no assistive-technology tests;
+  it excludes several components this app needs, including Dialog, Menu,
+  Select, and Snackbar ([MUI accessibility report](https://mui.com/material-ui/getting-started/accessibility/)).
+  The in-repo layer has app-level axe scans and automated focus/contrast tests,
+  while manual screen-reader qualification remains open under UXR-071.
+- Supported-browser evidence for the selected implementation: Playwright
+  Chromium workflows, axe, reduced-motion, six viewport sizes, and the Android
+  Chrome 133 emulator all passed. Firefox 153 passed a 320×568 smoke test with
+  no horizontal overflow and no external requests. MUI's published v9.5.0
+  matrix lists Chrome >=117, Firefox/Edge >=121, and Safari >=17
+  ([supported platforms](https://mui.com/material-ui/getting-started/supported-platforms/));
+  this is candidate-library evidence, not a claim that this app has passed all
+  those browsers. Playwright WebKit 26.5 could not launch because this host
+  lacks `libavif.so.16`, so Safari is not qualified. Actual screen-reader,
+  browser-zoom and physical-device performance checks remain open.
 
 ## 2026-10-16 release measurements
 

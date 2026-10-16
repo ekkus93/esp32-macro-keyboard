@@ -3,7 +3,12 @@ import { startStartupFixtureServer } from "../fixtures/startupFixtureServer.mjs"
 import { blobId, repositoryGzip } from "../fixtures/data.mjs";
 import { runAccessibilityScan } from "../lib/accessibility.mjs";
 import { assert } from "../lib/http.mjs";
-import { assertFitsViewport, evaluate, waitFor } from "../lib/page.mjs";
+import {
+  assertFitsViewport,
+  assertTouchTargets,
+  evaluate,
+  waitFor,
+} from "../lib/page.mjs";
 
 /**
  * UI_UX_SPEC_MATERIAL_3_EXPRESSIVE §10 / TODO UXR-021: at the smallest
@@ -382,6 +387,12 @@ export async function runVisibleControlsWorkflow(browser) {
             await assertVisibleInViewport(page, control, where);
           }
           await assertFitsViewport(page, where);
+          if (viewport.width < RAIL_MIN_WIDTH) {
+            // Audit every visible control on every route at phone widths;
+            // hidden forms behind focused subpages are excluded by
+            // `assertTouchTargets` itself.
+            await assertTouchTargets(page);
+          }
           // axe at the narrowest phone and the widest desktop: the two
           // layouts (navigation bar and navigation rail) differ most there.
           if (viewport.name === "320x568" || viewport.name === "1440x900") {

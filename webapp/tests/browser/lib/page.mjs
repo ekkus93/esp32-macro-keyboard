@@ -58,6 +58,9 @@ export async function assertTouchTargets(page) {
       ),
     )
       .map((element) => {
+        if (!element.checkVisibility()) {
+          return null;
+        }
         const target = element.matches('input[type="checkbox"]')
           ? element.closest("label")
           : element;
@@ -72,7 +75,7 @@ export async function assertTouchTargets(page) {
           height: rect.height,
         };
       })
-      .filter((item) => item.width < 44 || item.height < 44),
+      .filter((item) => item !== null && (item.width < 44 || item.height < 44)),
   );
   assert(
     Array.isArray(failures) && failures.length === 0,
