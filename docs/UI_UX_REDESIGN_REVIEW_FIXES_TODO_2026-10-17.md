@@ -105,10 +105,9 @@
 
 ## 7. Implementation and verification evidence
 
-- Implementation is present in the current working tree based on review
-  baseline `82eb7d1`; no implementation commit has been created yet, so there is
-  no implementation commit SHA to record. Do not treat this checklist as
-  release or merge evidence until that SHA and completed gate are added.
+- Implementation commit: `f547d69` (`fix(webapp): address UI review
+  findings`), based on review baseline `82eb7d1`. It is committed on `master`.
+  The full regression gate remains open because the Chrome browser phase crashed.
 - Focused unit tests passed for snapshot save races, send startup cancellation,
   Settings export failures, dialog isolation, macro editor dialogs, and
   phone-landscape active-send cancellation. The full webapp unit and coverage
@@ -121,8 +120,9 @@
   rerun also crashed a Chrome target during a keyboard interaction, at a
   different scenario, without a test assertion failure. The focus workflow had
   passed in the earlier browser run before these environmental crashes began.
-- `git diff --check` passed before the final documentation edits. Re-run docs
-  lint and the final whitespace check before recording a commit SHA.
+- `bash ./scripts/check-docs.sh` passed with zero Markdown issues; existing
+  yamllint warnings remain. `git diff --check` passed before this evidence
+  update and will be rerun before the documentation follow-up commit.
 - The spoken screen-reader pass remains open. Safari remains deferred by the
   product owner; physical ESP32-S3, device-served offline, and constrained
   performance qualification remain open until hardware is available.

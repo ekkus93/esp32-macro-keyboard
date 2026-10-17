@@ -742,6 +742,6 @@ visible-controls table (Packages, Snapshots, Import and export).
   review remain open under UXR-071. Safari stays deferred at the product owner's
   request. ESP32-served offline behavior and constrained-device performance
   stay open pending access to the ESP32-S3.
-- The code changes have not yet been committed; no implementation SHA is
-  available. This reconciliation records implementation and test evidence only
-  and does not close UXR-062, UXR-071, UXR-080/081, or UXR-082.
+- The code changes are committed as `f547d69` on `master`. This reconciliation
+  records implementation and test evidence only and does not close UXR-062,
+  UXR-071, UXR-080/081, or UXR-082.
