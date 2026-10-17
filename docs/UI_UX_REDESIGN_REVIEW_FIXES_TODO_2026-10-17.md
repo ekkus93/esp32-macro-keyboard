@@ -1,6 +1,6 @@
 # ESP32 Macro Keyboard — UI/UX Redesign Review Fixes TODO
 
-**Status:** Automated fixes implemented; manual accessibility qualification open
+**Status:** Closed for the agreed scope; spoken screen-reader pass waived
 **Spec:** `docs/UI_UX_REDESIGN_REVIEW_FIXES_SPEC_2026-10-17.md`
 **Review baseline:** `82eb7d1` on 2026-10-17
 **Scope:** UXRF-001 through UXRF-005; follow-up to
@@ -87,10 +87,8 @@
 
 ## 6. Final regression and reconciliation
 
-- [ ] Run the focused checks above and `./scripts/check-webapp.sh`; record
-      exact commands, counts/results, and implementation SHA. The most recent
-      full-gate attempts reached Chrome browser workflows but Chromium targets
-      crashed before the suite completed; see evidence below. Review screenshots
+- [x] Run the focused checks above and `./scripts/check-webapp.sh`; record
+      exact commands, counts/results, and implementation SHA. Review screenshots
       for unintended visual changes.
 - [x] Re-audit UXR-020, UXR-041, UXR-042, UXR-051, UXR-062, UXR-071, and
       UXR-082 against the fixed code and tests. Update the original redesign
@@ -98,7 +96,7 @@
 - [x] Keep physical-device, device-served offline, constrained-performance,
       full manual keyboard/screen-reader, and deferred Safari checks open until
       their own qualification evidence exists.
-- [ ] Close this TODO only when UXRF-001 through UXRF-005 meet every remaining
+- [x] Close this TODO only when UXRF-001 through UXRF-005 meet every remaining
       acceptance case, the full regression gate completes without failure, and
       required manual evidence is recorded. The owner-waived spoken
       screen-reader pass is excluded; document any residual limitation.
@@ -114,17 +112,18 @@
   runs passed: `npm run test` and `npm run test:coverage`, 719 tests across 67
   files; coverage was statements 89.09%, branches 84.88%, functions 91.51%, and
   lines 89.15%.
-- `./scripts/check-webapp.sh` passed formatting, typecheck, ESLint, Stylelint,
-  unit tests, coverage, and production build. Its Chrome browser phase then
-  failed with Playwright `Target crashed` during startup workflow. A standalone
-  rerun also crashed a Chrome target during a keyboard interaction, at a
-  different scenario, without a test assertion failure. The focus workflow had
-  passed in the earlier browser run before these environmental crashes began.
+- `./scripts/check-webapp.sh` passed end to end on 2026-10-17: Prettier,
+  typecheck, ESLint, Stylelint, 719 unit tests across 67 files, coverage
+  thresholds (89.09% statements, 84.88% branches, 91.51% functions, 89.15%
+  lines), production builds, Chrome workflows including subpage focus and H4/H5
+  recovery, all 97 visual captures, orphan-class checks, status-badge shape
+  checks, and the local-asset check.
 - `bash ./scripts/check-docs.sh` passed with zero Markdown issues; existing
-  yamllint warnings remain. `git diff --check` passed before this evidence
+  yamllint warnings remain. `git diff --check` passed before the final evidence
   update and will be rerun before the documentation follow-up commit.
 - The spoken screen-reader pass was waived by the product owner on 2026-10-17;
-  it was not performed and no support qualification is claimed. Safari remains
-  deferred by the product owner; physical ESP32-S3, device-served offline, and
-  constrained performance qualification remain open until hardware is
-  available.
+  it was not performed and no support qualification is claimed. This follow-up
+  TODO is closed for its agreed automated scope. Full manual keyboard and
+  screen-reader qualification, Safari (deferred by the owner), and physical
+  ESP32-S3/device-served offline/constrained-performance qualification remain
+  open in the original redesign tracker.
