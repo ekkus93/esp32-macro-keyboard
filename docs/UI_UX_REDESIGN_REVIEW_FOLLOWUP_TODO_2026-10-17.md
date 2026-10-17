@@ -152,6 +152,12 @@
   changes had not yet been baseline-reviewed. Only the two recovery-overlay
   and two unsaved-changes-prompt baselines were then updated. The final
   `check-all.sh` and `check-webapp.sh` runs passed.
+- A later standalone `npm --prefix webapp run test:browser` attempt exited 1
+  because the H4 workflow did not observe the release-error banner after
+  navigation to Packages. An immediate rerun passed the full browser workflow,
+  including H4 and H5. The subsequent full webapp gate also passed at
+  `ac6f4e8b32f33f99ba9fe533e4f395ade3774a58`; the transient failure was
+  retained here rather than removed from the evidence record.
 - `./scripts/check-docs.sh` — passed, zero Markdown issues. It reports existing
   yamllint warnings in workflow files; no new warning was introduced.
 - `git diff --cached --check` passed for the implementation commit. The final
@@ -183,3 +189,27 @@
   constrained-device performance, and Apple Safari remain outstanding. Safari
   is deferred because the owner has no Safari access. The original redesign
   TODO retains those qualification items as open.
+
+### Supplemental keyboard route automation
+
+- Test-only follow-up commit:
+  `ac6f4e8b32f33f99ba9fe533e4f395ade3774a58` (`test(webapp): audit keyboard
+  route focus in Android Chrome`). It strengthens route navigation to use Tab,
+  Enter, and Escape, audits visible main-area tab stops and focus indicators,
+  and runs the route check in the Android Chrome emulator.
+- `./scripts/check-webapp.sh` — passed, exit 0 at that commit; 727 tests across
+  67 files, coverage 89.20% statements, 85.05% branches, 91.41% functions,
+  89.25% lines, browser workflows passed, and all 97 visual captures matched.
+  Full output: `/tmp/uiux-followup-check-webapp-ac6f4e8.log`.
+- `./scripts/check-android-offline-visuals.sh` — passed, 46 Android Chrome
+  offline visual scenarios plus keyboard-only subpage navigation/focus checks.
+  This uses an emulator and a local fixture; it does not qualify ESP32-served
+  offline behavior or physical-device performance.
+- `cd webapp && node --input-type=module -e 'import { chromium } from
+  "playwright"; import { runSubpageFocusWorkflow } from
+  "./tests/browser/workflows/visibleControls.mjs"; const browser = await
+  chromium.launch({ headless: true }); try { await
+  runSubpageFocusWorkflow(browser); } finally { await browser.close(); }'` —
+  passed in desktop Chrome at 390×844 and 1440×900.
+- This adds automated route and focus coverage. It does not claim the full
+  manual keyboard qualification or a spoken screen-reader pass.
