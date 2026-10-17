@@ -507,8 +507,9 @@ visible-controls table (Packages, Snapshots, Import and export).
       require product-owner review and physical/manual qualification listed
       below.)
 - [x] All major workflows pass on phone and desktop, with tablet coverage.
-- [ ] App is visually coherent with Material 3 Expressive and feels polished.
-      (Representative screenshots await product-owner acceptance.)
+- [x] App is visually coherent with Material 3 Expressive and feels polished.
+      (Product owner approved the representative phone macros, macro editor,
+      and dark-mode screenshots on 2026-10-17.)
 - [x] No primary action or essential state is hidden below the fold.
 - [x] Offline operation, privacy, firmware asset budgets, and existing product
       contracts remain intact. (Verified 2026-10-16 by
@@ -517,7 +518,9 @@ visible-controls table (Packages, Snapshots, Import and export).
       budgets, and host/webapp suites passed. Android Chrome also rendered all
       46 route scenarios with Wi-Fi and mobile data disabled. The ESP32-served
       offline path remains separately open in UXR-080.)
-- [ ] Product owner has reviewed the completed experience.
+- [x] Product owner has reviewed the completed experience. (Approved the
+      representative screenshots on 2026-10-17; see the review links in the
+      2026-10-17 acceptance record below.)
 
 ## 2026-10-16 implementation and verification record
 
@@ -698,3 +701,13 @@ visible-controls table (Packages, Snapshots, Import and export).
   design acceptance, Apple Safari, ESP32-served offline behavior, and
   constrained-device performance. The firmware build does not close those
   hardware checks.
+
+## 2026-10-17 product-owner design acceptance
+
+- Product owner approved the representative screenshots for the phone Macros
+  screen, macro editor, and dark theme. Review artifacts:
+  `docs/ui-redesign/phase7-review/macros--390x844.png`,
+  `docs/ui-redesign/phase7-review/macro-editor--390x844.png`, and
+  `docs/ui-redesign/phase8-dark-review/macros--390x844.png`.
+- Accessibility qualification, Apple Safari, ESP32-served offline behavior,
+  and constrained-device performance remain open pending human/device evidence.
