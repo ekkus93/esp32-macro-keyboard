@@ -1,7 +1,8 @@
 # ESP32 Macro Keyboard — UI/UX Review Follow-up Specification
 
-**Status:** Proposed follow-up requested by the product owner; implementation
-and acceptance are open
+**Status:** Accepted follow-up; implemented and verified for the automated
+scope. Remaining manual and device qualifications are listed in the companion
+TODO.
 **Review baseline:** `e7f5366` on 2026-10-17
 **Companion plan:** `docs/UI_UX_REDESIGN_REVIEW_FOLLOWUP_TODO_2026-10-17.md`
 **Scope:** Findings from the review of
