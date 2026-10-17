@@ -9,7 +9,6 @@
 export interface ActiveSendSummary {
   macroName: string | null;
   statusText: string;
-  /** `null` while there is nothing yet to cancel (e.g. the request is still
-   * being sent to the device). */
+  /** `null` after the user has already requested cancellation. */
   onCancel: (() => void) | null;
 }

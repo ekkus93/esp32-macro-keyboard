@@ -364,6 +364,47 @@ describe("MacrosPage — V2-132 landscape active-send summary", () => {
     await unmount();
   });
 
+  test.each([
+    ["failed", "Send failed: usb_not_ready"],
+    ["cancelled", "Send was cancelled."],
+    ["timed_out", "Send timed out."],
+    ["completed", "Sent."],
+  ] as const)(
+    "GET reconciliation preserves a terminal %s outcome and release error",
+    async (state, outcomeText) => {
+      const terminal = statusAt(state, 1, {
+        error: state === "failed" ? "usb_not_ready" : "",
+        releaseError: "stuck_key_left_ctrl",
+      });
+      const dependencies: MacrosPageDependencies = {
+        sendMacro: vi.fn(() =>
+          Promise.reject(
+            new V2ApiError(409, {
+              code: "already_sending",
+              message: "A send is already in progress.",
+            }),
+          ),
+        ),
+        trackSend: vi.fn(() => ({ stop: vi.fn() })),
+        cancelSend: vi.fn(() => Promise.resolve(undefined)),
+        recoverSendState: vi.fn(() => Promise.resolve(terminal)),
+      };
+      const { container, unmount } = await renderMacrosPage({ dependencies });
+
+      await click(buttonWithText("Send"));
+      await flushReact();
+
+      expect(container.textContent).toContain(outcomeText);
+      expect(container.textContent).toContain(
+        "Key release failed: stuck_key_left_ctrl",
+      );
+      expect(dependencies.cancelSend).not.toHaveBeenCalled();
+      expect(dependencies.sendMacro).toHaveBeenCalledOnce();
+      expect(dependencies.trackSend).not.toHaveBeenCalled();
+      await unmount();
+    },
+  );
+
   test("a Cancel intent is not sent when the starting POST fails", async () => {
     let rejectSend: ((error: unknown) => void) | undefined;
     const pendingSend = new Promise<SendMacroHandle>((_resolve, reject) => {

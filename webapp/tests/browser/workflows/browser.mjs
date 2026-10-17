@@ -285,6 +285,24 @@ export async function runBrowserWorkflows(page, serverState) {
       ),
     "The release error was not reported.",
   );
+  await clickButton(page, "Packages");
+  await waitFor(
+    page,
+    () =>
+      document.body.innerText.includes(
+        "Key release failed: stuck_key_left_ctrl",
+      ),
+    "The release-error warning did not persist across route navigation.",
+  );
+  await clickButton(page, "Macros");
+  await waitFor(
+    page,
+    () =>
+      document.body.innerText.includes(
+        "Key release failed: stuck_key_left_ctrl",
+      ),
+    "Returning to Macros did not restore the release-error warning.",
+  );
   const releaseErrorButtons = await page
     .getByRole("button", { name: "Dismiss", exact: true })
     .count();

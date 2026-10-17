@@ -53,7 +53,9 @@ describe("SnapshotsPage — V2-115 export", () => {
   });
 
   test("export/compression failure is visible, clears busy state, and changes no repository state", async () => {
-    const failure = new Error("compression failed");
+    const failure = new Error(
+      "SOURCE_SENTINEL make -j8{ENTER} CREDENTIAL_SENTINEL disposable-secret",
+    );
     const exportRepository = vi.fn().mockRejectedValue(failure);
     const store = createRepositoryWorkingCopyStore(repository());
     store.applyContentChange(renamedRepository());
@@ -77,7 +79,12 @@ describe("SnapshotsPage — V2-115 export", () => {
       "visible export error",
     );
 
-    expect(container.textContent).toContain("compression failed");
+    expect(container.textContent).toContain(
+      "Check browser downloads and try again.",
+    );
+    expect(container.textContent).not.toContain("SOURCE_SENTINEL");
+    expect(container.textContent).not.toContain("CREDENTIAL_SENTINEL");
+    expect(container.textContent).not.toContain("disposable-secret");
     expect(buttonWithText("Export working copy").disabled).toBe(false);
     expect(store.getRepository()).toBe(repositoryBefore);
     expect(store.getIsDirty()).toBe(true);
@@ -94,7 +101,9 @@ describe("SnapshotsPage — V2-115 export", () => {
       mimeType: "application/gzip",
     });
     const saveAsFile = vi.fn(() => {
-      throw new Error("download blocked");
+      throw new Error(
+        "SOURCE_SENTINEL make -j8{ENTER} CREDENTIAL_SENTINEL disposable-secret",
+      );
     });
     const store = createRepositoryWorkingCopyStore(repository());
     const repositoryBefore = store.getRepository();
@@ -117,7 +126,12 @@ describe("SnapshotsPage — V2-115 export", () => {
       "visible file-save error",
     );
 
-    expect(container.textContent).toContain("download blocked");
+    expect(container.textContent).toContain(
+      "Check browser downloads and try again.",
+    );
+    expect(container.textContent).not.toContain("SOURCE_SENTINEL");
+    expect(container.textContent).not.toContain("CREDENTIAL_SENTINEL");
+    expect(container.textContent).not.toContain("disposable-secret");
     expect(buttonWithText("Export working copy").disabled).toBe(false);
     expect(store.getRepository()).toBe(repositoryBefore);
     expect(store.getIsDirty()).toBe(false);

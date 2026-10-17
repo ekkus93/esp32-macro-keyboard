@@ -145,6 +145,8 @@ export function SnapshotsPage({
   const deps = dependencies ?? defaultDependencies();
   const depsRef = useRef(deps);
   depsRef.current = deps;
+  const [workingCopy, setWorkingCopy] = useState(() => store.getSnapshot());
+  useEffect(() => store.subscribe(setWorkingCopy), [store]);
 
   const [list, setList] = useState<
     | { kind: "loading" }
@@ -210,8 +212,10 @@ export function SnapshotsPage({
         exported.filename,
         exported.mimeType,
       );
-    } catch (error: unknown) {
-      setExportError(`Could not export working copy: ${v2ErrorText(error)}`);
+    } catch {
+      setExportError(
+        "Could not export working copy. Check browser downloads and try again.",
+      );
     } finally {
       setExportingWorkingCopy(false);
     }
@@ -656,6 +660,7 @@ export function SnapshotsPage({
               busy={rowBusy?.id === blob.id ? rowBusy.action : null}
               id={blob.id}
               isLoaded={loadedBlobId === blob.id}
+              isDirty={workingCopy.dirty && loadedBlobId === blob.id}
               key={blob.id}
               loadErrorMessage={
                 loadError?.blobId === blob.id ? loadError.message : null

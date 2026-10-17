@@ -257,9 +257,13 @@ export function MacrosPage({
       if (!mountedRef.current) {
         return;
       }
-      if (current === null || isTerminalSendState(current.state)) {
+      if (current === null) {
         setLifecycle({ kind: "idle" });
         setStartError(noSendMessage);
+        return;
+      }
+      if (isTerminalSendState(current.state)) {
+        handleComplete(null, current);
         return;
       }
       setLifecycle({ kind: "active", macro: null, status: current });

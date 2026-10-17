@@ -734,10 +734,13 @@ visible-controls table (Packages, Snapshots, Import and export).
   visible without discarding dirty work. Dialog modal semantics and background
   isolation are also implemented with automated DOM checks.
 - The full webapp unit and coverage suites pass (719 tests across 67 files).
-  The full webapp gate passed its static checks, coverage, and production build,
-  but the latest Chrome workflow attempts ended with Playwright `Target crashed`
-  before browser qualification completed. See the follow-up TODO for exact run
-  details; do not treat this as a completed full regression gate.
+  The full webapp gate passed its static checks, coverage, production build,
+  Chrome workflows, 97 visual captures, and local-asset validation. An earlier
+  Chrome attempt ended with Playwright `Target crashed` before qualification;
+  the later complete gate superseded it. The failure remains recorded as an
+  earlier attempt, not the final gate state. See the evidence ledger in
+  `docs/UI_UX_REDESIGN_REVIEW_FOLLOWUP_TODO_2026-10-17.md` for its additional
+  review fixes and verification.
 - The product owner waived the shared-dialog spoken screen-reader review for
   this code-review follow-up on 2026-10-17. It was not performed, and no spoken
   behavior or assistive-technology support qualification is claimed. The full

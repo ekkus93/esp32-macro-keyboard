@@ -1,6 +1,9 @@
 import { describe, expect, test, vi } from "vitest";
 import type { Repository } from "../src/v2/repository";
-import type { RepositoryWorkingCopyStore } from "../src/v2/repositoryWorkingCopy";
+import {
+  createRepositoryWorkingCopyStore,
+  type RepositoryWorkingCopyStore,
+} from "../src/v2/repositoryWorkingCopy";
 import type { LoadSnapshotResult } from "../src/v2/snapshotClient";
 import { buttonWithText, click, requiredElement } from "./render";
 import {
@@ -54,6 +57,36 @@ describe("SnapshotsPage — V2-111 Snapshot management", () => {
       "Retention target",
       "5",
     ]);
+    await unmount();
+  });
+
+  test("identifies a saved baseline separately from edits made after saving", async () => {
+    const store = createRepositoryWorkingCopyStore(repository());
+    store.applyContentChange({
+      ...repository(),
+      packages: [{ id: packageId, name: "Edited after save", macros: [] }],
+    });
+    const { container, unmount } = await renderPage({
+      deps: {
+        listSnapshots: vi.fn().mockResolvedValue({
+          blobs: [{ id: "3", sizeBytes: 500 }],
+          usedBytes: 500,
+          remainingBytes: 130_572,
+        }),
+      },
+      loadedBlobId: "3",
+      store,
+    });
+    await waitUntil(
+      () => container.textContent?.includes("500 bytes") === true,
+      "snapshot list to render",
+    );
+    const identity = requiredElement(
+      '[aria-label="Snapshot 3 is the saved baseline; newer changes are unsaved"]',
+      HTMLSpanElement,
+    );
+    expect(identity.textContent).toContain("Saved baseline");
+    expect(identity.textContent).toContain("newer changes unsaved");
     await unmount();
   });
 

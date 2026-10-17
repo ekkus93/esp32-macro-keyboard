@@ -66,10 +66,14 @@ export type ExecutionRecoveryState =
     };
 
 type ExecutionRecoveryListener = () => void;
+type ExecutionRecoveryHandoffListener = (
+  status: SendStatusResponse | null,
+) => void;
 
 let recoveryState: ExecutionRecoveryState = { kind: "clear" };
 let recoveryCallbacks: SendMacroCallbacks | null = null;
 const recoveryListeners = new Set<ExecutionRecoveryListener>();
+const handoffListeners = new Set<ExecutionRecoveryHandoffListener>();
 
 function publishRecoveryState(next: ExecutionRecoveryState): void {
   recoveryState = next;
@@ -89,6 +93,24 @@ export function subscribeExecutionRecovery(
   return () => {
     recoveryListeners.delete(listener);
   };
+}
+
+/** Delivers a successful global recovery GET to the authenticated shell. */
+export function subscribeExecutionRecoveryHandoff(
+  listener: ExecutionRecoveryHandoffListener,
+): () => void {
+  handoffListeners.add(listener);
+  return () => {
+    handoffListeners.delete(listener);
+  };
+}
+
+function publishExecutionRecoveryHandoff(
+  status: SendStatusResponse | null,
+): void {
+  for (const listener of handoffListeners) {
+    listener(status);
+  }
 }
 
 /** Test-only reset for module state shared across test cases. */
@@ -325,6 +347,9 @@ export async function retryExecutionRecovery(): Promise<SendStatusResponse | nul
     const status = await fetchRecoveredSend();
     if (status === null) {
       clearRecoveryState();
+      if (callbacks === null) {
+        publishExecutionRecoveryHandoff(null);
+      }
       return null;
     }
     if (callbacks !== null) {
@@ -335,15 +360,9 @@ export async function retryExecutionRecovery(): Promise<SendStatusResponse | nul
       } else {
         createSendTracker(status.id, status, callbacks);
       }
-    } else if (isTerminalSendState(status.state)) {
-      clearRecoveryState();
     } else {
-      publishRecoveryState({
-        kind: "unavailable",
-        message:
-          "An active send was recovered. Use the page recovery control to resume tracking.",
-        lastKnown: status,
-      });
+      clearRecoveryState();
+      publishExecutionRecoveryHandoff(status);
     }
     return status;
   } catch (error: unknown) {

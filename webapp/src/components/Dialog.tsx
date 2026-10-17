@@ -61,6 +61,12 @@ const DIALOG_PANEL_CLASS = {
  */
 const DIALOG_HEADING_CLASS =
   "mb-4 flex items-start justify-between gap-4 [@media(width<=40rem)]:flex-col [@media(width<=40rem)]:items-stretch [&_h2]:mt-0 [&_p]:mt-0";
+const DIALOG_SURFACE_CLASS = {
+  normal:
+    "fixed inset-0 z-20 grid place-items-center overflow-y-auto bg-scrim/40 p-4",
+  priority:
+    "fixed inset-0 z-[1001] grid place-items-center overflow-y-auto bg-scrim/40 p-4",
+} as const;
 
 export type DialogTone = keyof typeof DIALOG_PANEL_CLASS;
 export type DialogRole = "alertdialog" | "dialog";
@@ -72,6 +78,7 @@ export interface DialogProps {
   heading: React.ReactNode;
   role: DialogRole;
   tone?: DialogTone;
+  aboveOverlays?: boolean;
 }
 
 export function Dialog({
@@ -81,6 +88,7 @@ export function Dialog({
   heading,
   role,
   tone = "panel",
+  aboveOverlays = false,
 }: DialogProps): React.JSX.Element {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -88,39 +96,82 @@ export function Dialog({
     if (surface === null) {
       return;
     }
-    const previousInert: { element: HTMLElement; inert: boolean }[] = [];
-    let branch: HTMLElement = surface;
-    while (branch.parentElement !== null) {
-      const parent: HTMLElement = branch.parentElement;
-      for (const sibling of Array.from(parent.children)) {
-        if (sibling === branch || !(sibling instanceof HTMLElement)) {
-          continue;
+    const originalSurfaceInert = surface.hasAttribute("inert");
+    let waitingForRecovery = false;
+    let restoreBackground: (() => void) | null = null;
+    const isolateBackground = (): void => {
+      if (restoreBackground !== null) {
+        return;
+      }
+      const previousInert: { element: HTMLElement; inert: boolean }[] = [];
+      let branch: HTMLElement = surface;
+      while (branch.parentElement !== null) {
+        const parent: HTMLElement = branch.parentElement;
+        for (const sibling of Array.from(parent.children)) {
+          if (sibling === branch || !(sibling instanceof HTMLElement)) {
+            continue;
+          }
+          previousInert.push({
+            element: sibling,
+            inert: sibling.hasAttribute("inert"),
+          });
+          sibling.setAttribute("inert", "");
         }
-        previousInert.push({
-          element: sibling,
-          inert: sibling.hasAttribute("inert"),
-        });
-        sibling.setAttribute("inert", "");
+        if (parent === document.body) {
+          break;
+        }
+        branch = parent;
       }
-      if (parent === document.body) {
-        break;
+      restoreBackground = () => {
+        for (const previous of previousInert.reverse()) {
+          if (previous.inert) {
+            previous.element.setAttribute("inert", "");
+          } else {
+            previous.element.removeAttribute("inert");
+          }
+        }
+        restoreBackground = null;
+      };
+    };
+    const syncRecoveryPriority = (): void => {
+      const recoveryPresent =
+        !aboveOverlays &&
+        document.querySelector('[data-dialog-priority="recovery"]') !== null;
+      if (recoveryPresent) {
+        if (restoreBackground === null) {
+          waitingForRecovery = true;
+          surface.setAttribute("inert", "");
+        }
+        return;
       }
-      branch = parent;
-    }
+      if (waitingForRecovery) {
+        waitingForRecovery = false;
+        if (!originalSurfaceInert) {
+          surface.removeAttribute("inert");
+        }
+      }
+      isolateBackground();
+    };
+    syncRecoveryPriority();
+    const observer = new MutationObserver(syncRecoveryPriority);
+    observer.observe(document.body, { childList: true, subtree: true });
     return () => {
-      for (const previous of previousInert.reverse()) {
-        if (previous.inert) {
-          previous.element.setAttribute("inert", "");
-        } else {
-          previous.element.removeAttribute("inert");
-        }
+      observer.disconnect();
+      restoreBackground?.();
+      if (!originalSurfaceInert) {
+        surface.removeAttribute("inert");
       }
     };
-  }, []);
+  }, [aboveOverlays]);
 
   return (
     <div
-      className="fixed inset-0 z-20 grid place-items-center overflow-y-auto bg-scrim/40 p-4"
+      className={
+        aboveOverlays
+          ? DIALOG_SURFACE_CLASS.priority
+          : DIALOG_SURFACE_CLASS.normal
+      }
+      data-dialog-priority={aboveOverlays ? "recovery" : undefined}
       role="presentation"
       ref={surfaceRef}
     >

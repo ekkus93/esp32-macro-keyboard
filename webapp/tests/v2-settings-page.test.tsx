@@ -764,18 +764,26 @@ describe("SettingsPage (TODO_V2 V2-120)", () => {
   test.each(["snapshot encoding", "file save"] as const)(
     "a %s failure during dirty-work export keeps the prompt open and actionable",
     async (failurePoint) => {
-      const exportRepository = vi
-        .fn()
-        .mockRejectedValue(new Error("temporary export failure"));
-      const saveAsFile = vi.fn(() => {
-        throw new Error("temporary file-save failure");
-      });
+      const exported = {
+        bytes: new Uint8Array([1, 2, 3]),
+        filename: "working-copy.emk-repository.json.gz",
+        mimeType: "application/gzip",
+      };
+      const sensitiveSentinels =
+        "SOURCE_SENTINEL make -j8{ENTER} CREDENTIAL_SENTINEL disposable-secret";
+      const exportRepository = vi.fn();
+      const saveAsFile = vi.fn();
       if (failurePoint === "file save") {
-        exportRepository.mockResolvedValue({
-          bytes: new Uint8Array([1, 2, 3]),
-          filename: "working-copy.emk-repository.json.gz",
-          mimeType: "application/gzip",
-        });
+        exportRepository.mockResolvedValue(exported);
+        saveAsFile
+          .mockImplementationOnce(() => {
+            throw new Error(sensitiveSentinels);
+          })
+          .mockImplementation(() => undefined);
+      } else {
+        exportRepository
+          .mockRejectedValueOnce(new Error(sensitiveSentinels))
+          .mockResolvedValue(exported);
       }
       const store = createRepositoryWorkingCopyStore(repository());
       const edited = {
@@ -800,6 +808,10 @@ describe("SettingsPage (TODO_V2 V2-120)", () => {
       expect(store.getIsDirty()).toBe(true);
       expect(container.textContent).toContain("Unsaved changes");
       expect(container.textContent).toContain("Could not export working copy");
+      expect(container.textContent).toContain("Check browser downloads");
+      expect(container.textContent).not.toContain("SOURCE_SENTINEL");
+      expect(container.textContent).not.toContain("CREDENTIAL_SENTINEL");
+      expect(container.textContent).not.toContain("disposable-secret");
       expect(container.textContent).not.toContain('Type "FACTORY RESET"');
       expect(buttonWithText("Export working copy").disabled).toBe(false);
       if (failurePoint === "file save") {
@@ -807,6 +819,18 @@ describe("SettingsPage (TODO_V2 V2-120)", () => {
       } else {
         expect(saveAsFile).not.toHaveBeenCalled();
       }
+
+      await click(buttonWithText("Export working copy"));
+      await flushReact();
+      expect(container.textContent).toContain("Unsaved changes");
+      expect(container.textContent).not.toContain(
+        "Could not export working copy",
+      );
+      expect(container.textContent).not.toContain('Type "FACTORY RESET"');
+      expect(exportRepository).toHaveBeenCalledTimes(2);
+      expect(saveAsFile).toHaveBeenCalledTimes(
+        failurePoint === "file save" ? 2 : 1,
+      );
 
       await click(buttonWithText("Cancel"));
       await flushReact();

@@ -222,9 +222,9 @@ export function SettingsPage({
         exported.filename,
         exported.mimeType,
       );
-    } catch (error: unknown) {
+    } catch {
       setExportWorkingCopyError(
-        `Could not export working copy: ${v2ErrorText(error)}`,
+        "Could not export working copy. Check browser downloads and try again.",
       );
     } finally {
       setExportingWorkingCopy(false);

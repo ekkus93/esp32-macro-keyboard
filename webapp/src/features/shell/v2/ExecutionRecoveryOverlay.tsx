@@ -1,6 +1,8 @@
-import { useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
+import { Dialog } from "../../../components/Dialog";
 import { ErrorBanner } from "../../../components/ErrorBanner";
 import { v2ErrorText } from "../../auth/v2/v2ErrorText";
+import { useFocusTrap } from "./useFocusTrap";
 import {
   cancelSend,
   getExecutionRecoveryState,
@@ -22,6 +24,14 @@ export function ExecutionRecoveryOverlay(): React.JSX.Element | null {
   const [retrying, setRetrying] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useFocusTrap({
+    active: recovery.kind === "unavailable",
+    containerRef,
+    onClose: () => {
+      // Execution recovery cannot be dismissed until status is reconciled.
+    },
+  });
 
   if (recovery.kind === "clear") {
     return null;
@@ -57,14 +67,12 @@ export function ExecutionRecoveryOverlay(): React.JSX.Element | null {
   };
 
   return (
-    // Sits above everything including dialogs (z-[1000]). Bottom-anchored
-    // like AppShellV2's bottom nav, so it takes the same safe-area inset
-    // rather than sitting under a phone's home indicator -- bottom-[calc(...)], not
-    // bottom-4, because env(safe-area-inset-bottom) is 0 on most devices and
-    // nonzero on the ones this matters for.
-    <aside
-      aria-label="Execution recovery"
-      className="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] left-4 z-[1000] max-w-[36rem] rounded-shape-xl bg-surface-container-high p-4 text-on-surface shadow-elevation-3"
+    <Dialog
+      aboveOverlays
+      aria-labelledby="execution-recovery-title"
+      containerRef={containerRef}
+      heading={<h2 id="execution-recovery-title">Execution recovery</h2>}
+      role="alertdialog"
     >
       <ErrorBanner
         message={`Execution state unavailable. ${recovery.message} An active send may still be running on the device.`}
@@ -99,6 +107,6 @@ export function ExecutionRecoveryOverlay(): React.JSX.Element | null {
             : "Cancel and release all keys"}
         </button>
       </div>
-    </aside>
+    </Dialog>
   );
 }

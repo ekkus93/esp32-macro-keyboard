@@ -30,7 +30,10 @@ import {
   tryPersistSelectedPackageId,
   type PackageSelectionPersistenceFailure,
 } from "./v2/packageSelection";
-import { recoverSendState } from "./v2/sendClient";
+import {
+  recoverSendState,
+  subscribeExecutionRecoveryHandoff,
+} from "./v2/sendClient";
 import { saveWorkingCopyAsSnapshot } from "./v2/snapshotClient";
 import type { SendRecoveryState } from "./v2/startup";
 import { getStatus } from "./v2/statusClient";
@@ -247,6 +250,18 @@ export function AuthenticatedShell({
   const [sendRecoveryRetrying, setSendRecoveryRetrying] = useState(false);
   const [sendHandoff, setSendHandoff] = useState<SendStatusResponse | null>(
     ready.sendRecovery.kind === "known" ? ready.sendRecovery.send : null,
+  );
+  useEffect(
+    () =>
+      subscribeExecutionRecoveryHandoff((recovered) => {
+        setSendRecovery(
+          recovered === null
+            ? { kind: "none" }
+            : { kind: "known", send: recovered },
+        );
+        setSendHandoff(recovered);
+      }),
+    [],
   );
 
   const retrySendRecovery = async (): Promise<void> => {

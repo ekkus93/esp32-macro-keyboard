@@ -37,6 +37,13 @@ try {
   );
 
   await page.getByRole("button", { name: "Send Recovery macro" }).click();
+  await page
+    .getByRole("navigation", { name: "Primary navigation" })
+    .getByRole("button", { name: "Packages", exact: true })
+    .click();
+  await page.getByRole("button", { name: "New package", exact: true }).click();
+  const packageDialog = page.getByRole("dialog", { name: "New package" });
+  await packageDialog.waitFor();
   await waitFor(
     page,
     () =>
@@ -51,7 +58,21 @@ try {
     await page.getByText("Unsaved changes").isVisible(),
     "Execution degradation discarded the dirty working copy.",
   );
-  const recovery = page.getByLabel("Execution recovery");
+  const recovery = page.getByRole("alertdialog", {
+    name: "Execution recovery",
+  });
+  assert(
+    await packageDialog.evaluate((element) =>
+      Boolean(element.closest("[inert]")),
+    ),
+    "The underlying package dialog stayed interactive during recovery.",
+  );
+  assert(
+    await recovery
+      .getByRole("button", { name: "Retry execution status" })
+      .evaluate((button) => document.activeElement === button),
+    "Execution recovery did not take keyboard focus from the lower dialog.",
+  );
   assert(
     await recovery
       .getByRole("button", { name: "Cancel and release all keys" })
@@ -59,6 +80,9 @@ try {
     "Cancel was not visible while execution status was unavailable.",
   );
 
+  await recovery
+    .getByRole("button", { name: "Cancel and release all keys" })
+    .click();
   await recovery
     .getByRole("button", { name: "Retry execution status" })
     .click();
@@ -78,6 +102,15 @@ try {
     await page.getByText("Unsaved changes").isVisible(),
     "Execution-status Retry discarded the dirty working copy.",
   );
+  assert(
+    await packageDialog.evaluate(
+      (element) =>
+        document.activeElement !== null &&
+        element.contains(document.activeElement),
+    ),
+    "The package dialog did not regain focus after execution recovery cleared.",
+  );
+  await page.keyboard.press("Escape");
 
   // H4-043 reload case: force the first startup send-status recovery after a
   // real reload to fail. The page is intentionally dirty, so accept the
@@ -102,7 +135,9 @@ try {
     fixture.state.sendPostCount === 1,
     "Reload recovery must not POST the macro again.",
   );
-  const reloadedRecovery = page.getByLabel("Execution recovery");
+  const reloadedRecovery = page.getByRole("alertdialog", {
+    name: "Execution recovery",
+  });
   assert(
     await reloadedRecovery
       .getByRole("button", { name: "Cancel and release all keys" })
@@ -110,32 +145,11 @@ try {
     "Cancel was not visible after reload recovery failed.",
   );
 
-  // Use the authenticated shell's startup-recovery Retry. The global overlay
-  // deliberately cannot hand a nonterminal startup send to a page that has not
-  // adopted it yet, so the page-level control performs the GET and hands the
-  // recovered status into MacrosPage without a POST.
-  const retryButtons = page.getByRole("button", {
-    name: "Retry execution status",
-  });
-  const retryCount = await retryButtons.count();
-  assert(retryCount >= 2, "Expected both page and global recovery controls.");
-  let clickedPageRetry = false;
-  for (let index = 0; index < retryCount; index += 1) {
-    const button = retryButtons.nth(index);
-    const inOverlay = await button.evaluate(
-      (element) =>
-        element.closest('aside[aria-label="Execution recovery"]') !== null,
-    );
-    if (!inOverlay) {
-      await button.click();
-      clickedPageRetry = true;
-      break;
-    }
-  }
-  assert(
-    clickedPageRetry,
-    "The page-level execution recovery Retry was missing.",
-  );
+  // The global modal performs the GET and hands its recovered status to the
+  // authenticated shell, which resumes tracking without a second POST.
+  await reloadedRecovery
+    .getByRole("button", { name: "Retry execution status" })
+    .click();
   await waitFor(
     page,
     () =>
@@ -147,6 +161,11 @@ try {
   assert(
     fixture.state.sendPostCount === 1,
     "Reload recovery Retry must remain GET-only.",
+  );
+  await waitFor(
+    page,
+    () => document.body?.innerText.includes("Sending… action 0 of 1") ?? false,
+    "Global recovery did not hand the active send back to the shell.",
   );
 
   console.log("Real Chrome H4 degraded-send recovery workflow passed.");

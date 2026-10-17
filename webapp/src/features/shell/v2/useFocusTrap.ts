@@ -76,13 +76,24 @@ export function useFocusTrap({
         ? document.activeElement
         : null;
     const container = containerRef.current;
-    const initial =
-      container?.querySelectorAll<HTMLElement>(focusableSelector).item(0) ??
-      container ??
-      null;
-    initial?.focus();
+    const focusInitial = (): void => {
+      if (container?.closest("[inert]") !== null) {
+        return;
+      }
+      const initial =
+        Array.from(
+          container.querySelectorAll<HTMLElement>(focusableSelector),
+        )[0] ?? container;
+      initial.focus();
+    };
+    focusInitial();
 
     const keydown = (event: KeyboardEvent): void => {
+      // A higher-priority modal can make this dialog's subtree inert while
+      // keeping it mounted. Its trap must not compete for Escape or Tab.
+      if (container !== null && container.closest("[inert]") !== null) {
+        return;
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         onCloseRef.current();
@@ -114,8 +125,23 @@ export function useFocusTrap({
     };
 
     document.addEventListener("keydown", keydown);
+    const observer = new MutationObserver(() => {
+      if (
+        container !== null &&
+        container.closest("[inert]") === null &&
+        !container.contains(document.activeElement)
+      ) {
+        focusInitial();
+      }
+    });
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["inert"],
+      subtree: true,
+    });
     return () => {
       document.removeEventListener("keydown", keydown);
+      observer.disconnect();
       // When `restoreFocusRef` is supplied, the dedicated effect below
       // handles restoration instead — see its own comment for why that
       // needs to be a separate effect rather than read here.

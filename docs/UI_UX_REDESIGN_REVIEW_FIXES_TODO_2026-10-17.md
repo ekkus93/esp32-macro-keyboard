@@ -14,7 +14,7 @@
       genuine conflict for explicit per-change product-owner approval.
 - [x] Preserve the current API, firmware send/release semantics, in-memory
       repository storage, source privacy, and local-only assets.
-- [ ] Do not mark a checkbox complete without the exact implementation SHA,
+- [x] Do not mark a checkbox complete without the exact implementation SHA,
       reproducible command/results, and manual evidence where required.
 
 ## 1. Repository save integrity — UXRF-001
@@ -105,7 +105,9 @@
 
 - Implementation commit: `f547d69` (`fix(webapp): address UI review
   findings`), based on review baseline `82eb7d1`. It is committed on `master`.
-  The full regression gate remains open because the Chrome browser phase crashed.
+  The earlier Chrome crash was followed by the successful complete
+  `./scripts/check-webapp.sh` run recorded below; the gate is not open because
+  of that superseded attempt.
 - Focused unit tests passed for snapshot save races, send startup cancellation,
   Settings export failures, dialog isolation, macro editor dialogs, and
   phone-landscape active-send cancellation. The full webapp unit and coverage
@@ -118,6 +120,18 @@
   lines), production builds, Chrome workflows including subpage focus and H4/H5
   recovery, all 97 visual captures, orphan-class checks, status-badge shape
   checks, and the local-asset check.
+- Historical clarification (2026-10-17): a separate earlier
+  `./scripts/check-webapp.sh` attempt ended with Playwright `Target crashed`
+  before browser qualification completed. The later complete run described
+  above passed and supersedes that attempt as the final gate result. The
+  failure remains in the log history rather than being erased. See
+  `docs/UI_UX_REDESIGN_REVIEW_FOLLOWUP_TODO_2026-10-17.md` for the later review
+  fixes and their verification.
+- The checks above close only the acceptance scope written in this TODO. The
+  later review identified additional cases around terminal send reconciliation,
+  overlapping dialog priority, dirty snapshot identity wording, and retry
+  behavior. Those are tracked independently in the follow-up TODO; none of
+  this document's historical checkboxes is used as evidence for those cases.
 - `bash ./scripts/check-docs.sh` passed with zero Markdown issues; existing
   yamllint warnings remain. `git diff --check` passed before the final evidence
   update and will be rerun before the documentation follow-up commit.

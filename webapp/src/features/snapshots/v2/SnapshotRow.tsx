@@ -12,6 +12,7 @@ interface SnapshotRowProps {
   id: string;
   sizeBytes: number;
   isLoaded: boolean;
+  isDirty: boolean;
   busy: "load" | "download" | "delete" | null;
   loadErrorMessage: string | null;
   onLoad: () => void;
@@ -35,6 +36,7 @@ export function SnapshotRow({
   id,
   sizeBytes,
   isLoaded,
+  isDirty,
   busy,
   loadErrorMessage,
   onLoad,
@@ -107,9 +109,16 @@ export function SnapshotRow({
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {formatBytes(sizeBytes)}
           {isLoaded ? (
-            <span className="inline-flex items-center gap-1 font-semibold">
+            <span
+              aria-label={
+                isDirty
+                  ? `Snapshot ${id} is the saved baseline; newer changes are unsaved`
+                  : `Snapshot ${id} is loaded`
+              }
+              className="inline-flex items-center gap-1 font-semibold"
+            >
               <Icon name="check" size={16} />
-              Loaded
+              {isDirty ? "Saved baseline · newer changes unsaved" : "Loaded"}
             </span>
           ) : null}
         </p>

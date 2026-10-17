@@ -1,10 +1,15 @@
+import { act, useRef } from "react";
 import { describe, expect, test, vi } from "vitest";
+import { Dialog } from "../src/components/Dialog";
 import { ExecutionRecoveryOverlay } from "../src/features/shell/v2/ExecutionRecoveryOverlay";
+import { useFocusTrap } from "../src/features/shell/v2/useFocusTrap";
 import {
   getExecutionRecoveryState,
   recoverSendState,
+  resetExecutionRecoveryForTest,
   retryExecutionRecovery,
   sendMacro,
+  subscribeExecutionRecoveryHandoff,
   trackSend,
 } from "../src/v2/sendClient";
 import type { SendStatusResponse } from "../src/v2/apiTypes";
@@ -39,6 +44,27 @@ function unavailableResponse(): Record<string, unknown> {
       message: "Send status is temporarily unavailable.",
     },
   };
+}
+
+function TestModal(): React.JSX.Element {
+  const containerRef = useRef<HTMLDivElement>(null);
+  useFocusTrap({ active: true, containerRef, onClose: () => undefined });
+  return (
+    <Dialog
+      aria-labelledby="test-modal-title"
+      containerRef={containerRef}
+      heading={<h2 id="test-modal-title">Test modal</h2>}
+      role="dialog"
+    >
+      <button type="button">Underlying modal action</button>
+    </Dialog>
+  );
+}
+
+async function makeRecoveryUnavailable(): Promise<void> {
+  resetExecutionRecoveryForTest();
+  planJsonResponse(unavailableResponse(), 503);
+  await expect(recoverSendState()).rejects.toMatchObject({ status: 503 });
 }
 
 describe("H4 execution recovery", () => {
@@ -240,6 +266,91 @@ describe("H4 execution recovery", () => {
     expect(
       getFetchCalls().filter((call) => call.method === "POST"),
     ).toHaveLength(1);
+    await view.unmount();
+  });
+
+  test("global retry hands a startup-recovered active send to the shell", async () => {
+    await makeRecoveryUnavailable();
+    const handoff = vi.fn();
+    const unsubscribe = subscribeExecutionRecoveryHandoff(handoff);
+    const view = await render(<ExecutionRecoveryOverlay />);
+    try {
+      planJsonResponse(statusAt("running", 3));
+      await click(buttonWithText("Retry execution status"));
+      await flushReact();
+
+      expect(getExecutionRecoveryState()).toEqual({ kind: "clear" });
+      expect(handoff).toHaveBeenCalledOnce();
+      expect(handoff).toHaveBeenCalledWith(statusAt("running", 3));
+      expect(view.container.textContent).not.toContain(
+        "Execution state unavailable",
+      );
+    } finally {
+      unsubscribe();
+      await view.unmount();
+    }
+  });
+
+  test("recovery takes modal priority when it appears over an open dialog", async () => {
+    const view = await render(
+      <>
+        <TestModal />
+        <ExecutionRecoveryOverlay />
+      </>,
+    );
+    const underlying = view.container.querySelector('[role="dialog"]');
+    expect(underlying).not.toBeNull();
+    expect(underlying?.contains(document.activeElement)).toBe(true);
+
+    await act(async () => {
+      await makeRecoveryUnavailable();
+    });
+    await flushReact();
+    expect(underlying?.closest("[inert]")).not.toBeNull();
+    const recovery = view.container.querySelector(
+      '[aria-labelledby="execution-recovery-title"]',
+    );
+    expect(recovery?.getAttribute("aria-modal")).toBe("true");
+    expect(recovery?.contains(document.activeElement)).toBe(true);
+    expect(buttonWithText("Cancel and release all keys")).toBeDefined();
+
+    planJsonResponse(statusAt("completed", 9));
+    await act(async () => {
+      await retryExecutionRecovery();
+    });
+    await flushReact();
+    expect(
+      view.container.querySelector(
+        '[aria-labelledby="execution-recovery-title"]',
+      ),
+    ).toBeNull();
+    expect(underlying?.closest("[inert]")).toBeNull();
+    expect(underlying?.contains(document.activeElement)).toBe(true);
+    await view.unmount();
+  });
+
+  test("a dialog opened during recovery stays inert until recovery clears", async () => {
+    await makeRecoveryUnavailable();
+    const view = await render(
+      <>
+        <ExecutionRecoveryOverlay />
+        <TestModal />
+      </>,
+    );
+    const underlying = view.container.querySelector('[role="dialog"]');
+    const recovery = view.container.querySelector(
+      '[aria-labelledby="execution-recovery-title"]',
+    );
+    expect(underlying?.closest("[inert]")).not.toBeNull();
+    expect(recovery?.contains(document.activeElement)).toBe(true);
+
+    planJsonResponse(statusAt("completed", 9));
+    await act(async () => {
+      await retryExecutionRecovery();
+    });
+    await flushReact();
+    expect(underlying?.closest("[inert]")).toBeNull();
+    expect(underlying?.contains(document.activeElement)).toBe(true);
     await view.unmount();
   });
 });

@@ -438,6 +438,24 @@ export async function runSubpageFocusWorkflow(browser) {
               document.activeElement?.id === "main-content",
             hash,
           );
+          const expectedNav = hash.slice(2).split(/[?&]/)[0];
+          assert(
+            (
+              await page
+                .locator(
+                  'nav[aria-label="Primary navigation"] button[aria-current="page"]',
+                )
+                .textContent()
+            )?.trim() ===
+              expectedNav.charAt(0).toUpperCase() + expectedNav.slice(1),
+            `Active navigation did not match ${expectedNav}.`,
+          );
+          assert(
+            await page
+              .locator("#main-content")
+              .evaluate((main) => main.scrollTop === 0),
+            `Main content did not remain at the top after navigating to ${hash}.`,
+          );
         };
         const navigate = async (name) => {
           const destination = page
