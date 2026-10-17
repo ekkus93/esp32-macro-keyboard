@@ -1,3 +1,5 @@
+import { useLayoutEffect, useRef } from "react";
+
 /**
  * A modal surface: the scrim, the panel, and the panel's heading row.
  * Replaces `.dialog-backdrop`, `.dialog-panel`, `.dialog-heading` and its
@@ -80,12 +82,50 @@ export function Dialog({
   role,
   tone = "panel",
 }: DialogProps): React.JSX.Element {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const surface = surfaceRef.current;
+    if (surface === null) {
+      return;
+    }
+    const previousInert: { element: HTMLElement; inert: boolean }[] = [];
+    let branch: HTMLElement = surface;
+    while (branch.parentElement !== null) {
+      const parent: HTMLElement = branch.parentElement;
+      for (const sibling of Array.from(parent.children)) {
+        if (sibling === branch || !(sibling instanceof HTMLElement)) {
+          continue;
+        }
+        previousInert.push({
+          element: sibling,
+          inert: sibling.hasAttribute("inert"),
+        });
+        sibling.setAttribute("inert", "");
+      }
+      if (parent === document.body) {
+        break;
+      }
+      branch = parent;
+    }
+    return () => {
+      for (const previous of previousInert.reverse()) {
+        if (previous.inert) {
+          previous.element.setAttribute("inert", "");
+        } else {
+          previous.element.removeAttribute("inert");
+        }
+      }
+    };
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-20 grid place-items-center overflow-y-auto bg-scrim/40 p-4"
       role="presentation"
+      ref={surfaceRef}
     >
       <div
+        aria-modal="true"
         aria-labelledby={ariaLabelledBy}
         className={DIALOG_PANEL_CLASS[tone]}
         ref={containerRef}

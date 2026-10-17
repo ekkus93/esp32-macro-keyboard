@@ -63,6 +63,10 @@ const pendingSnapshotCommits = new WeakMap<
   RepositoryWorkingCopyStore,
   PendingSnapshotCommit
 >();
+const snapshotSavesInFlight = new WeakMap<
+  RepositoryWorkingCopyStore,
+  Promise<BlobCreatedResponse>
+>();
 
 function byteArraysEqual(left: Uint8Array, right: Uint8Array): boolean {
   if (left.byteLength !== right.byteLength) {
@@ -178,10 +182,38 @@ export class SnapshotValidationError extends Error {
  * latched per working-copy store and blocks later POSTs until GET reconciliation
  * succeeds. Only an actual `201 Created` clears dirty state automatically.
  */
-export async function saveWorkingCopyAsSnapshot(
+export function saveWorkingCopyAsSnapshot(
+  store: RepositoryWorkingCopyStore,
+): Promise<BlobCreatedResponse> {
+  const inFlight = snapshotSavesInFlight.get(store);
+  if (inFlight !== undefined) {
+    return inFlight;
+  }
+
+  const save = Promise.resolve().then(() =>
+    saveWorkingCopyAsSnapshotOnce(store),
+  );
+  snapshotSavesInFlight.set(store, save);
+  void save.then(
+    () => {
+      if (snapshotSavesInFlight.get(store) === save) {
+        snapshotSavesInFlight.delete(store);
+      }
+    },
+    () => {
+      if (snapshotSavesInFlight.get(store) === save) {
+        snapshotSavesInFlight.delete(store);
+      }
+    },
+  );
+  return save;
+}
+
+async function saveWorkingCopyAsSnapshotOnce(
   store: RepositoryWorkingCopyStore,
 ): Promise<BlobCreatedResponse> {
   const repository = store.getRepository();
+  const saveToken = store.getSaveToken();
   const validated = validateRepositoryForUse(repository);
   if (!validated.ok) {
     throw new SnapshotValidationError(validated.issues);
@@ -228,7 +260,7 @@ export async function saveWorkingCopyAsSnapshot(
   }
 
   pendingSnapshotCommits.delete(store);
-  store.markSaved(validated.value);
+  store.markSaved(validated.value, saveToken);
   return created;
 }
 

@@ -720,3 +720,28 @@ visible-controls table (Packages, Snapshots, Import and export).
 - ESP32-S3 access will be provided later. Device-served offline/recovery and
   constrained-device performance checks remain open until the board is
   available.
+
+## 2026-10-17 code-review fixes follow-up
+
+- The follow-up implementation and evidence are tracked in
+  `docs/UI_UX_REDESIGN_REVIEW_FIXES_SPEC_2026-10-17.md` and
+  `docs/UI_UX_REDESIGN_REVIEW_FIXES_TODO_2026-10-17.md`.
+- The review gaps in UXR-020, UXR-041, UXR-042, UXR-051, and UXR-062 have
+  corresponding code changes and automated regressions: subpage focus now
+  follows query navigation; cancellation is available during send startup and
+  follows POST acceptance safely; snapshot saves preserve edits and working-copy
+  lineage across asynchronous completion; and Settings export failures remain
+  visible without discarding dirty work. Dialog modal semantics and background
+  isolation are also implemented with automated DOM checks.
+- The full webapp unit and coverage suites pass (719 tests across 67 files).
+  The full webapp gate passed its static checks, coverage, and production build,
+  but the latest Chrome workflow attempts ended with Playwright `Target crashed`
+  before browser qualification completed. See the follow-up TODO for exact run
+  details; do not treat this as a completed full regression gate.
+- The shared-dialog spoken screen-reader review and complete manual keyboard
+  review remain open under UXR-071. Safari stays deferred at the product owner's
+  request. ESP32-served offline behavior and constrained-device performance
+  stay open pending access to the ESP32-S3.
+- The code changes have not yet been committed; no implementation SHA is
+  available. This reconciliation records implementation and test evidence only
+  and does not close UXR-062, UXR-071, UXR-080/081, or UXR-082.

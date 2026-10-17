@@ -408,6 +408,97 @@ export async function runVisibleControlsWorkflow(browser) {
   }
 }
 
+export async function runSubpageFocusWorkflow(browser) {
+  const application = await startApplicationServer();
+  try {
+    for (const viewport of [
+      { width: 390, height: 844 },
+      { width: 1440, height: 900 },
+    ]) {
+      const context = await browser.newContext({ viewport });
+      const page = await context.newPage();
+      try {
+        await page.goto(application.baseUrl);
+        await waitFor(
+          page,
+          () => document.body.innerText.includes("Lab bench workflow"),
+          "The Macros page did not render for subpage focus checks.",
+        );
+        assert(
+          !(await page.evaluate(
+            () => document.activeElement?.id === "main-content",
+          )),
+          "Initial load unexpectedly moved focus to main content.",
+        );
+
+        const expectFocusedMain = async (hash) => {
+          await page.waitForFunction(
+            (expectedHash) =>
+              window.location.hash === expectedHash &&
+              document.activeElement?.id === "main-content",
+            hash,
+          );
+        };
+        const navigate = async (name) => {
+          const destination = page
+            .getByRole("navigation", { name: "Primary navigation" })
+            .getByRole("button", { name, exact: true });
+          await destination.focus();
+          await page.keyboard.press("Enter");
+          await expectFocusedMain(`#/${name.toLowerCase()}`);
+        };
+
+        await navigate("Settings");
+        const network = page.getByRole("button", { name: /^Network/ });
+        await network.focus();
+        await page.keyboard.press("Enter");
+        await expectFocusedMain("#/settings?group=network");
+        const accessPoint = page.getByRole("button", { name: "Access point" });
+        await accessPoint.focus();
+        await page.keyboard.press("Enter");
+        await expectFocusedMain(
+          "#/settings?group=network&section=access-point",
+        );
+        const backToNetwork = page.getByRole("button", {
+          name: "Back to network settings",
+        });
+        await backToNetwork.focus();
+        await page.keyboard.press("Enter");
+        await expectFocusedMain("#/settings?group=network");
+        const backToSettings = page.getByRole("button", {
+          name: "Back to settings",
+        });
+        await backToSettings.focus();
+        await page.keyboard.press("Enter");
+        await expectFocusedMain("#/settings");
+
+        await navigate("Snapshots");
+        const importExport = page.getByRole("button", {
+          name: "Import or export",
+        });
+        await importExport.focus();
+        await page.keyboard.press("Enter");
+        await expectFocusedMain("#/snapshots?view=files");
+        const backToSnapshots = page.getByRole("button", {
+          name: "Back to snapshots",
+        });
+        await backToSnapshots.focus();
+        await page.keyboard.press("Enter");
+        await expectFocusedMain("#/snapshots");
+
+        await page.goBack();
+        await expectFocusedMain("#/snapshots?view=files");
+        await page.goForward();
+        await expectFocusedMain("#/snapshots");
+      } finally {
+        await context.close();
+      }
+    }
+  } finally {
+    await application.close();
+  }
+}
+
 /**
  * On a touch phone the bottom navigation steps aside while a text field has
  * focus, so the on-screen keyboard, the field and its action get the height

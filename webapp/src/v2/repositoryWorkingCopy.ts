@@ -23,6 +23,13 @@ export interface RepositoryWorkingCopySnapshot {
   dirty: boolean;
 }
 
+export interface RepositorySaveToken {
+  /** Changes for every working-copy state transition. */
+  revision: number;
+  /** Changes when the user deliberately discards or replaces the copy. */
+  lineage: number;
+}
+
 export interface RepositoryWorkingCopyStore {
   /** The current working copy (edited or not). */
   getRepository: () => Repository;
@@ -30,6 +37,8 @@ export interface RepositoryWorkingCopyStore {
   getBaseline: () => Repository;
   getIsDirty: () => boolean;
   getSnapshot: () => RepositoryWorkingCopySnapshot;
+  getSaveToken: () => RepositorySaveToken;
+  isSaveLineageCurrent: (token: RepositorySaveToken) => boolean;
   subscribe: (
     listener: (snapshot: RepositoryWorkingCopySnapshot) => void,
   ) => () => void;
@@ -50,7 +59,10 @@ export interface RepositoryWorkingCopyStore {
    * Clears dirty state after a snapshot upload succeeds with `201 Created`.
    * The saved repository becomes the new baseline and working copy.
    */
-  markSaved: (savedRepository: Repository) => void;
+  markSaved: (
+    savedRepository: Repository,
+    token?: RepositorySaveToken,
+  ) => "current" | "edited" | "superseded";
 
   /**
    * Deliberately discards unsaved edits, reverting the working copy to the
@@ -72,6 +84,8 @@ export function createRepositoryWorkingCopyStore(
   let baseline = initial;
   let working = initial;
   let dirty = false;
+  let revision = 0;
+  let lineage = 0;
   const listeners = new Set<
     (snapshot: RepositoryWorkingCopySnapshot) => void
   >();
@@ -98,6 +112,8 @@ export function createRepositoryWorkingCopyStore(
     getBaseline: () => baseline,
     getIsDirty: () => dirty,
     getSnapshot: snapshot,
+    getSaveToken: () => ({ revision, lineage }),
+    isSaveLineageCurrent: (token) => token.lineage === lineage,
     subscribe: (listener) => {
       listeners.add(listener);
       return () => {
@@ -105,23 +121,40 @@ export function createRepositoryWorkingCopyStore(
       };
     },
     applyContentChange: (repository) => {
+      revision += 1;
       setWorking(repository, true);
     },
     applyImport: (repository) => {
+      revision += 1;
       setWorking(repository, true);
     },
-    markSaved: (savedRepository) => {
+    markSaved: (savedRepository, token = { revision, lineage }) => {
+      if (token.lineage !== lineage) {
+        return "superseded";
+      }
       baseline = savedRepository;
-      working = savedRepository;
-      dirty = false;
+      if (token.revision === revision) {
+        working = savedRepository;
+        dirty = false;
+        revision += 1;
+        notify();
+        return "current";
+      }
+      dirty = true;
+      revision += 1;
       notify();
+      return "edited";
     },
     discardChanges: () => {
+      revision += 1;
+      lineage += 1;
       working = baseline;
       dirty = false;
       notify();
     },
     replaceWorkingCopy: (repository) => {
+      revision += 1;
+      lineage += 1;
       baseline = repository;
       working = repository;
       dirty = false;

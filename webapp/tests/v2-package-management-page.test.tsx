@@ -283,6 +283,7 @@ describe("PackageManagementPage — V2-102 create/rename/duplicate/reorder/delet
     const { unmount } = await renderPage(store, packageAId);
     await chooseItem("Package B", "Delete Package B");
     const dialog = requiredElement('[role="alertdialog"]', HTMLDivElement);
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
     expect(dialog.contains(document.activeElement)).toBe(true);
 
     await act(async () => {

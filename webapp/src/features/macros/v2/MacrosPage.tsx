@@ -62,6 +62,10 @@ function defaultDependencies(): MacrosPageDependencies {
   };
 }
 
+function hasPendingCancellation(ref: { current: boolean }): boolean {
+  return ref.current;
+}
+
 export interface MacrosPageProps {
   store: RepositoryWorkingCopyStore;
   packageId: string;
@@ -151,6 +155,7 @@ export function MacrosPage({
   // state, so the control cannot be pressed twice and the page says what is
   // happening while the device finishes releasing keys.
   const [cancelRequested, setCancelRequested] = useState(false);
+  const cancelRequestedRef = useRef(false);
   const [moveAnnouncement, setMoveAnnouncement] = useState<string | null>(null);
 
   // Guards double-send on rapid taps (V2-095): set synchronously, before any
@@ -237,38 +242,39 @@ export function MacrosPage({
     [],
   );
 
-  const recoverActiveSend = useCallback(async (): Promise<void> => {
-    let current: SendStatusResponse | null;
-    try {
-      current = await depsRef.current.recoverSendState();
-    } catch (error: unknown) {
-      if (mountedRef.current) {
-        setLifecycle({ kind: "idle" });
-        setStartError(v2ErrorText(error));
+  const recoverActiveSend = useCallback(
+    async (noSendMessage: string): Promise<void> => {
+      let current: SendStatusResponse | null;
+      try {
+        current = await depsRef.current.recoverSendState();
+      } catch (error: unknown) {
+        if (mountedRef.current) {
+          setLifecycle({ kind: "idle" });
+          setStartError(v2ErrorText(error));
+        }
+        return;
       }
-      return;
-    }
-    if (!mountedRef.current) {
-      return;
-    }
-    if (current === null || isTerminalSendState(current.state)) {
-      setLifecycle({ kind: "idle" });
-      setStartError(
-        "Another send finished just before this one could start. Try again.",
-      );
-      return;
-    }
-    setLifecycle({ kind: "active", macro: null, status: current });
-    activeHandleRef.current = depsRef.current.trackSend(current, {
-      onStatus: (status) => {
-        handleStatus(null, status);
-      },
-      onComplete: (status) => {
-        handleComplete(null, status);
-      },
-      onError: handleTrackingError,
-    });
-  }, [handleComplete, handleStatus, handleTrackingError]);
+      if (!mountedRef.current) {
+        return;
+      }
+      if (current === null || isTerminalSendState(current.state)) {
+        setLifecycle({ kind: "idle" });
+        setStartError(noSendMessage);
+        return;
+      }
+      setLifecycle({ kind: "active", macro: null, status: current });
+      activeHandleRef.current = depsRef.current.trackSend(current, {
+        onStatus: (status) => {
+          handleStatus(null, status);
+        },
+        onComplete: (status) => {
+          handleComplete(null, status);
+        },
+        onError: handleTrackingError,
+      });
+    },
+    [handleComplete, handleStatus, handleTrackingError],
+  );
 
   // Reload recovery (V2-095, UI_UX_SPEC_V2 §5.5): resume tracking a
   // non-terminal recovered send, or restore an undismissed terminal-issue
@@ -330,6 +336,8 @@ export function MacrosPage({
       return;
     }
     startingRef.current = true;
+    cancelRequestedRef.current = false;
+    setCancelRequested(false);
     setStartError(null);
     const identity: MacroIdentity = { id: macro.id, name: macro.name };
     setLifecycle({ kind: "starting", macro: identity });
@@ -369,13 +377,32 @@ export function MacrosPage({
           releaseError: "",
         },
       });
+      if (hasPendingCancellation(cancelRequestedRef)) {
+        void cancelActiveSend();
+      }
     } catch (error: unknown) {
       if (!mountedRef.current) {
         return;
       }
       if (error instanceof V2ApiError && error.status === 409) {
-        await recoverActiveSend();
+        // The existing send may have been started by another tab or client.
+        // Recover and expose its Cancel control, but never infer identity
+        // from this tab's pending POST and cancel it automatically.
+        cancelRequestedRef.current = false;
+        setCancelRequested(false);
+        await recoverActiveSend(
+          "Another send finished just before this one could start. Try again.",
+        );
+      } else if (!(error instanceof V2ApiError) || error.status >= 500) {
+        // A network/server failure can arrive after the device accepted the
+        // POST. Reconcile with GET and expose a recovered send for explicit
+        // user cancellation; its identity is not provably this request.
+        cancelRequestedRef.current = false;
+        setCancelRequested(false);
+        await recoverActiveSend(v2ErrorText(error));
       } else {
+        cancelRequestedRef.current = false;
+        setCancelRequested(false);
         setLifecycle({ kind: "idle" });
         setStartError(v2ErrorText(error));
       }
@@ -388,10 +415,12 @@ export function MacrosPage({
   // stable `setStartError` setter) so the active-send-summary effect below
   // can list it as a dependency without re-running every render.
   const cancelActiveSend = useCallback(async (): Promise<void> => {
+    cancelRequestedRef.current = true;
     setCancelRequested(true);
     try {
       await depsRef.current.cancelSend();
     } catch (error: unknown) {
+      cancelRequestedRef.current = false;
       setCancelRequested(false);
       setStartError(v2ErrorText(error));
     }
@@ -399,7 +428,12 @@ export function MacrosPage({
 
   // A cancel request only means something while a send is active.
   useEffect(() => {
-    if (lifecycle.kind !== "active") {
+    if (
+      lifecycle.kind === "idle" ||
+      lifecycle.kind === "completed" ||
+      lifecycle.kind === "terminal-issue"
+    ) {
+      cancelRequestedRef.current = false;
       setCancelRequested(false);
     }
   }, [lifecycle.kind]);
@@ -418,8 +452,15 @@ export function MacrosPage({
     if (lifecycle.kind === "starting") {
       onActiveSendChange({
         macroName: lifecycle.macro.name,
-        statusText: `Sending ${lifecycle.macro.name}…`,
-        onCancel: null,
+        statusText: cancelRequested
+          ? `Cancelling ${lifecycle.macro.name}…`
+          : `Sending ${lifecycle.macro.name}…`,
+        onCancel: cancelRequested
+          ? null
+          : () => {
+              cancelRequestedRef.current = true;
+              setCancelRequested(true);
+            },
       });
       return;
     }
@@ -554,7 +595,23 @@ export function MacrosPage({
         <div className="sticky top-0 z-10 -mx-1 bg-surface px-1">
           {lifecycle.kind === "starting" ? (
             <SendStatus role="status">
-              <p>Sending {lifecycle.macro.name}…</p>
+              <p>
+                {cancelRequested
+                  ? `Cancelling ${lifecycle.macro.name}…`
+                  : `Sending ${lifecycle.macro.name}…`}
+              </p>
+              <button
+                disabled={cancelRequested}
+                onClick={() => {
+                  cancelRequestedRef.current = true;
+                  setCancelRequested(true);
+                }}
+                type="button"
+              >
+                {cancelRequested
+                  ? "Cancelling…"
+                  : "Cancel and release all keys"}
+              </button>
             </SendStatus>
           ) : null}
           {lifecycle.kind === "active" ? (

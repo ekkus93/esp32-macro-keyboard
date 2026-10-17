@@ -90,12 +90,25 @@ describe("MacroEditorPage — V2-100 fields and byte counts", () => {
     expect(nameInput().value).toBe("Start the build");
     expect(sourceTextarea().value).toBe("make -j8{ENTER}");
     await openAdvanced();
+    const timingDialog = requiredElement('[role="dialog"]', HTMLDivElement);
+    expect(timingDialog.getAttribute("aria-modal")).toBe("true");
+    expect(
+      requiredElement("#macro-editor-form", HTMLFormElement).hasAttribute(
+        "inert",
+      ),
+    ).toBe(true);
     expect(
       requiredElement("#macro-editor-key-press", HTMLInputElement).value,
     ).toBe("8");
     expect(
       requiredElement("#macro-editor-inter-key", HTMLInputElement).value,
     ).toBe("15");
+    await click(buttonWithText("Done"));
+    expect(
+      requiredElement("#macro-editor-form", HTMLFormElement).hasAttribute(
+        "inert",
+      ),
+    ).toBe(false);
     await unmount();
   });
 

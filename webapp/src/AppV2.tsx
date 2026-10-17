@@ -325,11 +325,14 @@ export function AuthenticatedShell({
   }, [deviceAction, reconnect.phase]);
 
   const saveSnapshot = async (): Promise<void> => {
+    const saveToken = store.getSaveToken();
     setSaving(true);
     setSaveError(null);
     try {
       const created = await saveWorkingCopyAsSnapshot(store);
-      setLoadedBlobId(created.id);
+      if (store.isSaveLineageCurrent(saveToken)) {
+        setLoadedBlobId(created.id);
+      }
     } catch (error: unknown) {
       setSaveError(v2ErrorText(error));
     } finally {
@@ -538,6 +541,7 @@ export function AuthenticatedShell({
                   : {})}
           title={routeTitle(route)}
           route={route}
+          navigationKey={window.location.hash}
           saveError={saveError}
           saving={saving}
           usbState={usbStatus.usbState}

@@ -21,6 +21,7 @@ import { runStartupWorkflows } from "./workflows/startup.mjs";
 import {
   runKeyboardNavigationWorkflow,
   runMacroEditorKeyboardViewportWorkflow,
+  runSubpageFocusWorkflow,
   runStartupVisibleControlsWorkflow,
   runVisibleControlsWorkflow,
 } from "./workflows/visibleControls.mjs";
@@ -115,6 +116,8 @@ async function main() {
       "Real Chrome v2 macro-editing/package-management workflows passed.",
     );
     await runVisibleControlsWorkflow(browser);
+    await runSubpageFocusWorkflow(browser);
+    console.log("Settings and Snapshots subpage focus workflows passed.");
     await runKeyboardNavigationWorkflow(browser);
     await runMacroEditorKeyboardViewportWorkflow(browser);
     await runStartupVisibleControlsWorkflow(browser);

@@ -160,4 +160,104 @@ describe("AppV2 — V2-131/V2-132 phone-landscape orientation surface (UI_UX_SPE
     expect(bodyIncludes("Send Open terminal was cancelled.")).toBe(true);
     await view.unmount();
   });
+
+  test("a starting send can be cancelled across routes and landscape after acceptance", async () => {
+    const fakeMedia = installFakeMatchMedia();
+    const view = await signIn();
+
+    await click(buttonWithText("Add macro"));
+    await waitUntil(() => bodyIncludes("New macro"), "the macro editor");
+    await setInputValue(
+      requiredElement("#macro-editor-name", HTMLInputElement),
+      "Open terminal",
+    );
+    await setInputValue(
+      requiredElement("#macro-editor-source", HTMLTextAreaElement),
+      "a",
+    );
+    await click(buttonWithText("Save changes"));
+    await waitUntil(
+      () => bodyIncludes("Open terminal"),
+      "the Macros page showing the new macro",
+    );
+
+    const sendId = "33333333-3333-4333-8333-333333333333";
+    let resolvePost: ((response: Response) => void) | undefined;
+    const postResponse = new Promise<Response>((resolve) => {
+      resolvePost = resolve;
+    });
+    planFetch((call) => {
+      expect(call.method).toBe("POST");
+      expect(call.url).toBe("/api/v1/send");
+      return postResponse;
+    });
+    await click(buttonWithText("Send"));
+    await waitUntil(
+      () => getFetchCalls().some((call) => call.method === "POST"),
+      "the pending send request",
+    );
+    expect(bodyIncludes("Sending Open terminal")).toBe(true);
+    expect(bodyIncludes("Cancel and release all keys")).toBe(true);
+
+    await click(buttonWithText("Packages"));
+    await waitUntil(() => bodyIncludes("New package"), "Packages");
+    expect(bodyIncludes("Sending Open terminal")).toBe(true);
+    expect(bodyIncludes("Cancel and release all keys")).toBe(true);
+
+    act(() => {
+      fakeMedia.set(landscapePhoneMediaQuery, true);
+    });
+    const overlay = requiredElement(".landscape-block", HTMLElement);
+    const cancel = Array.from(overlay.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Cancel and release all keys",
+    );
+    expect(cancel).toBeDefined();
+    planFetch((call) => {
+      expect(call.method).toBe("DELETE");
+      expect(call.url).toBe("/api/v1/send");
+      return jsonResponse({ id: sendId }, 202);
+    });
+    if (cancel === undefined) {
+      throw new Error("unreachable: asserted above");
+    }
+    await click(cancel);
+    expect(
+      getFetchCalls().filter((call) => call.method === "DELETE"),
+    ).toHaveLength(0);
+
+    resolvePost?.(
+      jsonResponse(
+        {
+          id: sendId,
+          state: "running",
+          actionCount: 1,
+          estimatedDurationMs: 50,
+        },
+        202,
+      ),
+    );
+    await waitUntil(
+      () => getFetchCalls().some((call) => call.method === "DELETE"),
+      "cancellation after the send is accepted",
+    );
+    planJsonResponse(
+      {
+        id: sendId,
+        state: "cancelled",
+        actionIndex: 0,
+        actionCount: 1,
+        estimatedDurationMs: 50,
+        cancellationRequested: true,
+        error: "",
+        releaseError: "",
+      },
+      200,
+    );
+    await tick(1000);
+    expect(bodyIncludes("Send Open terminal was cancelled.")).toBe(true);
+    act(() => {
+      fakeMedia.set(landscapePhoneMediaQuery, false);
+    });
+    await view.unmount();
+  });
 });

@@ -143,6 +143,9 @@ export function SettingsPage({
     null,
   );
   const [exportingWorkingCopy, setExportingWorkingCopy] = useState(false);
+  const [exportWorkingCopyError, setExportWorkingCopyError] = useState<
+    string | null
+  >(null);
   const [confirmPhrase, setConfirmPhrase] = useState<
     "reset-settings" | "factory-reset" | null
   >(null);
@@ -209,6 +212,7 @@ export function SettingsPage({
 
   const exportWorkingCopy = async (): Promise<void> => {
     setExportingWorkingCopy(true);
+    setExportWorkingCopyError(null);
     try {
       const exported = await depsRef.current.exportRepository(
         store.getRepository(),
@@ -217,6 +221,10 @@ export function SettingsPage({
         exported.bytes,
         exported.filename,
         exported.mimeType,
+      );
+    } catch (error: unknown) {
+      setExportWorkingCopyError(
+        `Could not export working copy: ${v2ErrorText(error)}`,
       );
     } finally {
       setExportingWorkingCopy(false);
@@ -683,6 +691,7 @@ export function SettingsPage({
                 : "factory reset the device"
           }
           exporting={exportingWorkingCopy}
+          exportError={exportWorkingCopyError}
           onCancel={() => {
             setPendingDirty(null);
           }}

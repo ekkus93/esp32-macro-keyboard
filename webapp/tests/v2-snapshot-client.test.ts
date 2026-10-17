@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import canonicalRepository from "../../contracts/v2/repository/canonical.json";
 import { gzipCompress } from "../src/v2/gzip";
 import { v2Limits } from "../src/v2/limits";
@@ -80,6 +80,101 @@ describe("v2 snapshot client", () => {
     expect(getFetchCalls().map((call) => call.method)).toEqual(["GET", "POST"]);
   });
 
+  test("an edit made during upload survives while the uploaded version becomes baseline", async () => {
+    const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+    store.applyContentChange(canonical);
+    let resolvePost: (response: Response) => void = () => {
+      throw new Error("POST response resolver was not initialized");
+    };
+    const postResponse = new Promise<Response>((resolve) => {
+      resolvePost = resolve;
+    });
+    planEmptySnapshotList();
+    planFetch(() => postResponse);
+
+    const saving = saveWorkingCopyAsSnapshot(store);
+    await vi.waitFor(() => {
+      expect(getFetchCalls()).toHaveLength(2);
+    });
+    const laterEdit = {
+      ...canonical,
+      packages: canonical.packages.map((item, index) =>
+        index === 0 ? { ...item, name: "Edited while saving" } : item,
+      ),
+    };
+    store.applyContentChange(laterEdit);
+    resolvePost(jsonResponse({ id: "4", sizeBytes: 42 }, 201));
+
+    await expect(saving).resolves.toEqual({ id: "4", sizeBytes: 42 });
+    expect(store.getRepository()).toEqual(laterEdit);
+    expect(store.getBaseline()).toEqual(canonical);
+    expect(store.getIsDirty()).toBe(true);
+  });
+
+  test("a late upload response cannot replace a deliberately replaced working copy", async () => {
+    const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+    store.applyContentChange(canonical);
+    let resolvePost: (response: Response) => void = () => {
+      throw new Error("POST response resolver was not initialized");
+    };
+    const postResponse = new Promise<Response>((resolve) => {
+      resolvePost = resolve;
+    });
+    planEmptySnapshotList();
+    planFetch(() => postResponse);
+
+    const saving = saveWorkingCopyAsSnapshot(store);
+    await vi.waitFor(() => {
+      expect(getFetchCalls()).toHaveLength(2);
+    });
+    const replacement = createEmptyRepository();
+    store.replaceWorkingCopy(replacement);
+    resolvePost(jsonResponse({ id: "5", sizeBytes: 12 }, 201));
+
+    await saving;
+    expect(store.getRepository()).toBe(replacement);
+    expect(store.getBaseline()).toBe(replacement);
+    expect(store.getIsDirty()).toBe(false);
+  });
+
+  test("a late upload response cannot undo a deliberate discard", async () => {
+    const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+    store.applyContentChange(canonical);
+    let resolvePost: (response: Response) => void = () => {
+      throw new Error("POST response resolver was not initialized");
+    };
+    const postResponse = new Promise<Response>((resolve) => {
+      resolvePost = resolve;
+    });
+    planEmptySnapshotList();
+    planFetch(() => postResponse);
+
+    const saving = saveWorkingCopyAsSnapshot(store);
+    await vi.waitFor(() => {
+      expect(getFetchCalls()).toHaveLength(2);
+    });
+    store.discardChanges();
+    resolvePost(jsonResponse({ id: "7", sizeBytes: 12 }, 201));
+
+    await saving;
+    expect(store.getRepository()).toEqual(createEmptyRepository());
+    expect(store.getBaseline()).toEqual(createEmptyRepository());
+    expect(store.getIsDirty()).toBe(false);
+  });
+
+  test("overlapping saves for one store share one upload", async () => {
+    const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+    store.applyContentChange(canonical);
+    planEmptySnapshotList();
+    planFetch(() => jsonResponse({ id: "6", sizeBytes: 42 }, 201));
+
+    const first = saveWorkingCopyAsSnapshot(store);
+    const second = saveWorkingCopyAsSnapshot(store);
+    expect(second).toBe(first);
+    await expect(first).resolves.toEqual({ id: "6", sizeBytes: 42 });
+    expect(getFetchCalls().map((call) => call.method)).toEqual(["GET", "POST"]);
+  });
+
   test("saveWorkingCopyAsSnapshot leaves the working copy dirty when the upload fails", async () => {
     const store = createRepositoryWorkingCopyStore(createEmptyRepository());
     store.applyContentChange(canonical);
@@ -95,6 +190,93 @@ describe("v2 snapshot client", () => {
     });
     expect(store.getIsDirty()).toBe(true);
     expect(store.getRepository()).toEqual(canonical);
+  });
+
+  test("a failed upload after a concurrent edit preserves the newer edit", async () => {
+    const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+    store.applyContentChange(canonical);
+    let resolvePost: (response: Response) => void = () => {
+      throw new Error("POST response resolver was not initialized");
+    };
+    const postResponse = new Promise<Response>((resolve) => {
+      resolvePost = resolve;
+    });
+    planEmptySnapshotList();
+    planFetch(() => postResponse);
+
+    const saving = saveWorkingCopyAsSnapshot(store);
+    await vi.waitFor(() => {
+      expect(getFetchCalls()).toHaveLength(2);
+    });
+    const laterEdit = {
+      ...canonical,
+      packages: canonical.packages.map((item, index) =>
+        index === 0 ? { ...item, name: "Edited during failed save" } : item,
+      ),
+    };
+    store.applyContentChange(laterEdit);
+    resolvePost(
+      jsonResponse(
+        { error: { code: "storage_full", message: "No space remains." } },
+        507,
+      ),
+    );
+
+    await expect(saving).rejects.toMatchObject({ status: 507 });
+    expect(store.getRepository()).toEqual(laterEdit);
+    expect(store.getBaseline()).toEqual(createEmptyRepository());
+    expect(store.getIsDirty()).toBe(true);
+  });
+
+  test("an uncertain upload after a concurrent edit preserves the edit as dirty", async () => {
+    const store = createRepositoryWorkingCopyStore(createEmptyRepository());
+    store.applyContentChange(canonical);
+    let postedBytes = new Uint8Array();
+    let resolvePost: (response: Response) => void = () => {
+      throw new Error("POST response resolver was not initialized");
+    };
+    const postResponse = new Promise<Response>((resolve) => {
+      resolvePost = resolve;
+    });
+    planEmptySnapshotList();
+    planFetch((call) => {
+      postedBytes = new Uint8Array(call.body as Uint8Array);
+      return postResponse;
+    });
+
+    const saving = saveWorkingCopyAsSnapshot(store);
+    await vi.waitFor(() => {
+      expect(getFetchCalls()).toHaveLength(2);
+    });
+    const laterEdit = {
+      ...canonical,
+      packages: canonical.packages.map((item, index) =>
+        index === 0 ? { ...item, name: "Edited during uncertain save" } : item,
+      ),
+    };
+    store.applyContentChange(laterEdit);
+    planJsonResponse({
+      blobs: [{ id: "4", sizeBytes: 42 }],
+      usedBytes: 42,
+      remainingBytes: 1_000_000,
+    });
+    planFetch(() => binaryResponse(postedBytes));
+    resolvePost(
+      jsonResponse(
+        {
+          error: {
+            code: "commit_uncertain",
+            message: "Blob activation succeeded but durability is uncertain.",
+          },
+        },
+        503,
+      ),
+    );
+
+    await expect(saving).rejects.toBeInstanceOf(SnapshotCommitUncertainError);
+    expect(store.getRepository()).toEqual(laterEdit);
+    expect(store.getBaseline()).toEqual(createEmptyRepository());
+    expect(store.getIsDirty()).toBe(true);
   });
 
   test("commit uncertainty reconciles an exact new blob with GETs only and never duplicates POST", async () => {

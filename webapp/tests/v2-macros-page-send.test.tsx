@@ -252,12 +252,13 @@ describe("MacrosPage — V2-132 landscape active-send summary", () => {
     // run, per the other test in this block.
     const store = createRepositoryWorkingCopyStore(makeRepository());
     const summaries: (ActiveSendSummary | null)[] = [];
+    const cancelSend = vi.fn(() => Promise.resolve(undefined));
     const { unmount } = await render(
       <MacrosPage
         dependencies={{
           sendMacro: vi.fn(() => new Promise<never>(() => undefined)),
           trackSend: vi.fn(() => ({ stop: vi.fn() })),
-          cancelSend: vi.fn(() => Promise.resolve(undefined)),
+          cancelSend,
           recoverSendState: vi.fn(() => Promise.resolve(null)),
         }}
         initialSend={null}
@@ -279,7 +280,117 @@ describe("MacrosPage — V2-132 landscape active-send summary", () => {
     expect(starting).not.toBeNull();
     expect(starting?.macroName).toBe("Start the build");
     expect(starting?.statusText).toBe("Sending Start the build…");
-    expect(starting?.onCancel).toBeNull();
+    expect(starting?.onCancel).not.toBeNull();
+    await act(async () => {
+      starting?.onCancel?.();
+      await Promise.resolve();
+    });
+    expect(cancelSend).not.toHaveBeenCalled();
+    expect(summaries.at(-1)?.statusText).toBe("Cancelling Start the build…");
+    expect(summaries.at(-1)?.onCancel).toBeNull();
+    await unmount();
+  });
+
+  test("a Cancel pressed during POST is sent once after that POST is accepted", async () => {
+    let resolveSend: ((handle: SendMacroHandle) => void) | undefined;
+    const pendingSend = new Promise<SendMacroHandle>((resolve) => {
+      resolveSend = resolve;
+    });
+    const cancelSend = vi.fn(() => Promise.resolve(undefined));
+    const dependencies: MacrosPageDependencies = {
+      sendMacro: vi.fn(() => pendingSend),
+      trackSend: vi.fn(() => ({ stop: vi.fn() })),
+      cancelSend,
+      recoverSendState: vi.fn(() => Promise.resolve(null)),
+    };
+    const { unmount } = await renderMacrosPage({ dependencies });
+
+    await click(buttonWithText("Send"));
+    await click(buttonWithText("Cancel and release all keys"));
+    expect(cancelSend).not.toHaveBeenCalled();
+    expect(buttonWithText("Cancelling…").disabled).toBe(true);
+
+    resolveSend?.({
+      accepted,
+      cancel: vi.fn(() => Promise.resolve(undefined)),
+      stop: vi.fn(),
+    });
+    await flushReact();
+    expect(cancelSend).toHaveBeenCalledOnce();
+    expect(buttonWithText("Cancelling…").disabled).toBe(true);
+    await unmount();
+  });
+
+  test("a POST conflict recovers an existing send without cancelling it automatically", async () => {
+    const cancelSend = vi.fn(() => Promise.resolve(undefined));
+    const dependencies: MacrosPageDependencies = {
+      sendMacro: vi.fn(() => {
+        throw new V2ApiError(409, {
+          code: "already_sending",
+          message: "A send is already in progress.",
+        });
+      }),
+      trackSend: vi.fn(() => ({ stop: vi.fn() })),
+      cancelSend,
+      recoverSendState: vi.fn(() => Promise.resolve(statusAt("running", 1))),
+    };
+    const { unmount } = await renderMacrosPage({ dependencies });
+
+    await click(buttonWithText("Send"));
+    await flushReact();
+    expect(dependencies.recoverSendState).toHaveBeenCalledOnce();
+    expect(cancelSend).not.toHaveBeenCalled();
+    expect(buttonWithText("Cancel and release all keys")).toBeDefined();
+    await unmount();
+  });
+
+  test("an uncertain POST recovers an existing send for explicit cancellation", async () => {
+    const cancelSend = vi.fn(() => Promise.resolve(undefined));
+    const dependencies: MacrosPageDependencies = {
+      sendMacro: vi.fn(() => Promise.reject(new TypeError("network lost"))),
+      trackSend: vi.fn(() => ({ stop: vi.fn() })),
+      cancelSend,
+      recoverSendState: vi.fn(() => Promise.resolve(statusAt("running", 1))),
+    };
+    const { unmount } = await renderMacrosPage({ dependencies });
+
+    await click(buttonWithText("Send"));
+    await flushReact();
+    expect(dependencies.recoverSendState).toHaveBeenCalledOnce();
+    expect(cancelSend).not.toHaveBeenCalled();
+    await click(buttonWithText("Cancel and release all keys"));
+    await flushReact();
+    expect(cancelSend).toHaveBeenCalledOnce();
+    await unmount();
+  });
+
+  test("a Cancel intent is not sent when the starting POST fails", async () => {
+    let rejectSend: ((error: unknown) => void) | undefined;
+    const pendingSend = new Promise<SendMacroHandle>((_resolve, reject) => {
+      rejectSend = reject;
+    });
+    const cancelSend = vi.fn(() => Promise.resolve(undefined));
+    const dependencies: MacrosPageDependencies = {
+      sendMacro: vi.fn(() => pendingSend),
+      trackSend: vi.fn(() => ({ stop: vi.fn() })),
+      cancelSend,
+      recoverSendState: vi.fn(() => Promise.resolve(null)),
+    };
+    const { container, unmount } = await renderMacrosPage({ dependencies });
+
+    await click(buttonWithText("Send"));
+    await click(buttonWithText("Cancel and release all keys"));
+    rejectSend?.(
+      new V2ApiError(422, {
+        code: "invalid_macro",
+        message: "The macro could not be started.",
+      }),
+    );
+    await flushReact();
+
+    expect(cancelSend).not.toHaveBeenCalled();
+    expect(dependencies.recoverSendState).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("The macro could not be started.");
     await unmount();
   });
 

@@ -38,6 +38,8 @@ export interface AppShellV2Props {
   usbState: UsbState;
   dirty: boolean;
   route: ScreenV2;
+  /** Full hash location, including subpage query state. */
+  navigationKey?: string;
   navigate: (route: ScreenV2) => void;
   onSaveSnapshot: () => void;
   saving: boolean;
@@ -105,6 +107,7 @@ export function AppShellV2({
   usbState,
   dirty,
   route,
+  navigationKey,
   navigate,
   onSaveSnapshot,
   saving,
@@ -125,7 +128,7 @@ export function AppShellV2({
       return;
     }
     mainRef.current?.focus({ preventScroll: true });
-  }, [route]);
+  }, [navigationKey, route]);
 
   return (
     // Locked to the viewport: the app bar and navigation are fixed chrome and

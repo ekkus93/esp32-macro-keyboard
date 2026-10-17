@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { Dialog } from "../../../components/Dialog";
+import { ErrorBanner } from "../../../components/ErrorBanner";
 import { FormActions } from "../../../components/FormActions";
 import { useFocusTrap } from "./useFocusTrap";
 
@@ -27,6 +28,7 @@ export interface UnsavedChangesPromptProps {
   onSaveSnapshot: () => void;
   onDiscard: () => void;
   exporting?: boolean;
+  exportError?: string | null;
   saving?: boolean;
   /**
    * The discard button's exact label. Defaults to the generic "Discard
@@ -43,6 +45,7 @@ export function UnsavedChangesPrompt({
   onSaveSnapshot,
   onDiscard,
   exporting = false,
+  exportError = null,
   saving = false,
   discardLabel = "Discard changes",
 }: UnsavedChangesPromptProps): React.JSX.Element {
@@ -64,6 +67,7 @@ export function UnsavedChangesPrompt({
         once this working copy is closed without saving, the changes cannot be
         recovered.
       </p>
+      {exportError === null ? null : <ErrorBanner message={exportError} />}
       <FormActions>
         <button onClick={onCancel} type="button">
           Cancel

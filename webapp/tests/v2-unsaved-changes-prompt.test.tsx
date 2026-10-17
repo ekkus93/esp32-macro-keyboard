@@ -109,6 +109,8 @@ describe("UnsavedChangesPrompt — V2-103", () => {
       />,
     );
     const dialog = requiredElement('[role="alertdialog"]', HTMLDivElement);
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(opener.hasAttribute("inert")).toBe(true);
     expect(dialog.contains(document.activeElement)).toBe(true);
     expect(document.activeElement?.textContent).toBe("Cancel");
 
@@ -139,6 +141,7 @@ describe("UnsavedChangesPrompt — V2-103", () => {
     expect(onCancel).toHaveBeenCalledOnce();
     await unmount();
     expect(document.activeElement).toBe(opener);
+    expect(opener.hasAttribute("inert")).toBe(false);
     opener.remove();
   });
 });

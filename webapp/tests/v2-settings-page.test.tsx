@@ -761,6 +761,60 @@ describe("SettingsPage (TODO_V2 V2-120)", () => {
     );
   });
 
+  test.each(["snapshot encoding", "file save"] as const)(
+    "a %s failure during dirty-work export keeps the prompt open and actionable",
+    async (failurePoint) => {
+      const exportRepository = vi
+        .fn()
+        .mockRejectedValue(new Error("temporary export failure"));
+      const saveAsFile = vi.fn(() => {
+        throw new Error("temporary file-save failure");
+      });
+      if (failurePoint === "file save") {
+        exportRepository.mockResolvedValue({
+          bytes: new Uint8Array([1, 2, 3]),
+          filename: "working-copy.emk-repository.json.gz",
+          mimeType: "application/gzip",
+        });
+      }
+      const store = createRepositoryWorkingCopyStore(repository());
+      const edited = {
+        ...repository(),
+        packages: [{ id: packageId, name: "Still dirty", macros: [] }],
+      };
+      store.applyContentChange(edited);
+      const { container, unmount } = await renderPage({
+        group: "reset",
+        section: "factory-reset",
+        store,
+        deps: { exportRepository, saveAsFile },
+      });
+
+      await click(buttonWithText("Factory reset"));
+      await flushReact();
+      await click(buttonWithText("Export working copy"));
+      await flushReact();
+
+      expect(exportRepository).toHaveBeenCalledOnce();
+      expect(store.getRepository()).toEqual(edited);
+      expect(store.getIsDirty()).toBe(true);
+      expect(container.textContent).toContain("Unsaved changes");
+      expect(container.textContent).toContain("Could not export working copy");
+      expect(container.textContent).not.toContain('Type "FACTORY RESET"');
+      expect(buttonWithText("Export working copy").disabled).toBe(false);
+      if (failurePoint === "file save") {
+        expect(saveAsFile).toHaveBeenCalledOnce();
+      } else {
+        expect(saveAsFile).not.toHaveBeenCalled();
+      }
+
+      await click(buttonWithText("Cancel"));
+      await flushReact();
+      expect(store.getIsDirty()).toBe(true);
+      await unmount();
+    },
+  );
+
   test("a device-action failure surfaces an error and does not call onDeviceActionStarted", async () => {
     const restartDevice = vi.fn().mockRejectedValue(new Error("boom"));
     const { onDeviceActionStarted } = await renderPage({
