@@ -445,6 +445,7 @@ export async function runSubpageFocusWorkflow(browser) {
     }, focusableSelector);
     assert(count > 0, `No visible keyboard controls were found on ${route}.`);
     const visited = new Set();
+    let lastVisitedIndex = -1;
     for (let index = 0; index < count; index += 1) {
       await page.keyboard.press("Tab");
       const state = await page.evaluate((selector) => {
@@ -491,6 +492,11 @@ export async function runSubpageFocusWorkflow(browser) {
         state.withinViewport && !state.inert,
         `Keyboard focus reached an obscured control on ${route}: ${JSON.stringify(state)}`,
       );
+      assert(
+        state.index > lastVisitedIndex,
+        `Tab order was not forward through the visible controls on ${route}: ${JSON.stringify(state)} followed index ${String(lastVisitedIndex)}.`,
+      );
+      lastVisitedIndex = state.index;
       visited.add(state.index);
     }
     assert(
@@ -539,16 +545,24 @@ export async function runSubpageFocusWorkflow(browser) {
             );
           }
           const expectedNav = hash.slice(2).split(/[?&]/)[0];
+          const navigationRoute =
+            expectedNav === "macro-editor"
+              ? "macros"
+              : expectedNav === "diagnostics"
+                ? "settings"
+                : expectedNav;
+          const activeNavigation = page.locator(
+            'nav[aria-label="Primary navigation"] button[aria-current="page"]',
+          );
+          const activeNavigationLabel =
+            (await activeNavigation.count()) === 0
+              ? null
+              : (await activeNavigation.textContent())?.trim();
           assert(
-            (
-              await page
-                .locator(
-                  'nav[aria-label="Primary navigation"] button[aria-current="page"]',
-                )
-                .textContent()
-            )?.trim() ===
-              expectedNav.charAt(0).toUpperCase() + expectedNav.slice(1),
-            `Active navigation did not match ${expectedNav}.`,
+            activeNavigationLabel ===
+              navigationRoute.charAt(0).toUpperCase() +
+                navigationRoute.slice(1),
+            `Active navigation for ${hash} was ${String(activeNavigationLabel)}; expected ${navigationRoute}.`,
           );
           assert(
             await page
@@ -701,6 +715,47 @@ export async function runSubpageFocusWorkflow(browser) {
           ),
           "Escape did not restore focus to the keyboard-opened macro menu trigger.",
         );
+
+        // The screen-by-screen viewport table also serves as the route list
+        // for keyboard reachability. Route changes set the main landmark as
+        // the keyboard start point; every visible control in that screen's
+        // main content must then be reachable in document order with a visible
+        // focus indicator. The key picker itself is opened and closed by key.
+        await navigate("Packages");
+        for (const screen of SCREENS) {
+          if (screen.name === "key picker") {
+            const pickerTrigger = page.getByRole("button", {
+              name: "Keys and combinations",
+              exact: true,
+            });
+            await activate(pickerTrigger);
+            await page
+              .getByText("Insert into macro", { exact: true })
+              .waitFor();
+            await auditTabStops(page, "macro editor key picker");
+            await activate(page.getByRole("button", { name: "Done" }));
+            await page
+              .getByRole("button", {
+                name: "Keys and combinations",
+                exact: true,
+              })
+              .waitFor();
+            continue;
+          }
+
+          const route = `#/${screen.route}`;
+          await page.evaluate((nextRoute) => {
+            window.location.hash = nextRoute;
+          }, `/${screen.route}`);
+          await expectFocusedMain(route);
+          assert(
+            await page
+              .getByText(screen.ready, { exact: false })
+              .first()
+              .isVisible(),
+            `Keyboard audit route ${route} did not show its expected content.`,
+          );
+        }
       } finally {
         await context.close();
       }

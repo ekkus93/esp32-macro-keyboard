@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FieldHelp } from "../../../components/FieldHelp";
 import { Button } from "../../../components/m3/Button";
 import { Icon } from "../../../components/m3/Icon";
@@ -44,6 +44,7 @@ export function MacroKeyPicker({
   onDone,
   onInsert,
 }: MacroKeyPickerProps): React.JSX.Element {
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const [status, setStatus] = useState("");
   const [comboModifiers, setComboModifiers] = useState<ModifierToken[]>([]);
   // Each added key gets an id so the list has a stable React identity even
@@ -86,10 +87,19 @@ export function MacroKeyPicker({
       : (allNamedKeys.find((named) => named.token === key.token)?.label ??
         key.token);
 
+  useEffect(() => {
+    titleRef.current?.focus();
+  }, []);
+
   return (
     <section aria-labelledby="macro-key-picker-title">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <h2 className="m-0" id="macro-key-picker-title">
+        <h2
+          className="m-0"
+          id="macro-key-picker-title"
+          ref={titleRef}
+          tabIndex={-1}
+        >
           Insert into macro
         </h2>
         <Button icon="check" onClick={onDone} variant="filled">
