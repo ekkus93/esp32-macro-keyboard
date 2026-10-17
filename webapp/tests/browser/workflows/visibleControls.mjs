@@ -410,11 +410,96 @@ export async function runVisibleControlsWorkflow(browser) {
 
 export async function runSubpageFocusWorkflow(browser) {
   const application = await startApplicationServer();
+  const focusableSelector = [
+    "a[href]",
+    "button:not([disabled])",
+    'input:not([disabled]):not([type="hidden"])',
+    "select:not([disabled])",
+    "textarea:not([disabled])",
+    "summary",
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(",");
+  const viewports =
+    process.env.ANDROID_CDP_URL === undefined
+      ? [
+          { width: 390, height: 844 },
+          { width: 1440, height: 900 },
+        ]
+      : [{ width: 390, height: 844 }];
+  const auditTabStops = async (page, route) => {
+    const count = await page.evaluate((selector) => {
+      const isVisible = (element) => {
+        const style = window.getComputedStyle(element);
+        return (
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          element.getClientRects().length > 0 &&
+          element.closest("[inert]") === null &&
+          element.closest('[aria-hidden="true"]') === null
+        );
+      };
+      return Array.from(
+        document.querySelector("#main-content")?.querySelectorAll(selector) ??
+          [],
+      ).filter(isVisible).length;
+    }, focusableSelector);
+    assert(count > 0, `No visible keyboard controls were found on ${route}.`);
+    const visited = new Set();
+    for (let index = 0; index < count; index += 1) {
+      await page.keyboard.press("Tab");
+      const state = await page.evaluate((selector) => {
+        const controls = Array.from(
+          document.querySelector("#main-content")?.querySelectorAll(selector) ??
+            [],
+        );
+        const element = document.activeElement;
+        if (!(element instanceof HTMLElement)) {
+          return null;
+        }
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return {
+          tag: element.tagName,
+          id: element.id,
+          label:
+            element.getAttribute("aria-label") ??
+            element.textContent?.trim() ??
+            null,
+          index: controls.indexOf(element),
+          focusVisible: element.matches(":focus-visible"),
+          outlineStyle: style.outlineStyle,
+          outlineWidth: style.outlineWidth,
+          withinViewport:
+            rect.bottom > 0 &&
+            rect.top < window.innerHeight &&
+            rect.right > 0 &&
+            rect.left < window.innerWidth,
+          inert: element.closest("[inert]") !== null,
+        };
+      }, focusableSelector);
+      assert(
+        state !== null && state.index >= 0,
+        `Tab moved to an unexpected target on ${route}: ${JSON.stringify(state)}`,
+      );
+      assert(
+        state.focusVisible &&
+          state.outlineStyle !== "none" &&
+          Number.parseFloat(state.outlineWidth) >= 2,
+        `Focus indicator was not visible on ${route}: ${JSON.stringify(state)}`,
+      );
+      assert(
+        state.withinViewport && !state.inert,
+        `Keyboard focus reached an obscured control on ${route}: ${JSON.stringify(state)}`,
+      );
+      visited.add(state.index);
+    }
+    assert(
+      visited.size === count,
+      `Keyboard Tab reached ${String(visited.size)} of ${String(count)} visible controls on ${route}.`,
+    );
+  };
   try {
-    for (const viewport of [
-      { width: 390, height: 844 },
-      { width: 1440, height: 900 },
-    ]) {
+    for (const viewport of viewports) {
       const context = await browser.newContext({ viewport });
       const page = await context.newPage();
       try {
@@ -432,12 +517,27 @@ export async function runSubpageFocusWorkflow(browser) {
         );
 
         const expectFocusedMain = async (hash) => {
-          await page.waitForFunction(
-            (expectedHash) =>
-              window.location.hash === expectedHash &&
-              document.activeElement?.id === "main-content",
-            hash,
-          );
+          try {
+            await page.waitForFunction(
+              (expectedHash) =>
+                window.location.hash === expectedHash &&
+                document.activeElement?.id === "main-content",
+              hash,
+            );
+          } catch (error) {
+            const state = await page.evaluate(() => ({
+              hash: window.location.hash,
+              activeId: document.activeElement?.id ?? null,
+              activeLabel:
+                document.activeElement?.getAttribute("aria-label") ??
+                document.activeElement?.textContent?.trim() ??
+                null,
+            }));
+            throw new Error(
+              `Focus/hash restoration failed for ${hash}: ${JSON.stringify(state)}`,
+              { cause: error },
+            );
+          }
           const expectedNav = hash.slice(2).split(/[?&]/)[0];
           assert(
             (
@@ -456,58 +556,151 @@ export async function runSubpageFocusWorkflow(browser) {
               .evaluate((main) => main.scrollTop === 0),
             `Main content did not remain at the top after navigating to ${hash}.`,
           );
+          await auditTabStops(page, hash);
         };
-        const navigate = async (name) => {
-          const destination = page
-            .getByRole("navigation", { name: "Primary navigation" })
-            .getByRole("button", { name, exact: true });
-          await destination.focus();
+        const tabTo = async (target, key = "Tab") => {
+          for (let index = 0; index < 120; index += 1) {
+            if (
+              await target.evaluate(
+                (element) => element === document.activeElement,
+              )
+            ) {
+              const focusState = await target.evaluate((element) => {
+                const style = window.getComputedStyle(element);
+                return {
+                  matchesFocusVisible: element.matches(":focus-visible"),
+                  outlineStyle: style.outlineStyle,
+                  outlineWidth: style.outlineWidth,
+                  outlineColor: style.outlineColor,
+                };
+              });
+              assert(
+                focusState.matchesFocusVisible &&
+                  focusState.outlineStyle !== "none" &&
+                  Number.parseFloat(focusState.outlineWidth) >= 2,
+                `Keyboard focus indicator was not visible: ${JSON.stringify(focusState)}`,
+              );
+              return;
+            }
+            await page.keyboard.press(key);
+          }
+          const state = await page.evaluate(() => {
+            const navigation = document.querySelector(
+              'nav[aria-label="Primary navigation"]',
+            );
+            return {
+              hash: window.location.hash,
+              activeTag: document.activeElement?.tagName ?? null,
+              activeId: document.activeElement?.id ?? null,
+              activeLabel:
+                document.activeElement?.getAttribute("aria-label") ??
+                document.activeElement?.textContent?.trim() ??
+                null,
+              navDisplay: navigation
+                ? window.getComputedStyle(navigation).display
+                : null,
+              navVisibility: navigation
+                ? window.getComputedStyle(navigation).visibility
+                : null,
+              navInert: navigation?.closest("[inert]") !== null,
+              viewport: [window.innerWidth, window.innerHeight],
+              visualViewport: window.visualViewport
+                ? [window.visualViewport.width, window.visualViewport.height]
+                : null,
+            };
+          });
+          throw new Error(
+            `Keyboard traversal did not reach ${(await target.getAttribute("aria-label")) ?? (await target.textContent())}: ${JSON.stringify(state)}`,
+          );
+        };
+        const activate = async (target, key = "Tab") => {
+          await tabTo(target, key);
           await page.keyboard.press("Enter");
+        };
+        const navigate = async (name, key = "Tab") => {
+          const destination = page
+            .locator('nav[aria-label="Primary navigation"] button')
+            .filter({ has: page.getByText(name, { exact: true }) });
+          if ((await destination.count()) === 0) {
+            const state = await page.evaluate(() => {
+              const navigation = document.querySelector(
+                'nav[aria-label="Primary navigation"]',
+              );
+              return {
+                hash: window.location.hash,
+                activeTag: document.activeElement?.tagName ?? null,
+                activeId: document.activeElement?.id ?? null,
+                navText: navigation?.textContent?.trim() ?? null,
+                navDisplay: navigation
+                  ? window.getComputedStyle(navigation).display
+                  : null,
+                viewportWidth: window.innerWidth,
+                viewportHeight: window.innerHeight,
+              };
+            });
+            throw new Error(
+              `Keyboard audit could not find ${name} navigation: ${JSON.stringify(state)}`,
+            );
+          }
+          await activate(destination, key);
           await expectFocusedMain(`#/${name.toLowerCase()}`);
         };
 
+        await navigate("Packages");
         await navigate("Settings");
         const network = page.getByRole("button", { name: /^Network/ });
-        await network.focus();
-        await page.keyboard.press("Enter");
+        await activate(network);
         await expectFocusedMain("#/settings?group=network");
         const accessPoint = page.getByRole("button", { name: "Access point" });
-        await accessPoint.focus();
-        await page.keyboard.press("Enter");
+        await activate(accessPoint);
         await expectFocusedMain(
           "#/settings?group=network&section=access-point",
         );
         const backToNetwork = page.getByRole("button", {
           name: "Back to network settings",
         });
-        await backToNetwork.focus();
-        await page.keyboard.press("Enter");
+        await activate(backToNetwork);
         await expectFocusedMain("#/settings?group=network");
         const backToSettings = page.getByRole("button", {
           name: "Back to settings",
         });
-        await backToSettings.focus();
-        await page.keyboard.press("Enter");
+        await activate(backToSettings);
         await expectFocusedMain("#/settings");
 
         await navigate("Snapshots");
         const importExport = page.getByRole("button", {
           name: "Import or export",
         });
-        await importExport.focus();
-        await page.keyboard.press("Enter");
+        await activate(importExport);
         await expectFocusedMain("#/snapshots?view=files");
         const backToSnapshots = page.getByRole("button", {
           name: "Back to snapshots",
         });
-        await backToSnapshots.focus();
-        await page.keyboard.press("Enter");
+        await activate(backToSnapshots);
         await expectFocusedMain("#/snapshots");
 
+        // Playwright's headless page has no browser chrome, so its Back and
+        // Forward controls are exercised through the browser navigation API;
+        // all in-app navigation above uses the actual Tab/Enter key sequence.
         await page.goBack();
         await expectFocusedMain("#/snapshots?view=files");
         await page.goForward();
         await expectFocusedMain("#/snapshots");
+
+        await navigate("Macros");
+        const overflow = page.getByRole("button", {
+          name: "More actions for Open terminal",
+        });
+        await activate(overflow);
+        await page.getByRole("menu").waitFor();
+        await page.keyboard.press("Escape");
+        await page.getByRole("menu").waitFor({ state: "detached" });
+        assert(
+          await overflow.evaluate(
+            (element) => element === document.activeElement,
+          ),
+          "Escape did not restore focus to the keyboard-opened macro menu trigger.",
+        );
       } finally {
         await context.close();
       }

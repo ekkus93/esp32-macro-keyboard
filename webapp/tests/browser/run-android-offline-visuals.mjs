@@ -3,6 +3,7 @@ import process from "node:process";
 import { chromium } from "playwright";
 
 import { SCENARIOS } from "./visual/scenarios.mjs";
+import { runSubpageFocusWorkflow } from "./workflows/visibleControls.mjs";
 
 const cdpUrl = process.env.ANDROID_CDP_URL ?? "http://127.0.0.1:9222";
 const fixturePort = Number(process.env.ANDROID_FIXTURE_PORT ?? "39371");
@@ -48,13 +49,19 @@ const deviceBrowser = {
 };
 
 try {
-  for (const scenario of SCENARIOS) {
-    const viewport = scenario.viewports[0];
-    await scenario.run(deviceBrowser, viewport);
-    console.log(`PASS ${scenario.name} @ ${viewport.name}`);
+  if (process.env.ANDROID_KEYBOARD_ONLY !== "1") {
+    for (const scenario of SCENARIOS) {
+      const viewport = scenario.viewports[0];
+      await scenario.run(deviceBrowser, viewport);
+      console.log(`PASS ${scenario.name} @ ${viewport.name}`);
+    }
+    console.log(
+      `Android Chrome offline route matrix passed (${SCENARIOS.length} scenarios).`,
+    );
   }
+  await runSubpageFocusWorkflow(deviceBrowser);
   console.log(
-    `Android Chrome offline route matrix passed (${SCENARIOS.length} scenarios).`,
+    "Android Chrome keyboard-only subpage navigation and focus checks passed.",
   );
 } finally {
   if (activePage !== undefined && !activePage.isClosed()) {
