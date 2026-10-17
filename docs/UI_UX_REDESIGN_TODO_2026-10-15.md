@@ -810,3 +810,12 @@ visible-controls table (Packages, Snapshots, Import and export).
   On 2026-10-17, `lsusb` showed no ESP32-S3 device and `adb devices -l` showed
   only `emulator-5554`; keep those items and the final exit gate open until the
   board is available.
+
+## Product-owner deferral — ESP32-S3 qualifications (2026-10-17)
+
+- The product owner asked to skip ESP32-S3-dependent tasks for now.
+- UXR-080 device-served offline testing and UXR-081 constrained-device
+  performance remain unchecked. This is a temporary deferral; no hardware result
+  or permanent waiver is claimed.
+- The final exit gate remains open until these checks resume and evidence is
+  recorded.
