@@ -510,8 +510,13 @@ visible-controls table (Packages, Snapshots, Import and export).
 - [ ] App is visually coherent with Material 3 Expressive and feels polished.
       (Representative screenshots await product-owner acceptance.)
 - [x] No primary action or essential state is hidden below the fold.
-- [ ] Offline operation, privacy, firmware asset budgets, and existing product
-      contracts remain intact.
+- [x] Offline operation, privacy, firmware asset budgets, and existing product
+      contracts remain intact. (Verified 2026-10-16 by
+      `./scripts/check-all.sh`: local-only production assets, privacy and
+      credential-logging policies, v2 contract checks, firmware/webfs release
+      budgets, and host/webapp suites passed. Android Chrome also rendered all
+      46 route scenarios with Wi-Fi and mobile data disabled. The ESP32-served
+      offline path remains separately open in UXR-080.)
 - [ ] Product owner has reviewed the completed experience.
 
 ## 2026-10-16 implementation and verification record
