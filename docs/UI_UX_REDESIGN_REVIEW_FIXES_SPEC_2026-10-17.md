@@ -163,12 +163,14 @@ must not dismiss accidentally through background interaction.
 
 **Acceptance cases:** Automated DOM/accessibility-tree checks establish modal
 semantics and focus behavior for confirmation, unsaved-work, and editor dialogs.
-A human spoken screen-reader pass verifies announcements and background
-isolation with the available target assistive technology. If the manual pass
-finds a defect, fix it and repeat that pass before closing this item.
+A human spoken screen-reader pass would verify announcements and background
+isolation with the target assistive technology. The product owner waived that
+pass for this review on 2026-10-17. The automated modal checks remain required;
+the waiver does not establish spoken behavior or assistive-technology support.
 
-This contributes to the still-open UXR-062 and UXR-071 manual qualification
-items. No screen-reader pass is claimed by this document.
+The spoken screen-reader pass is waived for this review and is not claimed as
+completed. UXR-071 remains open for the full manual keyboard qualification and
+any future assistive-technology qualification the product owner requests.
 
 **Caller inventory audited for this fix:** `ConfirmDialog` covers macro,
 package, and snapshot destructive confirmations and the Settings restart prompt;
@@ -191,8 +193,10 @@ Record the exact code SHA, commands, results, and any manual evidence in the
 companion TODO. Existing UI screenshots should be compared for unintended
 visual changes; update baselines only for intentional changes.
 
-The original redesign TODO's open items remain open: spoken screen-reader and
-full keyboard qualification, device-served offline behavior, and constrained
-ESP32-S3/mobile performance. Safari qualification remains deferred at the
-product owner's request. Neither this spec nor a passing browser fixture may
-be used to mark those physical or manual checks complete.
+The original redesign TODO's open items remain open: full keyboard
+qualification, device-served offline behavior, and constrained ESP32-S3/mobile
+performance. The product owner waived the spoken screen-reader pass for this
+review; this is not evidence of assistive-technology support. Safari
+qualification remains deferred at the product owner's request. Neither this
+spec nor a passing browser fixture may be used to mark the remaining physical
+or manual checks complete.

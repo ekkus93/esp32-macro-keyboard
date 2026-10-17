@@ -81,10 +81,9 @@
       protection against accidental dismissal.
 - [x] Add automated DOM/accessibility-tree and keyboard regressions for a
       confirmation dialog, an unsaved-work prompt, and the editor dialog.
-- [ ] Perform a human spoken screen-reader pass for announcements and
-      background isolation when assistive technology is available; record
-      device/browser/screen reader, steps, outcome, and fixes. Keep this item
-      open until that pass succeeds.
+- [x] The product owner waived the human spoken screen-reader pass for this
+      review on 2026-10-17. It was not performed; no spoken announcement or
+      assistive-technology support qualification is claimed.
 
 ## 6. Final regression and reconciliation
 
@@ -99,9 +98,10 @@
 - [x] Keep physical-device, device-served offline, constrained-performance,
       full manual keyboard/screen-reader, and deferred Safari checks open until
       their own qualification evidence exists.
-- [ ] Close this TODO only when UXRF-001 through UXRF-005 meet every acceptance
-      case, the full regression gate completes without failure, and all required
-      manual evidence is recorded. Document any residual limitation explicitly.
+- [ ] Close this TODO only when UXRF-001 through UXRF-005 meet every remaining
+      acceptance case, the full regression gate completes without failure, and
+      required manual evidence is recorded. The owner-waived spoken
+      screen-reader pass is excluded; document any residual limitation.
 
 ## 7. Implementation and verification evidence
 
@@ -123,6 +123,8 @@
 - `bash ./scripts/check-docs.sh` passed with zero Markdown issues; existing
   yamllint warnings remain. `git diff --check` passed before this evidence
   update and will be rerun before the documentation follow-up commit.
-- The spoken screen-reader pass remains open. Safari remains deferred by the
-  product owner; physical ESP32-S3, device-served offline, and constrained
-  performance qualification remain open until hardware is available.
+- The spoken screen-reader pass was waived by the product owner on 2026-10-17;
+  it was not performed and no support qualification is claimed. Safari remains
+  deferred by the product owner; physical ESP32-S3, device-served offline, and
+  constrained performance qualification remain open until hardware is
+  available.

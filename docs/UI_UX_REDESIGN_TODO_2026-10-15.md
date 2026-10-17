@@ -738,10 +738,12 @@ visible-controls table (Packages, Snapshots, Import and export).
   but the latest Chrome workflow attempts ended with Playwright `Target crashed`
   before browser qualification completed. See the follow-up TODO for exact run
   details; do not treat this as a completed full regression gate.
-- The shared-dialog spoken screen-reader review and complete manual keyboard
-  review remain open under UXR-071. Safari stays deferred at the product owner's
-  request. ESP32-served offline behavior and constrained-device performance
-  stay open pending access to the ESP32-S3.
+- The product owner waived the shared-dialog spoken screen-reader review for
+  this code-review follow-up on 2026-10-17. It was not performed, and no spoken
+  behavior or assistive-technology support qualification is claimed. The full
+  manual keyboard review remains open under UXR-071. Safari stays deferred at
+  the product owner's request. ESP32-served offline behavior and
+  constrained-device performance stay open pending access to the ESP32-S3.
 - The code changes are committed as `f547d69` on `master`. This reconciliation
   records implementation and test evidence only and does not close UXR-062,
   UXR-071, UXR-080/081, or UXR-082.
