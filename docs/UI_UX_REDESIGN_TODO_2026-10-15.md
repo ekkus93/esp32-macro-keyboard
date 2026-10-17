@@ -675,12 +675,12 @@ visible-controls table (Packages, Snapshots, Import and export).
   `emulator-5554`. The build, emulator, and browser checks do not close the
   device-served offline, constrained-device performance, or spoken
   screen-reader gates.
-- Remaining assistance: product-owner acceptance of the current palette,
-  typography, and representative screens; a human TalkBack/VoiceOver spoken
-  announcement review and complete keyboard-only route review; Apple Safari;
-  and an ESP32 target for device-served offline/recovery and constrained-serving
-  performance checks. Keep UXR-062, UXR-071, the device-specific UXR-080/081
-  items, and final acceptance open until that evidence is available.
+- Remaining assistance: a human TalkBack/VoiceOver spoken announcement review
+  and complete keyboard-only route review; and an ESP32 target for device-served
+  offline/recovery and constrained-serving performance checks. Apple Safari
+  qualification is deferred at the product owner's request. Keep UXR-062,
+  UXR-071, and the device-specific UXR-080/081 items open until evidence is
+  available.
 
 ## 2026-10-16 non-manual verification completion
 
@@ -696,11 +696,11 @@ visible-controls table (Packages, Snapshots, Import and export).
   route scenarios with Wi-Fi and mobile data disabled. Runners:
   `scripts/check-firefox-zoom-docker.sh` and
   `scripts/check-android-offline-visuals.sh`.
-- The remaining unchecked work is human review or needs an ESP32/Apple device:
-  TalkBack/VoiceOver announcements, full keyboard-only review, product-owner
-  design acceptance, Apple Safari, ESP32-served offline behavior, and
-  constrained-device performance. The firmware build does not close those
-  hardware checks.
+- The remaining unchecked work is human review or needs an ESP32: TalkBack and
+  VoiceOver announcements, full keyboard-only review, ESP32-served offline
+  behavior, and constrained-device performance. Apple Safari qualification is
+  deferred at the product owner's request. The firmware build does not close
+  those hardware checks.
 
 ## 2026-10-17 product-owner design acceptance
 
@@ -711,3 +711,12 @@ visible-controls table (Packages, Snapshots, Import and export).
   `docs/ui-redesign/phase8-dark-review/macros--390x844.png`.
 - Accessibility qualification, Apple Safari, ESP32-served offline behavior,
   and constrained-device performance remain open pending human/device evidence.
+
+## 2026-10-17 qualification scheduling
+
+- The product owner asked to defer Apple Safari qualification because Safari
+  access is unavailable. Keep the compatibility item open and skip it until
+  access becomes available; do not infer Safari support from Firefox or WebKit.
+- ESP32-S3 access will be provided later. Device-served offline/recovery and
+  constrained-device performance checks remain open until the board is
+  available.
