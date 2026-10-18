@@ -1,10 +1,11 @@
 # Development handoff — UI redesign ESP32-S3 qualification, 2026-10-17
 
 **Repository:** `ekkus93/esp32-macro-keyboard`  
-**Handoff commit:** added to `master` on 2026-10-17  
-**Current UI redesign implementation:** branch `codex/ui-ux-redesign-2026-10-16`, tip
-`b8366454fd41487d7efe5c2099c32cde1b19dce0` (pushed to `origin`; not merged to
-`master`)  
+**Handoff update:** implementation merged to `master` in `21e564e` on
+2026-10-17
+**Current UI redesign implementation:** `master` at merge commit `21e564e`
+(pushed to `origin`). The source branch
+`codex/ui-ux-redesign-2026-10-16` remains on GitHub as a backup/reference.
 **Purpose:** resume the remaining physical ESP32-S3 qualification for the UI
 redesign on a computer with a board attached. This is a status snapshot, not a
 specification. Read `CLAUDE.md` first. Normative requirements remain in
@@ -12,12 +13,12 @@ specification. Read `CLAUDE.md` first. Normative requirements remain in
 
 ## Current status
 
-The UI redesign implementation and its automated validation are complete on the
-review branch. The product owner approved representative phone Macros, macro
+The UI redesign implementation and its automated validation are merged to
+`master`. The product owner approved representative phone Macros, macro
 editor, and dark-mode screenshots on 2026-10-17. The final full repository gate
 passed at implementation commit `50ff2398109b51fb3d26a1f539f8409e997b7632`;
-the later commits on the branch record keyboard/accessibility evidence and the
-ESP32-S3 deferral. Android Chrome offline fixture checks passed all 46 route
+the merge commit `21e564e` also contains the later keyboard/accessibility
+evidence and ESP32-S3 deferral records. Android Chrome offline fixture checks passed all 46 route
 scenarios, but they do not exercise the device's own web server or constrained
 ESP32 serving.
 
@@ -44,20 +45,19 @@ recorded in the TODO. No physical ESP32-S3 was attached during the prior run.
 
 ## Start on the other computer
 
-Fetch the pushed branch and work from its exact tip; the hardware evidence must
-match the implementation being qualified:
+Fetch `master` and work from its current tip; the hardware evidence must match
+the implementation being qualified:
 
 ```bash
 git fetch origin
-git switch --track origin/codex/ui-ux-redesign-2026-10-16
-# If the local branch already exists instead: git switch codex/ui-ux-redesign-2026-10-16
+git switch master
+git pull --ff-only origin master
 git rev-parse HEAD
 ```
 
-Confirm the resulting SHA is `b8366454fd41487d7efe5c2099c32cde1b19dce0` or a
-later commit on that branch. The feature branch has not been merged to `master`;
-this handoff file is committed separately on `master` so the next machine can
-find the instructions without losing the implementation branch context.
+Confirm the resulting SHA is `21e564e` or a later commit on `master`. The
+implementation branch was merged; continue hardware qualification and commit
+its evidence directly to `master` under the repository's normal workflow.
 
 Use the repository-pinned versions and check the board/ports before flashing:
 
@@ -115,7 +115,7 @@ with the hardware evidence.
    only when its stated result is verified. Close the final exit gate only
    after both are complete and evidence is recorded.
 6. Run `./scripts/check-docs.sh`, inspect `git diff --check`, then commit and
-   push the evidence on the UI redesign branch. Re-run any checks required by
+   push the evidence to `master`. Re-run any checks required by
    code changes; a device-only evidence update does not substitute for them.
 
 Relevant commands for focused follow-up:
@@ -132,13 +132,11 @@ close UXR-080 or UXR-081.
 
 ## Branch and merge status
 
-The implementation and its screenshot review artifacts are on
-`codex/ui-ux-redesign-2026-10-16`. The branch is pushed and contains the code,
-baselines, and TODO evidence. `master` has the prior UI review follow-up work;
-the redesign branch has not been merged. After hardware evidence is collected
-and the owner is satisfied with the qualification, review the branch diff and
-merge it to `master` using a normal forward merge. Do not force-push or rewrite
-history.
+The implementation, screenshot review artifacts, baselines, and TODO evidence
+are on `master` after merge commit `21e564e`. The source branch
+`codex/ui-ux-redesign-2026-10-16` remains on GitHub but is no longer needed to
+continue this work. Record and push the eventual hardware evidence on `master`.
+Do not force-push or rewrite history.
 
 ## Broader project context
 
