@@ -213,6 +213,18 @@ function renderCreateEditor(): ReturnType<typeof render> {
 }
 
 describe("MacroEditorPage — key picker (UXR-042)", () => {
+  test("moves focus to the picker title when opened", async () => {
+    const { unmount } = await renderCreateEditor();
+    await openPicker();
+    const title = requiredElement(
+      "#macro-key-picker-title",
+      HTMLHeadingElement,
+    );
+    expect(title.tabIndex).toBe(-1);
+    expect(document.activeElement).toBe(title);
+    await unmount();
+  });
+
   test("opens as a focused view and keeps the editor's draft while it is open", async () => {
     const { container, unmount } = await renderCreateEditor();
     await setInputValue(nameInput(), "Draft name");

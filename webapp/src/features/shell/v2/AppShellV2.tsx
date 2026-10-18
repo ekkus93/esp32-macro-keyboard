@@ -67,6 +67,9 @@ function navigationActive(route: ScreenV2, target: ScreenV2): boolean {
   if (target === "settings") {
     return route === "settings" || route === "diagnostics";
   }
+  if (target === "macros") {
+    return route === "macros" || route === "macro-editor";
+  }
   return route === target;
 }
 

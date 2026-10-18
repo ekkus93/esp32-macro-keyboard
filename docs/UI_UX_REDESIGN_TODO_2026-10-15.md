@@ -389,12 +389,11 @@ visible-controls table (Packages, Snapshots, Import and export).
       progress, and recovery surfaces.
 - [x] State consequence and object in destructive confirmations.
 - [x] Ensure error copy says what happened and the next useful action.
-- [ ] Verify keyboard dismissal, focus trap/restore, screen reader announcement,
-      and no accidental dismissal of critical unsaved-work prompts.
-      (Automated unit/browser tests cover Escape dismissal, focus trapping and
-      restoration, and unsaved-work cancellation; Android Chrome's accessibility
-      tree exposes names for the main macro controls. Actual spoken
-      screen-reader announcements still need a human TalkBack/VoiceOver pass.)
+- [x] Verify keyboard dismissal, focus trap/restore, and no accidental
+      dismissal of critical unsaved-work prompts. Automated component and
+      browser regressions cover Escape, trapping, restoration, and cancellation
+      safety. The product owner waived the spoken screen-reader announcement
+      qualification; this is not a claim of TalkBack or VoiceOver behavior.
 
 **Phase 6 exit gate**
 
@@ -415,12 +414,17 @@ visible-controls table (Packages, Snapshots, Import and export).
 ### UXR-071 — Accessibility qualification
 
 - [x] Run axe-core scans on representative pages and all key overlays.
-- [ ] Test keyboard-only operation, focus visibility/order, Escape behavior,
-      screen-reader labels/status announcements, and touch target size.
-      (Automated browser workflows and unit tests cover keyboard-operated menus,
-      focus traps/restoration, Escape, axe checks, and 44 px touch targets.
-      Manual screen-reader announcements and a full screen-by-screen keyboard
-      pass remain open.)
+- [x] Test keyboard-only operation, focus visibility/order, Escape behavior,
+      accessible control names/live-region semantics, and touch target size.
+      The browser workflow now tabs through all visible controls in all 20
+      screen states, checks forward DOM order, a visible focus ring, viewport
+      visibility, and parent navigation indication at phone and desktop sizes;
+      the Android Chrome emulator runs the same route audit. Existing unit and
+      browser tests cover dialogs, Escape, focus restoration, and unsaved-work
+      safety. Axe scans cover every screen at 320 and 1440 CSS px, and the
+      visible-control workflow checks 44 px touch targets at phone sizes. The
+      spoken screen-reader review was waived by the product owner; no spoken
+      TalkBack/VoiceOver result is claimed.
 - [x] Verify contrast for light/dark/system states if more than one theme exists.
 - [x] Test 200% zoom/text enlargement, reflow at 320 CSS px, reduced motion, and
       virtual keyboard interactions. Firefox 153 was run in the pinned
@@ -503,9 +507,9 @@ visible-controls table (Packages, Snapshots, Import and export).
 
 **Final exit gate**
 
-- [ ] Every dependency-satisfied task is complete and evidenced. (Open items
-      require product-owner review and physical/manual qualification listed
-      below.)
+- [ ] Every dependency-satisfied task is complete and evidenced. (Device-served
+      offline behavior and constrained-device performance still require the
+      ESP32-S3 qualification listed below.)
 - [x] All major workflows pass on phone and desktop, with tablet coverage.
 - [x] App is visually coherent with Material 3 Expressive and feels polished.
       (Product owner approved the representative phone macros, macro editor,
@@ -748,5 +752,70 @@ visible-controls table (Packages, Snapshots, Import and export).
   the product owner's request. ESP32-served offline behavior and
   constrained-device performance stay open pending access to the ESP32-S3.
 - The code changes are committed as `f547d69` on `master`. This reconciliation
-  records implementation and test evidence only and does not close UXR-062,
-  UXR-071, UXR-080/081, or UXR-082.
+  records implementation and test evidence only; at that point it did not
+  close UXR-062, UXR-071, UXR-080/081, or UXR-082. The later keyboard and focus
+  qualification follow-up below updates UXR-062/071 with additional evidence.
+
+## 2026-10-17 keyboard and focus qualification follow-up
+
+- Code revision: `50ff2398109b51fb3d26a1f539f8409e997b7632` on
+  `codex/ui-ux-redesign-2026-10-16`. During the all-screen keyboard audit,
+  Macro Editor had no active parent navigation item, and opening the key
+  picker left focus on its now-hidden trigger. The Macros navigation item now
+  remains active on the editor route, and opening the picker moves focus to
+  its heading; Done still restores focus to the source field.
+- `npm --prefix webapp run test -- --run tests/v2-macro-editor-page.test.tsx tests/v2-app-shell.test.tsx`
+  — passed, 2 files and 34 tests.
+- `cd webapp && node --input-type=module -e 'import { chromium } from
+  "playwright"; import { runSubpageFocusWorkflow } from
+  "./tests/browser/workflows/visibleControls.mjs"; const browser = await
+  chromium.launch({ headless: true }); try { await
+  runSubpageFocusWorkflow(browser); } finally { await browser.close(); }'` —
+  passed in Chrome at 390×844 and 1440×900. It exercises the primary navigation
+  with Tab/Enter, Escape restoration, and tab order for every visible main
+  control in all 20 listed screen states. It checks forward DOM order, a visible
+  focus indicator, non-inert/visible focus targets, and active navigation.
+- `ANDROID_KEYBOARD_ONLY=1 ./scripts/check-android-offline-visuals.sh` — passed
+  the same all-screen keyboard route/focus check in Android Chrome. The full
+  `./scripts/check-android-offline-visuals.sh` also passed all 46 offline
+  visual scenarios plus the keyboard route check. Both use an emulator and a
+  local fixture; neither qualifies an ESP32-served app or a physical phone.
+- `./scripts/check-webapp.sh` — passed, exit 0 at this revision: 728 tests
+  across 67 files; coverage 89.22% statements, 85.08% branches, 91.42%
+  functions, and 89.27% lines; browser and H4/H5 workflows passed; all 97
+  visual captures matched. Full output:
+  `/tmp/uiux-original-keyboard-check-webapp-final.log`.
+- `. "$HOME/esp/esp-idf-v5.5.5/export.sh"; PATH="$(go env GOPATH)/bin:$PATH" ./scripts/check-all.sh`
+  — passed, exit 0 at this revision. Firmware and device-test-app builds,
+  clang-tidy, static policies, scripts/contracts/docs, release budgets, webfs
+  image and flash manifest generation passed; stack policy analyzed 688
+  first-party frames (largest 1536 bytes); all 63/63 host tests and all 728
+  webapp tests passed. Webapp coverage and 97 visual capture counts are above.
+  Full output: `/tmp/uiux-original-keyboard-check-all.log`. Build checks do not
+  qualify a physical ESP32-S3.
+- The active-navigation visual change was reviewed in the two screenshots
+  committed under `docs/ui-redesign/keyboard-focus-review-2026-10-17/`.
+  Desktop shows the Macros rail item selected on the editor route; phone is
+  unchanged because its navigation is replaced by Back. The seven affected
+  editor visual baselines were updated with
+  `node tests/browser/visual/run-visual-tests.mjs --update-baselines --grep macro-editor`.
+- UXR-062 and UXR-071 are checked based on the automated keyboard, focus,
+  accessible-name/live-region, prompt-safety, axe, and touch-target evidence.
+  The product owner waived the spoken screen-reader qualification; no
+  TalkBack/VoiceOver behavior is claimed. Earlier notes that a full manual
+  keyboard route pass remained open are superseded for functional keyboard
+  coverage by this all-screen automated pass; no separate human ergonomic
+  assessment is claimed. The remaining physical qualification is UXR-080
+  device-served offline operation and UXR-081 constrained-device performance.
+  On 2026-10-17, `lsusb` showed no ESP32-S3 device and `adb devices -l` showed
+  only `emulator-5554`; keep those items and the final exit gate open until the
+  board is available.
+
+## Product-owner deferral — ESP32-S3 qualifications (2026-10-17)
+
+- The product owner asked to skip ESP32-S3-dependent tasks for now.
+- UXR-080 device-served offline testing and UXR-081 constrained-device
+  performance remain unchecked. This is a temporary deferral; no hardware result
+  or permanent waiver is claimed.
+- The final exit gate remains open until these checks resume and evidence is
+  recorded.
